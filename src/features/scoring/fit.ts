@@ -151,18 +151,23 @@ export async function scoreFit(company: ScoreCompany, criteria: IcpCriteria, opt
     ),
   );
 
+  // REPS is only queried through its dental plugin (IPS whose name is dental), so a REPS source confirms a dental ICP.
+  const dentalIcp = criteria.osmTags.some((t) => /dentist/.test(t)) || criteria.ciiu.includes("8622");
+  const repsDental = (s: (typeof company.sources)[number]) => s.channel === "reps" && dentalIcp;
   const matchSrc = company.sources.find(
     (s) =>
       s.url &&
       (s.osmTags?.some((t) => criteria.osmTags.includes(t)) ||
         (s.ciiu && criteria.ciiu.includes(s.ciiu)) ||
-        s.placesTypes?.some((t) => criteria.placesTypes.includes(t))),
+        s.placesTypes?.some((t) => criteria.placesTypes.includes(t)) ||
+        repsDental(s)),
   );
   const matchLabel = matchSrc
     ? [
         ...(matchSrc.osmTags ?? []).filter((t) => criteria.osmTags.includes(t)),
         ...(matchSrc.ciiu && criteria.ciiu.includes(matchSrc.ciiu) ? [`CIIU ${matchSrc.ciiu}`] : []),
         ...(matchSrc.placesTypes ?? []).filter((t) => criteria.placesTypes.includes(t)),
+        ...(repsDental(matchSrc) ? ["IPS odontológica habilitada (REPS)"] : []),
       ].join(", ")
     : "";
   out.push(

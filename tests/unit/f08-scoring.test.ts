@@ -203,3 +203,26 @@ describe("scoring service + endpoint handler (PGlite)", () => {
     expect((await handleLeadScore(conn.db, leadId, { icpProfileId: bad.id }, { ai })).status).toBe(422);
   });
 });
+
+describe("REPS confirms the sector of a dental ICP", () => {
+  it("a REPS-only dental IPS with generic email and NIT reaches the profile", async () => {
+    const reps: ScoreCompany = {
+      name: "IPS Odontologica Prueba SAS",
+      city: "Bogotá",
+      website: null,
+      nit: "900999111",
+      isLegalEntity: true,
+      contacts: [{ type: "email", value: "citas@ips-prueba.example", isGeneric: true, evidenceUrl: "https://www.datos.gov.co/resource/c36g-9fc2" }],
+      sources: [{ channel: "reps", url: "https://www.datos.gov.co/resource/c36g-9fc2" }],
+      websiteText: null,
+    };
+    const r = await scoreFit(reps, { ...icp, signals: [] });
+    const sector = r.criteria.find((c) => c.criterio.startsWith("Sector coincide"));
+    expect(sector?.cumplido).toBe(true);
+    expect(sector?.evidencia).toContain("REPS");
+    expect(r.score).toBeGreaterThanOrEqual(60);
+    const restaurants = ICP_EXAMPLES.find((e) => e.criteria.osmTags.some((t) => t.includes("restaurant")))!.criteria;
+    const other = await scoreFit(reps, { ...restaurants, signals: [] });
+    expect(other.criteria.find((c) => c.criterio.startsWith("Sector coincide"))?.cumplido).toBe(false);
+  });
+});
