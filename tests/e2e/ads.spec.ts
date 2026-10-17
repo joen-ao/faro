@@ -8,7 +8,7 @@ test("ads settings page is gated, renders spend list and has no horizontal scrol
   await context.addCookies([{ name: "faro_key", value: KEY, domain: "localhost", path: "/" }]);
 
   const csv = "campaign,date,usd,impressions,clicks\nfaro-e2e,2026-10-01,12.5,1000,30\nfaro-e2e,2026-10-02,9,800,22\n=bad,2026-10-03,1,1,1\n";
-  const up = await page.request.post("/api/ads/spend/csv", { headers: { "content-type": "text/csv", "x-app-key": KEY }, data: csv });
+  const up = await page.request.post("/api/ads/spend/csv?demo=1", { headers: { "content-type": "text/csv", "x-app-key": KEY }, data: csv });
   expect(up.status()).toBe(200);
   expect((await up.json()).errors).toHaveLength(1);
 

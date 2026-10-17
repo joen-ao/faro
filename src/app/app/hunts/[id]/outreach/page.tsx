@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { desc, eq } from "drizzle-orm";
-import { getDb } from "@/db/client";
-import { migrate } from "@/db/migrate";
+import { ensureMigrated, getDb } from "@/db/client";
 import { companies, hunts, leads, messages } from "@/db/schema";
 import { checkSendWindow } from "@/features/compliance/windows";
 import { ensureOutreachDemo } from "@/features/outreach/demo";
@@ -52,7 +51,7 @@ export default async function OutreachPage({
   }
   let huntId = id;
   if (isDemo) {
-    demoHunt ??= migrate(conn).then(() => ensureOutreachDemo(db));
+    demoHunt ??= ensureMigrated(conn).then(() => ensureOutreachDemo(db));
     huntId = await demoHunt;
   } else if (!UUID.test(id)) {
     return <Notice title="Búsqueda no encontrada" body="El identificador no es válido." />;
