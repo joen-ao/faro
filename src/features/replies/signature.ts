@@ -14,7 +14,7 @@ function keyOf(secret: string): Buffer {
  * Fail-closed: no secret configured -> always rejected.
  */
 export function verifySvix(rawBody: string, headers: Headers, secret: string | undefined, nowMs = Date.now()): SvixResult {
-  if (!secret) return { ok: false, reason: "no_secret" };
+  if (!secret || keyOf(secret).length === 0) return { ok: false, reason: "no_secret" };
   const id = headers.get("svix-id");
   const ts = headers.get("svix-timestamp");
   const sigHeader = headers.get("svix-signature");

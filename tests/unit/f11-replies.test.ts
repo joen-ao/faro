@@ -77,6 +77,7 @@ describe("svix signature", () => {
     expect(verifySvix(body, new Headers(), SECRET, now)).toMatchObject({ ok: false, reason: "missing_headers" });
     expect(verifySvix(body, new Headers(good), undefined, now)).toMatchObject({ ok: false, reason: "no_secret" });
     expect(verifySvix(body, new Headers(good), "", now)).toMatchObject({ ok: false, reason: "no_secret" });
+    expect(verifySvix(body, new Headers(good), "whsec_", now)).toMatchObject({ ok: false, reason: "no_secret" });
   });
 });
 
@@ -128,9 +129,32 @@ describe("event processing", () => {
     expect(await evs(lead.id, "reply")).toHaveLength(1);
   });
 
-  it("unmatched reply is acknowledged without side effects", async () => {
+  it("unmatched plain reply is acknowledged without side effects", async () => {
     const out = await processEmailEvent(db, ev("email.received", { from: "nadie@zz.co", text: "hola" }), "svix-r3");
     expect(out).toMatchObject({ matched: false });
+    expect(await db.select().from(suppression).where(eq(suppression.value, "nadie@zz.co"))).toHaveLength(0);
+  });
+
+  it("unmatched unsubscribe still suppresses the sender", async () => {
+    const out = await processEmailEvent(db, ev("email.received", { from: "Alias <Baja@Alias.co>", text: "Darme de baja por favor" }), "svix-r4");
+    expect(out).toMatchObject({ handled: "unsubscribe", matched: false });
+    expect(await db.select().from(suppression).where(eq(suppression.value, "baja@alias.co"))).toHaveLength(1);
+  });
+
+  it("unsubscribe is audited as reply_text; long 'no me interesa' replies are not unsubscribes", async () => {
+    const { lead, msg, email } = await mkLead("contacted");
+    await processEmailEvent(db, ev("email.received", { email_id: msg.providerId, from: email, text: "unsubscribe" }), "svix-r5");
+    const [o] = await evs(lead.id, "opt_out");
+    expect(o!.payload).toMatchObject({ via: "reply_text" });
+    expect(isUnsubscribeText("no me interesa el plan basico " + "x".repeat(130) + " pero si el premium")).toBe(false);
+    expect(isUnsubscribeText("No me interesa")).toBe(true);
+    expect(isUnsubscribeText("darme de baja " + "x".repeat(200))).toBe(true);
+  });
+
+  it("concurrent deliveries of the same svix-id create one event", async () => {
+    const { lead, msg } = await mkLead("contacted");
+    await Promise.all([1, 2, 3].map(() => processEmailEvent(db, ev("email.clicked", { email_id: msg.providerId }), "svix-conc")));
+    expect(await evs(lead.id, "click")).toHaveLength(1);
   });
 
   it("unsubscribe text -> opt-out and suppression, no reply event", async () => {
@@ -198,6 +222,18 @@ describe("manual audited reply", () => {
     expect(await markManualReply(db, lead.id, { note: "ok nota", channel: "email", at: new Date(Date.now() + 86400_000).toISOString() })).toMatchObject({ ok: false, status: 400 });
     expect(await markManualReply(db, "00000000-0000-4000-8000-000000000000", { note: "ok nota", channel: "email" })).toMatchObject({ ok: false, status: 404 });
     expect(await markManualReply(db, lead.id, { note: "ok nota", channel: "whatsapp" })).toMatchObject({ ok: true, status: "qualified" });
+  });
+  it("rejects opted_out leads and leads without a sent message; mock-only contact marks the event mock", async () => {
+    const out = await mkLead("contacted");
+    await db.update(leads).set({ status: "opted_out" }).where(eq(leads.id, out.lead.id));
+    expect(await markManualReply(db, out.lead.id, { note: "ok nota", channel: "email" })).toMatchObject({ ok: false, status: 409 });
+    const none = await mkLead("fit");
+    await db.delete(messages).where(eq(messages.leadId, none.lead.id));
+    expect(await markManualReply(db, none.lead.id, { note: "ok nota", channel: "email" })).toMatchObject({ ok: false, status: 409 });
+    const mock = await mkLead("contacted");
+    await db.update(messages).set({ isMock: true }).where(eq(messages.leadId, mock.lead.id));
+    await markManualReply(db, mock.lead.id, { note: "ok nota", channel: "email" });
+    expect((await evs(mock.lead.id, "reply"))[0]!.isMock).toBe(true);
   });
   it("route is gated by app access in production", async () => {
     const env = process.env as Record<string, string | undefined>;

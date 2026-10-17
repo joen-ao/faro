@@ -7,11 +7,14 @@ import { suppress } from "@/features/compliance/suppression";
 
 const ADVANCE_FROM = ["found", "fit", "contacted"] as const;
 
-/** Unsubscribe intent in free text (accent-insensitive). */
-const UNSUB = /\b(darme de baja|darnos de baja|dame de baja|dar de baja|desuscrib\w*|unsubscribe|no me interesa|no nos interesa|no deseo recibir|no quiero recibir|quitar\w* de (la|su) lista|remove me|opt[- ]?out)\b/;
+/** Explicit unsubscribe intent (accent-insensitive). */
+const UNSUB = /\b(darme de baja|darnos de baja|dame de baja|dar de baja|desuscrib\w*|unsubscribe|no deseo recibir|no quiero recibir|quitar\w* de (la|su) lista|remove me|opt[- ]?out)\b/;
+/** "Not interested" only counts as unsubscribe when the message is short (a long reply may be commercial). */
+const NOT_INTERESTED = /\bno (me|nos) interesa\b/;
+export const NOT_INTERESTED_MAX_CHARS = 120;
 export function isUnsubscribeText(text: string): boolean {
-  const t = text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-  return UNSUB.test(t);
+  const t = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  return UNSUB.test(t) || (t.length <= NOT_INTERESTED_MAX_CHARS && NOT_INTERESTED.test(t));
 }
 
 async function hasSvixEvent(db: AppDb, svixId: string): Promise<boolean> {
@@ -45,7 +48,7 @@ export const manualReplySchema = z.object({
   at: z.string().datetime({ offset: true }).optional(),
 });
 
-export type ManualReplyResult = { ok: true; status: string; eventId: string } | { ok: false; status: 400 | 404; error: string };
+export type ManualReplyResult = { ok: true; status: string; eventId: string } | { ok: false; status: 400 | 404 | 409; error: string };
 
 export async function markManualReply(db: AppDb, leadId: string, input: unknown, now = new Date()): Promise<ManualReplyResult> {
   const parsed = manualReplySchema.safeParse(input);
@@ -55,7 +58,11 @@ export async function markManualReply(db: AppDb, leadId: string, input: unknown,
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leadId)) return { ok: false, status: 404, error: "lead_not_found" };
   const [lead] = await db.select().from(leads).where(eq(leads.id, leadId)).limit(1);
   if (!lead) return { ok: false, status: 404, error: "lead_not_found" };
-  const r = await recordReply(db, lead, { manual: true, note: parsed.data.note, actor: "app", channel: parsed.data.channel }, { at });
+  if (lead.status === "opted_out") return { ok: false, status: 409, error: "El lead se dio de baja: no se registran respuestas." };
+  const sent = (await db.select().from(messages).where(eq(messages.leadId, lead.id))).filter((m) => ["sent", "delivered", "simulated"].includes(m.status));
+  if (!sent.length) return { ok: false, status: 409, error: "El lead no tiene ningún mensaje enviado: contáctalo primero." };
+  const isMock = sent.every((m) => m.isMock || m.status === "simulated");
+  const r = await recordReply(db, lead, { manual: true, note: parsed.data.note, actor: "app", channel: parsed.data.channel }, { at, isMock });
   return { ok: true, status: r.status, eventId: r.eventId };
 }
 
@@ -121,6 +128,14 @@ async function leadById(db: AppDb, id: string | undefined) {
 
 /** Processes one verified provider event. `svixId` makes reply/click/delivered writes idempotent. */
 export async function processEmailEvent(db: AppDb, event: z.infer<typeof emailEventSchema>, svixId: string): Promise<WebhookOutcome> {
+  // Serialize deliveries of the same svix-id (advisory lock) so check-then-insert is atomic without a migration.
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${svixId}))`);
+    return processEmailEventLocked(tx as unknown as AppDb, event, svixId);
+  });
+}
+
+async function processEmailEventLocked(db: AppDb, event: z.infer<typeof emailEventSchema>, svixId: string): Promise<WebhookOutcome> {
   const type = event.type.toLowerCase();
   const data = event.data;
   const recipient = addr(data.to);
@@ -132,12 +147,13 @@ export async function processEmailEvent(db: AppDb, event: z.infer<typeof emailEv
     const from = addr(data.from);
     const msg = await messageByProvider(db, data);
     const lead = (await leadById(db, msg?.leadId)) ?? (await leadBySender(db, from));
-    if (!lead) return { handled: "reply", matched: false };
     if (isUnsubscribeText(`${str(data.subject, 500)}\n${str(data.text, 5000)}`)) {
-      await applyOptOut(db, createOptOutToken(lead.id));
+      // Suppress the sender even when no lead matches (alias / forward).
       if (from) await suppress(db, from, "baja por respuesta");
-      return { handled: "unsubscribe", matched: true, leadId: lead.id };
+      if (lead) await applyOptOut(db, createOptOutToken(lead.id), undefined, "reply_text");
+      return { handled: "unsubscribe", matched: !!lead, ...(lead ? { leadId: lead.id } : {}) };
     }
+    if (!lead) return { handled: "reply", matched: false };
     // Only ids are stored: no sender names, no body (SPEC §8).
     await recordReply(db, lead, { manual: false, via: "email_inbound", svix_id: svixId, messageId: msg?.id ?? null }, { isMock: msg?.isMock ?? false });
     return { handled: "reply", matched: true, leadId: lead.id };

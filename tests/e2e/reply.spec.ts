@@ -9,6 +9,11 @@ const NOW = "2026-10-19T15:00:00Z";
 test("mark reply dialog: note required, audited, lead marked responded", async ({ page }, info) => {
   const width = info.project.use.viewport?.width ?? 1440;
   await page.goto(`/app/hunts/demo/outreach?now=${NOW}`);
+  // Contact (simulate) one eligible lead first: replies need a sent message.
+  await page.getByRole("checkbox", { name: /Seleccionar/ }).and(page.locator(":enabled")).nth(info.project.name.includes("mobile") ? 1 : 0).check();
+  await page.getByTestId("send-selected").click();
+  await expect(page.getByTestId("feedback")).toBeVisible({ timeout: 20_000 });
+  await page.reload();
   await page.getByTestId("mark-reply").first().click();
   const dialog = page.getByTestId("reply-dialog");
   await expect(dialog).toBeVisible();
