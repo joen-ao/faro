@@ -89,7 +89,7 @@ interface RawElement {
 const first = (...v: Array<string | undefined>) => v.find((x) => x && x.trim())?.trim();
 
 /** Only these tags are kept in `raw` (allow-list): free text, `name:*`, `operator`, personal contacts stay out. */
-const RAW_TAG_ALLOW = new Set(["amenity", "healthcare", "shop", "cuisine", "website", "contact:website", "opening_hours", "brand", "name"]);
+const RAW_TAG_ALLOW = new Set(["amenity", "healthcare", "shop", "cuisine", "website", "contact:website", "opening_hours", "brand"]);
 const rawTagAllowed = (k: string) => RAW_TAG_ALLOW.has(k) || k.startsWith("addr:");
 
 export function parseOverpass(json: { elements?: RawElement[] }): OsmPlace[] {

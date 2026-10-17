@@ -57,6 +57,8 @@ export interface SourceCompany {
   sourceUrl: string;
   license: string;
   sourceChannel: "osm";
+  /** false when the name was masked (a person inside the name): never contactable. Default true. */
+  isLegalEntity?: boolean;
   /** Mock/fixture data; never counted as real. */
   isMock: boolean;
   raw: Record<string, unknown>;

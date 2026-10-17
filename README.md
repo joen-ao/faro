@@ -23,7 +23,7 @@ Dapta ayuda a las pymes a convertir leads, pero 3 de cada 5 leads que llegan a D
 | Comparar canales por CPL, % calificado y CPLC | F14 (matriz fuente × canal, intervalos Beta 90 %) | Hecho |
 | Pauta como canal de control | F16 Meta Ads (UTM, `meta_ads` como fuente, gasto manual o CSV) | Hecho |
 | WhatsApp (opcional) | F17 export CSV de secuencias para Dapta + webhook; detrás de `WHATSAPP_ENABLED` | Hecho, apagado por defecto |
-| Experiencia de demo | F18 landing + video; F19 búsqueda en vivo con mapa; F20 recomendación + bandit | F18 y F20 hechos; F19 en integración (ver abajo) |
+| Experiencia de demo | F18 landing + video; F19 búsqueda en vivo con mapa; F20 recomendación + bandit | F18, F19 y F20 hechos |
 
 ### Registro de respuestas (F11)
 
@@ -33,9 +33,9 @@ Dapta ayuda a las pymes a convertir leads, pero 3 de cada 5 leads que llegan a D
 - Un texto de baja ("darme de baja", "no me interesa"…) suprime al contacto y no cuenta como respuesta comercial.
 - Marcado manual auditado: `POST /api/leads/[id]/reply` (con clave de la app) exige una nota de 3 a 280 caracteres; el botón "Marcar respondió" está en `/app/hunts/[id]/outreach`. Sin nombres de personas en notas ni payloads.
 
-### En integración
+### Búsqueda en vivo (F19)
 
-- **F19, búsqueda en vivo con mapa:** pantalla `/app/hunts/[id]` con mapa MapLibre oscuro a pantalla completa, puntos que aparecen al llegar de cada fuente (gris encontrado, lima del perfil, blanco contactado, lima con pulso calificado), clusters, panel lateral con contadores por fuente y "N duplicados fusionados", y drawer de lead con su recibo. Hasta que llegue a `main`, no está en el árbol de este repo.
+- **F19, búsqueda en vivo con mapa:** `/app/new` convierte el texto libre en un perfil editable y `/app/hunts/[id]` muestra la búsqueda por lotes (menos de 60 s por request, reanudable): mapa MapLibre oscuro a pantalla completa, puntos que aparecen al llegar de cada fuente (gris encontrado, lima del perfil, blanco contactado, lima con pulso calificado), clusters, panel lateral (bottom sheet en 390 px) con contadores por fuente y "N duplicados fusionados", lista filtrable y drawer de lead con su recibo y criterios con evidencia. El avance llega por polling JSON cada 1,2 s (sin SSE, apto para Vercel). `/app/hunts/demo` siembra 2.000 puntos sintéticos marcados DEMO, fuera de los totales reales (requiere `FARO_ALLOW_DEMO=1` en producción). Solo se guardan empresas: los nombres de OSM pasan por un filtro por categoría (F19b) y los de persona natural se excluyen o se enmascaran ("Consultorio odontológico (por verificar)", nunca contactables). Ver `specs/F19-busqueda-en-vivo.md` y `specs/F19b-recall-nombres.md`.
 
 ## Capturas
 
@@ -50,9 +50,11 @@ Generadas por Playwright (`npm run e2e:smoke`) en `artifacts/screens/`, con dato
 | Recibo de lead (F13) | [`F13-receipt-1440.png`](artifacts/screens/F13-receipt-1440.png) | [`F13-receipt-390.png`](artifacts/screens/F13-receipt-390.png) |
 | Pauta / Meta Ads (F16) | [`F16-ads-1440.png`](artifacts/screens/F16-ads-1440.png) | [`F16-ads-390.png`](artifacts/screens/F16-ads-390.png) |
 | Recomendación + bandit (F20) | [`F20-bandit-1440.png`](artifacts/screens/F20-bandit-1440.png) | [`F20-bandit-390.png`](artifacts/screens/F20-bandit-390.png) |
+| Nueva búsqueda (F19) | [`F19-new-1440.png`](artifacts/screens/F19-new-1440.png) | [`F19-new-390.png`](artifacts/screens/F19-new-390.png) |
+| Búsqueda en vivo (F19) | [`F19-hunt-1440.png`](artifacts/screens/F19-hunt-1440.png) | [`F19-hunt-390.png`](artifacts/screens/F19-hunt-390.png) |
+| Drawer de lead (F19) | [`F19-drawer-1440.png`](artifacts/screens/F19-drawer-1440.png) | [`F19-drawer-390.png`](artifacts/screens/F19-drawer-390.png) |
 | Baja / opt-out (F09) | [`F09-baja-1440.png`](artifacts/screens/F09-baja-1440.png) | [`F09-baja-390.png`](artifacts/screens/F09-baja-390.png) |
 
-Las capturas de la búsqueda en vivo (F19) se añaden a `artifacts/screens/` cuando esa feature llega a `main`.
 
 ## Arquitectura
 

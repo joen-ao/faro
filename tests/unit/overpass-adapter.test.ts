@@ -229,7 +229,7 @@ describe("response validation and raw allow-list", () => {
         tags: { name: "Clinica", amenity: "dentist", "addr:street": "Calle 1", description: "Dr. Juan", note: "x", "name:en": "Y", "contact:person": "Z", phone: "3101234567", email: "juan.perez@gmail.com" },
       },
     ]);
-    expect(Object.keys((c.raw as { tags: object }).tags).sort()).toEqual(["addr:street", "amenity", "name"]);
+    expect(Object.keys((c.raw as { tags: object }).tags).sort()).toEqual(["addr:street", "amenity"]);
     expect(c.email).toBeUndefined();
     expect(toSourceCompanies([{ id: "node/2", name: "A", email: "info@a.co", tags: {} }])[0].email).toBe("info@a.co");
   });

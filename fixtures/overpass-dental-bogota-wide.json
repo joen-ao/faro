@@ -1,0 +1,3272 @@
+{
+ "_attribution": "© OpenStreetMap contributors, ODbL 1.0. Real Overpass sample (Bogotá, amenity=dentist), 2026-10-17. Only name/category/brand tags kept; OSM ids replaced by synthetic indexes and every natural-person name replaced by a synthetic one of the same shape.",
+ "_persons": [
+  "Carvajal",
+  "Claudia Ríos",
+  "Diana López Cortés",
+  "Dr. Rojas",
+  "Elena",
+  "Fabian",
+  "Gloria Ospina",
+  "Jorge Quintero",
+  "Liliana Cardona",
+  "Mario",
+  "Mauricio Pérez Navarro",
+  "Nelson Duarte",
+  "Paola Gómez",
+  "Ricardo Peña"
+ ],
+ "elements": [
+  {
+   "type": "node",
+   "id": 1,
+   "tags": {
+    "name": "Aso Dent Clínica Odontológicas",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 2,
+   "tags": {
+    "name": "Orallife",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 3,
+   "tags": {
+    "name": "Consultorio odontologico detiyac",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 4,
+   "tags": {
+    "name": "Diseña sonrrisas",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 5,
+   "tags": {
+    "name": "Consultorio odontológico",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 6,
+   "tags": {
+    "name": "Consultorio Odontologico",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 7,
+   "tags": {
+    "name": "Dental VIP",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 8,
+   "tags": {
+    "name": "Muelas y Muelitas",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 9,
+   "tags": {
+    "name": "Odontología Barros Lemus",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 10,
+   "tags": {
+    "name": "Odonto Servimos",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 11,
+   "tags": {
+    "name": "Clínica Dental",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 12,
+   "tags": {
+    "name": "Clinica Odontologica La Paz",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 13,
+   "tags": {
+    "name": "Fácil Reír",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 14,
+   "tags": {
+    "name": "Dentiestetic",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 15,
+   "tags": {
+    "name": "Coodontólogos",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 16,
+   "tags": {
+    "name": "odontosanar",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 17,
+   "tags": {
+    "name": "Consultorio Odontologico",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 18,
+   "tags": {
+    "name": "Clínicas Odontológicas MAGUER",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 19,
+   "tags": {
+    "name": "Dental Médico",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 20,
+   "tags": {
+    "name": "American Dental",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 21,
+   "tags": {
+    "name": "Centro Odontologico",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 22,
+   "tags": {
+    "name": "Médico Dental Bogota 42",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 23,
+   "tags": {
+    "name": "odontomarin",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 24,
+   "tags": {
+    "name": "Dentales Estudio",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 25,
+   "tags": {
+    "name": "Casa dental Hugo Prada LTDA.",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 26,
+   "tags": {
+    "name": "CityDent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 27,
+   "tags": {
+    "name": "City Dent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 28,
+   "tags": {
+    "name": "Deposito dental Gammadent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 29,
+   "tags": {
+    "name": "Total Implantes",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 30,
+   "tags": {
+    "name": "lilident",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 31,
+   "tags": {
+    "name": "Dental Company",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 32,
+   "tags": {
+    "name": "VIP Dental Solutions",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 33,
+   "tags": {
+    "name": "Adevida",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 34,
+   "tags": {
+    "name": "Dentix",
+    "amenity": "dentist",
+    "healthcare": "dentist",
+    "brand": "Dentix"
+   }
+  },
+  {
+   "type": "node",
+   "id": 35,
+   "tags": {
+    "name": "Centro de Rehabilitación Oral Odontoven",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 36,
+   "tags": {
+    "name": "Oral Advance AD",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 37,
+   "tags": {
+    "name": "Acadent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 38,
+   "tags": {
+    "name": "Odontologia Nelson Duarte",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 39,
+   "tags": {
+    "name": "Liliana Cardona",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 40,
+   "tags": {
+    "name": "Odontologia Estetica",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 41,
+   "tags": {
+    "name": "Oraclass",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 42,
+   "tags": {
+    "name": "Orthosonrisa",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 43,
+   "tags": {
+    "name": "Mili Dent Pluss",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 44,
+   "tags": {
+    "name": "Red Oral",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 45,
+   "tags": {
+    "name": "Alma Dental",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 46,
+   "tags": {
+    "name": "Arte Dental",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 47,
+   "tags": {
+    "name": "Odonto Life",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 48,
+   "tags": {
+    "name": "Paola Gómez",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 49,
+   "tags": {
+    "name": "Clínica Odontologica",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 50,
+   "tags": {
+    "name": "Construdent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 51,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 52,
+   "tags": {
+    "name": "Odontologia Especializada",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 53,
+   "tags": {
+    "name": "Creando Sonrisas",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 54,
+   "tags": {
+    "name": "San Luis",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 55,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 56,
+   "tags": {
+    "name": "Ortodoncia Vital",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 57,
+   "tags": {
+    "name": "Dentopluss",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 58,
+   "tags": {
+    "name": "Odontologia Especializada",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 59,
+   "tags": {
+    "name": "Consultorio Odontologico",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 60,
+   "tags": {
+    "name": "Ortodoncia & Odontología",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 61,
+   "tags": {
+    "name": "Dentix",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 62,
+   "tags": {
+    "name": "Consultorio Odontologico",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 63,
+   "tags": {
+    "name": "elite",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 64,
+   "tags": {
+    "name": "Orthosonrisa",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 65,
+   "tags": {
+    "name": "Nelson Duarte",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 66,
+   "tags": {
+    "name": "Dentfamily",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 67,
+   "tags": {
+    "name": "Prosalud",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 68,
+   "tags": {
+    "name": "Odontolay",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 69,
+   "tags": {
+    "name": "Sanria",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 70,
+   "tags": {
+    "name": "Odonto Medical",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 71,
+   "tags": {
+    "name": "Dental",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 72,
+   "tags": {
+    "name": "IECO Odontología Especializada",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 73,
+   "tags": {
+    "name": "Somriu Dent Clínica Odontológica",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 74,
+   "tags": {
+    "name": "Consultorio Odontologico",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 75,
+   "tags": {
+    "name": "Consultorio Odontológico",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 76,
+   "tags": {
+    "name": "Laboratorio y Depósito Dental",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 77,
+   "tags": {
+    "name": "Mauricio Pérez Navarro",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 78,
+   "tags": {
+    "name": "Odonto Family",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 79,
+   "tags": {
+    "name": "Diana López Cortés",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 80,
+   "tags": {
+    "name": "Vital Dent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 81,
+   "tags": {
+    "name": "Denti Jami",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 82,
+   "tags": {
+    "name": "Sonrisa Vital",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 83,
+   "tags": {
+    "name": "Alta Estetica & Ortodoncia",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 84,
+   "tags": {
+    "name": "Deposito Dental la 68",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 85,
+   "tags": {
+    "name": "Algorhem Hermadents",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 86,
+   "tags": {
+    "name": "Maxdent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 87,
+   "tags": {
+    "name": "Odontoprocesos",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 88,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 89,
+   "tags": {
+    "name": "Clínica Odontológica",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 90,
+   "tags": {
+    "name": "Odontología",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 91,
+   "tags": {
+    "name": "Vitaldent PLUS",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 92,
+   "tags": {
+    "name": "Dental Clinic Suplidess",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 93,
+   "tags": {
+    "name": "Odonto Mac",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 94,
+   "tags": {
+    "name": "Medi Sonrisa",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 95,
+   "tags": {
+    "name": "Denti Salud",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 96,
+   "tags": {
+    "name": "Protedent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 97,
+   "tags": {
+    "name": "Lboratorio dental",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 98,
+   "tags": {
+    "name": "Oral life",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 99,
+   "tags": {
+    "name": "Laboratorio Dental MM",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 100,
+   "tags": {
+    "name": "Dentix",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 101,
+   "tags": {
+    "name": "Esthetic Dent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 102,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 103,
+   "tags": {
+    "name": "Perfect Smile",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 104,
+   "tags": {
+    "name": "Bell Salud",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 105,
+   "tags": {
+    "name": "San Fernando",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 106,
+   "tags": {
+    "name": "Kids Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 107,
+   "tags": {
+    "name": "Sonrisan Art",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 108,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 109,
+   "tags": {
+    "name": "Denti Salud",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 110,
+   "tags": {
+    "name": "Odontología Laboratorio Clinico San Luis",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 111,
+   "tags": {
+    "name": "Odontoestilo",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 112,
+   "tags": {
+    "name": "Se Dental Plus",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 113,
+   "tags": {
+    "name": "Odonto Sanitas",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 114,
+   "tags": {
+    "name": "Consultorio Odontológico",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 115,
+   "tags": {
+    "name": "Orthosonrisa",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 116,
+   "tags": {
+    "name": "Molarium",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 117,
+   "tags": {
+    "name": "Clínica odontológica Send Plus",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 118,
+   "tags": {
+    "name": "Ciudad Dental",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 119,
+   "tags": {
+    "name": "Odontología Estética",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 120,
+   "tags": {
+    "name": "Odonto Servi",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 121,
+   "tags": {
+    "name": "Dental LA 75 Dor",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 122,
+   "tags": {
+    "name": "Dental Natural",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 123,
+   "tags": {
+    "name": "Interdent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 124,
+   "tags": {
+    "name": "Sonría Normandía",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 125,
+   "tags": {
+    "name": "Oral Gin",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 126,
+   "tags": {
+    "name": "Odontología Ortodoncia",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 127,
+   "tags": {
+    "name": "Quality Dent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 128,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 129,
+   "tags": {
+    "name": "Clínica Odontológica",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 130,
+   "tags": {
+    "name": "Prótesis Dentales",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 131,
+   "tags": {
+    "name": "Mor Dent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 132,
+   "tags": {
+    "name": "Consultorio Odontologico",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 133,
+   "tags": {
+    "name": "Denty Art",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 134,
+   "tags": {
+    "name": "Prado Veraniego",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 135,
+   "tags": {
+    "name": "Odontek",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 136,
+   "tags": {
+    "name": "Corvesalud Coodontólogos",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 137,
+   "tags": {
+    "name": "Odontología San José",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 138,
+   "tags": {
+    "name": "Dento Clinic",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 139,
+   "tags": {
+    "name": "Policlinico San Cristobal",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 140,
+   "tags": {
+    "name": "BOCCA",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 141,
+   "tags": {
+    "name": "Mario",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 142,
+   "tags": {
+    "name": "Odonto Family",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 143,
+   "tags": {
+    "name": "Odonto Family",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 144,
+   "tags": {
+    "name": "Oral Stetic",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 145,
+   "tags": {
+    "name": "Dentyclassic",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 146,
+   "tags": {
+    "name": "Clínica Odontológica",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 147,
+   "tags": {
+    "name": "Ortho Day",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 148,
+   "tags": {
+    "name": "Estética Oral",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 149,
+   "tags": {
+    "name": "Orthoclinic",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 150,
+   "tags": {
+    "name": "Ferdent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 151,
+   "tags": {
+    "name": "Smile Center",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 152,
+   "tags": {
+    "name": "Consultorio Odontológico",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 153,
+   "tags": {
+    "name": "Obandent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 154,
+   "tags": {
+    "name": "Oral Medic",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 155,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 156,
+   "tags": {
+    "name": "Denti Vital",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 157,
+   "tags": {
+    "name": "Odontologia Tu Boca Sana",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 158,
+   "tags": {
+    "name": "Rueda Dental",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 159,
+   "tags": {
+    "name": "Total Sonrisas",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 160,
+   "tags": {
+    "name": "Perfecta",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 161,
+   "tags": {
+    "name": "Sublime",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 162,
+   "tags": {
+    "name": "Oral Advance",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 163,
+   "tags": {
+    "name": "Estetica Oral",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 164,
+   "tags": {
+    "name": "Edudent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 165,
+   "tags": {
+    "name": "Bethel",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 166,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 167,
+   "tags": {
+    "name": "Arte Dent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 168,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 169,
+   "tags": {
+    "name": "Saluda Mundo Oral",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 170,
+   "tags": {
+    "name": "Odonto Family",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 171,
+   "tags": {
+    "name": "Oral V",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 172,
+   "tags": {
+    "name": "Code",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 173,
+   "tags": {
+    "name": "Consultorio Odontologico",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 174,
+   "tags": {
+    "name": "Oral Dent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 175,
+   "tags": {
+    "name": "Odontología CampoDent's",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 176,
+   "tags": {
+    "name": "Circus Dental",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 177,
+   "tags": {
+    "name": "Gran Salud",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 178,
+   "tags": {
+    "name": "Centro Odontológico Sorrían",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 179,
+   "tags": {
+    "name": "Odonto Smart",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 180,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 181,
+   "tags": {
+    "name": "Consultorio Odontologico",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 182,
+   "tags": {
+    "name": "Oral Center",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 183,
+   "tags": {
+    "name": "Dr. Rojas",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 184,
+   "tags": {
+    "name": "Dental Care",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 185,
+   "tags": {
+    "name": "Odontologia Integral",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 186,
+   "tags": {
+    "name": "Odontosuba",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 187,
+   "tags": {
+    "name": "Preventh",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 188,
+   "tags": {
+    "name": "Oral Estudio",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 189,
+   "tags": {
+    "name": "Odontología",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 190,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 191,
+   "tags": {
+    "name": "Maxident",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 192,
+   "tags": {
+    "name": "CityDent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 193,
+   "tags": {
+    "name": "Denti Salud",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 194,
+   "tags": {
+    "name": "Orbidental",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 195,
+   "tags": {
+    "name": "Dental Natural",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 196,
+   "tags": {
+    "name": "Dentosalud",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 197,
+   "tags": {
+    "name": "Odontologia Sonrie",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 198,
+   "tags": {
+    "name": "Odontologia Estetica",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 199,
+   "tags": {
+    "name": "S&A Clínicas",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 200,
+   "tags": {
+    "name": "Panoramax",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 201,
+   "tags": {
+    "name": "Vital Dent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 202,
+   "tags": {
+    "name": "Clínica Odontológica Varela",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 203,
+   "tags": {
+    "name": "Balaguehr",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 204,
+   "tags": {
+    "name": "Colegio Odontologico Colombian",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 205,
+   "tags": {
+    "name": "Cinica Odontologica",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 206,
+   "tags": {
+    "name": "Orthoevolution IPS",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 207,
+   "tags": {
+    "name": "Arte Dental",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 208,
+   "tags": {
+    "name": "Almacen Dental",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 209,
+   "tags": {
+    "name": "Dentyn Pluss 1",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 210,
+   "tags": {
+    "name": "Dentisonrisa",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 211,
+   "tags": {
+    "name": "Dental",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 212,
+   "tags": {
+    "name": "Midicina Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 213,
+   "tags": {
+    "name": "Dento Vital",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 214,
+   "tags": {
+    "name": "Deposito & Laboratorio Dental",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 215,
+   "tags": {
+    "name": "Sonreir",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 216,
+   "tags": {
+    "name": "Ortolasser",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 217,
+   "tags": {
+    "name": "ADJ Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 218,
+   "tags": {
+    "name": "Centro Odontologico",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 219,
+   "tags": {
+    "name": "Denticolor",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 220,
+   "tags": {
+    "name": "Qualident",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 221,
+   "tags": {
+    "name": "Denti Salud",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 222,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 223,
+   "tags": {
+    "name": "Odontología Integral",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 224,
+   "tags": {
+    "name": "San Pedro",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 225,
+   "tags": {
+    "name": "Ultradent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 226,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 227,
+   "tags": {
+    "name": "Orbi Dent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 228,
+   "tags": {
+    "name": "Implantes Dentes",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 229,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 230,
+   "tags": {
+    "name": "Centro Dental Bogota",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 231,
+   "tags": {
+    "name": "Famylia Ortodoncia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 232,
+   "tags": {
+    "name": "Oral Master",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 233,
+   "tags": {
+    "name": "City Dent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 234,
+   "tags": {
+    "name": "Dent Salud",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 235,
+   "tags": {
+    "name": "Dentix",
+    "amenity": "dentist",
+    "healthcare": "dentist",
+    "brand": "Dentix"
+   }
+  },
+  {
+   "type": "node",
+   "id": 236,
+   "tags": {
+    "name": "Laboratorio Dental Ceralden",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 237,
+   "tags": {
+    "name": "Odontologia Medicina",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 238,
+   "tags": {
+    "name": "MA Endodontics",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 239,
+   "tags": {
+    "name": "WhiteDent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 240,
+   "tags": {
+    "name": "Laboratorio Clínico Odontología",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 241,
+   "tags": {
+    "name": "Estética Dental Mora",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 242,
+   "tags": {
+    "name": "Odontologico",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 243,
+   "tags": {
+    "name": "Consultorio Odontologico",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 244,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 245,
+   "tags": {
+    "name": "Ondontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 246,
+   "tags": {
+    "name": "Prodenco",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 247,
+   "tags": {
+    "name": "Holar",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 248,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 249,
+   "tags": {
+    "name": "Odontologico San Ignacio",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 250,
+   "tags": {
+    "name": "Odonto Lay",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 251,
+   "tags": {
+    "name": "Dentista",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 252,
+   "tags": {
+    "name": "Centro odontologico salud y oral",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 253,
+   "tags": {
+    "name": "Odonto Amiga",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 254,
+   "tags": {
+    "name": "Oral-Pro",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 255,
+   "tags": {
+    "name": "Parra Salcedo Odontologia Estetica",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 256,
+   "tags": {
+    "name": "Ortodoncistas Asociados",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 257,
+   "tags": {
+    "name": "Dentiestetic",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 258,
+   "tags": {
+    "name": "Centro Medico",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 259,
+   "tags": {
+    "name": "Sonrisas & Brackets",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 260,
+   "tags": {
+    "name": "Consultorio Odontologico",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 261,
+   "tags": {
+    "name": "OrtoDent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 262,
+   "tags": {
+    "name": "Odontoliga",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 263,
+   "tags": {
+    "name": "Naturazal",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 264,
+   "tags": {
+    "name": "Studio Oral",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 265,
+   "tags": {
+    "name": "Odonto Smile",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 266,
+   "tags": {
+    "name": "Servident",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 267,
+   "tags": {
+    "name": "Odontología",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 268,
+   "tags": {
+    "name": "Suavident",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 269,
+   "tags": {
+    "name": "Sonria",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 270,
+   "tags": {
+    "name": "Cliínica Odontológica Integral",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 271,
+   "tags": {
+    "name": "Jacdent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 272,
+   "tags": {
+    "name": "Stetic Dent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 273,
+   "tags": {
+    "name": "Arte Dental",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 274,
+   "tags": {
+    "name": "Vida Oral",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 275,
+   "tags": {
+    "name": "City Dent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 276,
+   "tags": {
+    "name": "Sonrisalud",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 277,
+   "tags": {
+    "name": "San Gabriel",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 278,
+   "tags": {
+    "name": "Odontologia Montero",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 279,
+   "tags": {
+    "name": "Sonrident",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 280,
+   "tags": {
+    "name": "Dentix",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 281,
+   "tags": {
+    "name": "Consultoria Odontológico",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 282,
+   "tags": {
+    "name": "Oralmedix",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 283,
+   "tags": {
+    "name": "Odontologìa",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 284,
+   "tags": {
+    "name": "Odotologia & Ortodoncia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 285,
+   "tags": {
+    "name": "Oral White",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 286,
+   "tags": {
+    "name": "Artesanias Dental JB",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 287,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 288,
+   "tags": {
+    "name": "COISalud",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 289,
+   "tags": {
+    "name": "Odontoespecialistas",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 290,
+   "tags": {
+    "name": "sonría",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 291,
+   "tags": {
+    "name": "MagicDent",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 292,
+   "tags": {
+    "name": "Consultorios Odontológicos de la Soledad",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 293,
+   "tags": {
+    "name": "Unión médica del norte",
+    "amenity": "dentist",
+    "shop": "optician"
+   }
+  },
+  {
+   "type": "node",
+   "id": 294,
+   "tags": {
+    "name": "Odontología Integral y Estetica ADEB SMILE",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 295,
+   "tags": {
+    "name": "Centro Odontológico Oral MC",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 296,
+   "tags": {
+    "name": "Elena",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 297,
+   "tags": {
+    "name": "Crear sonrisas",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 298,
+   "tags": {
+    "name": "Dental Line",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 299,
+   "tags": {
+    "name": "APDENT",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 300,
+   "tags": {
+    "name": "Odonto Vital",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 301,
+   "tags": {
+    "name": "Clínica dental Sonría",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 302,
+   "tags": {
+    "name": "ORAL PLUS Odontología",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 303,
+   "tags": {
+    "name": "Oral Health 24 Hours",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 304,
+   "tags": {
+    "name": "Doctora Xiomara Pérez - Odontología Estética",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 305,
+   "tags": {
+    "name": "Malo Dental",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 306,
+   "tags": {
+    "name": "Sonría",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 307,
+   "tags": {
+    "name": "Clinica dental Colsanitas",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 308,
+   "tags": {
+    "name": "Dentisalud",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 309,
+   "tags": {
+    "name": "Odontología Integral DENTISMAI",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 310,
+   "tags": {
+    "name": "White Smile",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 311,
+   "tags": {
+    "name": "Claudia Ríos",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 312,
+   "tags": {
+    "name": "Oral",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 313,
+   "tags": {
+    "name": "Orthoimplant",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 314,
+   "tags": {
+    "name": "Innovare",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 315,
+   "tags": {
+    "name": "Odontología (210)",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 316,
+   "tags": {
+    "name": "Clínica Odontológica Universidad San Martín",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 317,
+   "tags": {
+    "name": "Smile Dent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 318,
+   "tags": {
+    "name": "Odontologia General",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 319,
+   "tags": {
+    "name": "Oranell",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 320,
+   "tags": {
+    "name": "Cencadent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 321,
+   "tags": {
+    "name": "Ortho Suavident",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 322,
+   "tags": {
+    "name": "L&L Ortodoncia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 323,
+   "tags": {
+    "name": "La Chucua",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 324,
+   "tags": {
+    "name": "Sonria",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 325,
+   "tags": {
+    "name": "Sonria",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 326,
+   "tags": {
+    "name": "Clínica odontológica Dra. Nora",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 327,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 328,
+   "tags": {
+    "name": "Clinica Odontologica Percoden",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 329,
+   "tags": {
+    "name": "Odonto imagen",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 330,
+   "tags": {
+    "name": "Odontolife",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 331,
+   "tags": {
+    "name": "Medical y dental alfa sas",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 332,
+   "tags": {
+    "name": "biodent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 333,
+   "tags": {
+    "name": "Odonto Amigo",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 334,
+   "tags": {
+    "name": "Ortodoncia Diseño de Sonrisa Implantes",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 335,
+   "tags": {
+    "name": "Jorge Quintero",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 336,
+   "tags": {
+    "name": "Dentsan LTDA.",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 337,
+   "tags": {
+    "name": "Dentix",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 338,
+   "tags": {
+    "name": "Odontomita",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 339,
+   "tags": {
+    "name": "Fabian",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 340,
+   "tags": {
+    "name": "Centro Odontológico Barrancas",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 341,
+   "tags": {
+    "name": "Intela Dent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 342,
+   "tags": {
+    "name": "Odontomédica",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 343,
+   "tags": {
+    "name": "OrtoDent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 344,
+   "tags": {
+    "name": "Odontologia",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 345,
+   "tags": {
+    "name": "Dentisalud",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 346,
+   "tags": {
+    "name": "Sonria",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 347,
+   "tags": {
+    "name": "OroSalud",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 348,
+   "tags": {
+    "name": "City Dent",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 349,
+   "tags": {
+    "name": "Unidad Robótica Dental - Odontología 3D",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 350,
+   "tags": {
+    "name": "International Dental Center",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 351,
+   "tags": {
+    "name": "Bocas Odontologia",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 352,
+   "tags": {
+    "name": "Clínicas Cientificas Odontológicas",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 353,
+   "tags": {
+    "name": "Dentix",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 354,
+   "tags": {
+    "name": "Gloria Ospina",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 355,
+   "tags": {
+    "name": "Odonto C",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 356,
+   "tags": {
+    "name": "Maguer",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 357,
+   "tags": {
+    "name": "Ricardo Peña",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 358,
+   "tags": {
+    "name": "Jasban",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 359,
+   "tags": {
+    "name": "Coodontologos",
+    "amenity": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 360,
+   "tags": {
+    "name": "Oral Class",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 361,
+   "tags": {
+    "name": "Integral Health",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 362,
+   "tags": {
+    "name": "Centro de Salud Oral",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 363,
+   "tags": {
+    "name": "Carvajal",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 364,
+   "tags": {
+    "name": "Vivident Dental",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 365,
+   "tags": {
+    "name": "Odontológico San Cristobal",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 366,
+   "tags": {
+    "name": "Centro Odontológico",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 367,
+   "tags": {
+    "name": "Odontológica",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 368,
+   "tags": {
+    "name": "Laboratorio Dental",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 369,
+   "tags": {
+    "name": "Salud Integral MEB",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 370,
+   "tags": {
+    "name": "Nueva Sonrisa",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 371,
+   "tags": {
+    "name": "Odonto Estética",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 372,
+   "tags": {
+    "name": "JasBan Odontologiía",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 373,
+   "tags": {
+    "name": "Odontoligia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 374,
+   "tags": {
+    "name": "Red Oral",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 375,
+   "tags": {
+    "name": "Ortodoncia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 376,
+   "tags": {
+    "name": "Ortodoncia",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 377,
+   "tags": {
+    "name": "C. Odontologica",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 378,
+   "tags": {
+    "name": "MAIDEN ODONTOLOGÍA",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  },
+  {
+   "type": "node",
+   "id": 379,
+   "tags": {
+    "name": "Consultorio Odontologico Integral",
+    "amenity": "dentist",
+    "healthcare": "dentist"
+   }
+  }
+ ]
+}

@@ -27,7 +27,16 @@ export const STATUS_COLOR: Record<PointStatus, string> = {
   qualified: "#cbe850",
 };
 
-export const CRITERION_COPY: Record<string, string> = {};
+/** Stored criteria keep their ASCII ids (scoring matches on them); the UI shows them with Spanish accents. */
+const ACCENT_FIXES: Array<[RegExp, string]> = [
+  [/\bgenerico\b/gi, "genérico"],
+  [/\bjuridica\b/gi, "jurídica"],
+  [/\bSenales\b/g, "Señales"],
+  [/\blinea\b/g, "línea"],
+];
+export function accentCopy(text: string): string {
+  return ACCENT_FIXES.reduce((acc, [re, to]) => acc.replace(re, (m) => (m[0] === m[0].toUpperCase() && m[0] !== m[0].toLowerCase() ? to[0].toUpperCase() + to.slice(1) : to)), text);
+}
 
 const nf = new Intl.NumberFormat("es-CO");
 export const fmtInt = (n: number) => nf.format(Math.round(n));

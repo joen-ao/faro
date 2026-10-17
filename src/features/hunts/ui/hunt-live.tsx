@@ -187,7 +187,14 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
           </Link>
           <div className="min-w-0">
             <h1 className="truncate text-[16px] leading-tight font-semibold md:text-[18px]" data-testid="hunt-title">
-              {stream.loading ? <span className="faro-skeleton inline-block h-5 w-44 align-middle" /> : `${title}${stream.city ? ` · ${prettyCity(stream.city)}` : ""}`}
+              {stream.loading ? (
+                <span className="faro-skeleton inline-block h-5 w-44 align-middle" />
+              ) : (
+                <>
+                  <span className="block truncate">{title}</span>
+                  {stream.city && <span className="block truncate text-[13px] font-medium text-faro-text-2 md:text-[14px]">{prettyCity(stream.city)}</span>}
+                </>
+              )}
             </h1>
             <div className="mt-1.5">
               <StatusPill status={stream.status} active={runnerActive.size > 0} isDemo={stream.isDemo} />

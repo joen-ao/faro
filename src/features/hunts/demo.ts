@@ -131,7 +131,7 @@ const criteriaFor = (row: DemoRow) => {
     c("Persona juridica verificada", 20, row.registry, row.registry ? `NIT ${row.nit} en registro ${row.source === "reps" ? "REPS" : "RUES"}` : "Sin registro oficial (RUES/REPS)"),
     c("Sector coincide (dental)", 20, true, row.source === "osm" ? "osm: amenity=dentist" : row.source === "rues" ? "rues: CIIU 8622" : "reps: nombre con ODONT"),
     c("Ciudad: Bogota", 10, true, "Ciudad registrada: Bogota"),
-    c("Senales: agenda en linea", 10, row.signal, row.signal ? `"Agende su cita en línea con nuestro equipo" (agenda en linea)` : "No se encontro evidencia en el sitio"),
+    c("Senales: agenda en línea", 10, row.signal, row.signal ? `"Agende su cita en línea con nuestro equipo" (agenda en línea)` : "No se encontró evidencia en el sitio"),
   ];
 };
 
@@ -249,7 +249,7 @@ async function seedDemo(db: AppDb): Promise<string> {
       .returning({ id: leads.id });
     leadIds.push(...ins.map((x) => x.id));
     await db.insert(fitAssessments).values(
-      part.map((r) => ({ companyId: compIds[r.i], icpProfileId: icp.id, score: r.score, criteriaMet: criteriaFor(r), whyNow: r.status === "found" ? r.registry ? "Sin criterios suficientes todavia." : "Sin criterios suficientes todavia. (por verificar: persona juridica)" : `Encaja por: sector, ciudad${r.signal ? ", sitio web con agenda en linea" : ""}.`, model: "rules" })),
+      part.map((r) => ({ companyId: compIds[r.i], icpProfileId: icp.id, score: r.score, criteriaMet: criteriaFor(r), whyNow: r.status === "found" ? r.registry ? "Sin criterios suficientes todavía." : "Sin criterios suficientes todavía. (por verificar: persona jurídica)" : `Encaja por: sector, ciudad${r.signal ? ", sitio web con agenda en línea" : ""}.`, model: "rules" })),
     );
     const cps = part.flatMap((r) => [
       ...(r.email ? [{ companyId: compIds[r.i], type: "email" as const, value: r.email, isGeneric: true, sourceChannel: r.source, evidenceUrl: `${URL[r.source]}/${r.i + 1}` }] : []),

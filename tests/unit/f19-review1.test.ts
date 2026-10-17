@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
 import { companies } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { DEMO_HUNT_ID, demoScore, ensureDemoHunt, generateDemoRows } from "@/features/hunts/demo";
@@ -41,16 +42,19 @@ afterAll(async () => {
 
 describe("review r1 fixes", () => {
   it("never stores or shows names that read like natural persons (OSM), only counts them", async () => {
-    const list = ["Dra. Ana María Gómez", "Yanira Cruz", "Consultorio Dr. Pérez", "Clínica Dental Sonreír"].map(osm);
+    const list = ["Dra. Ana María Gómez", "Claudia Ríos", "Consultorio Dr. Pérez", "Clínica Dental Sonreír"].map(osm);
     const deps: SourceDeps = { overpass: adapter(list), socrata: createMockSocrata() };
     const { huntId } = await createHunt(db, { prompt: ICP_EXAMPLES[0].prompt, criteria });
     await runBatch(db, huntId, "osm", undefined, deps);
     const s = await getStream(db, huntId);
-    expect(s.points.map((p) => p.name).sort()).toEqual(["Clínica Dental Sonreír", "Consultorio Dr. Pérez"]);
+    expect(s.points.map((p) => p.name).sort()).toEqual(["Clínica Dental Sonreír", "Consultorio profesional (por verificar)"]);
     expect(s.sources.osm?.excludedPersonal).toBe(2);
     const names = (await db.select({ n: companies.name }).from(companies)).map((r) => r.n);
     expect(names).not.toContain("Dra. Ana María Gómez");
-    expect(names).not.toContain("Yanira Cruz");
+    expect(names).not.toContain("Claudia Ríos");
+    expect(names).not.toContain("Consultorio Dr. Pérez");
+    const masked = await db.select({ legal: companies.isLegalEntity }).from(companies).where(eq(companies.name, "Consultorio profesional (por verificar)"));
+    expect(masked.map((r) => r.legal)).toEqual([false]);
   });
 
   it("drawer only returns generic contacts and the profile threshold", async () => {

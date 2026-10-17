@@ -4,7 +4,7 @@ import { AlertTriangle, ArrowUpRight, Check, GitMerge, Mail, MapPin, Minus, Phon
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { getLeadDetail } from "../service";
-import { EVENT_LABEL, REASON_LABEL, SOURCE_LABEL, STATUS_LABEL, fmtClock, fmtDate } from "./format";
+import { EVENT_LABEL, accentCopy, REASON_LABEL, SOURCE_LABEL, STATUS_LABEL, fmtClock, fmtDate } from "./format";
 import { LeadReceipt } from "@/components/lead-receipt";
 import type { LeadReceipt as Receipt } from "@/features/metrics/receipt";
 import { StatusDot } from "./lead-list";
@@ -80,10 +80,10 @@ function FitBlock({ d }: { d: LeadDetail }) {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="text-[13.5px] font-medium text-white">{c.criterio}</span>
+                <span className="text-[13.5px] font-medium text-white">{accentCopy(c.criterio)}</span>
                 {c.peso > 0 && <span className="text-[11.5px] text-faro-text-3 tabular-nums">{c.cumplido ? `+${c.peso}` : `0/${c.peso}`}</span>}
               </div>
-              <p className="mt-0.5 text-[12.5px] leading-snug break-words text-faro-text-2">{c.evidencia}</p>
+              <p className="mt-0.5 text-[12.5px] leading-snug break-words text-faro-text-2">{accentCopy(c.evidencia)}</p>
               {c.url && (
                 <a href={c.url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-faro-accent underline-offset-2 hover:underline">
                   Ver evidencia <ArrowUpRight className="size-3" aria-hidden />

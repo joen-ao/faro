@@ -2,7 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import { normalizeName } from "@/features/coverage/metrics";
 import { companies, companySources, hunts } from "@/db/schema";
 import type { AppDb } from "@/db/types";
-import { hasBrandTag, keepBusinessName } from "@/features/compliance/person-name";
+import { screenOsmCompanies } from "@/features/compliance/person-name";
 import type { SourceCompany } from "./types";
 
 export interface PersistSummary {
@@ -19,8 +19,7 @@ export interface PersistSummary {
  * Records `{found, inserted, skipped}` in `hunts.progress.osm`. Cost is 0 (Overpass is free); license/URL are kept per source.
  */
 export async function persistOverpassResults(db: AppDb, huntId: string, all: readonly SourceCompany[]): Promise<PersistSummary> {
-  const items = all.filter((c) => keepBusinessName(c.name, { brand: hasBrandTag(c.raw) }));
-  const excludedPersonal = all.length - items.length;
+  const { kept: items, excluded: excludedPersonal } = screenOsmCompanies(all);
   return db.transaction(async (tx) => {
     const ids = items.map((c) => c.externalId);
     const existing = ids.length
@@ -45,6 +44,7 @@ export async function persistOverpassResults(db: AppDb, huntId: string, all: rea
             city: c.city,
             website: c.website,
             isDemo: c.isMock,
+            isLegalEntity: c.isLegalEntity ?? true,
           })),
         )
         .returning({ id: companies.id });

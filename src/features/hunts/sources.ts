@@ -15,7 +15,7 @@ import {
 } from "@/integrations/socrata";
 import type { SourceCompany } from "@/integrations/types";
 import type { SourceCompany as OsmCompany } from "@/integrations/overpass/types";
-import { hasBrandTag, keepBusinessName } from "@/features/compliance/person-name";
+import { screenOsmCompanies } from "@/features/compliance/person-name";
 import { findSector } from "@/features/icp/presets";
 import { BATCH_SIZE, sliceBatch } from "./batch";
 import type { HuntSource } from "./types";
@@ -60,10 +60,9 @@ async function osmList(key: string, c: IcpCriteria, overpass: OverpassAdapter) {
     }),
   );
   // Stable order so a cursor means the same thing on every call.
-  // SPEC §8 allow-list: OSM has no legal nature, so a name is stored only if it has a business word or a chain brand.
+  // SPEC §8: OSM has no legal nature; names are screened by category (see compliance/person-name).
   const extraWords = findSector(c.sector)?.keywords ?? [];
-  const kept = res.companies.filter((x) => keepBusinessName(x.name, { brand: hasBrandTag(x.raw), extraWords }));
-  const excluded = res.companies.length - kept.length;
+  const { kept, excluded } = screenOsmCompanies(res.companies, extraWords);
   const list = [...kept].sort((a, b) => a.externalId.localeCompare(b.externalId));
   const entry = { at: Date.now(), list, isMock: res.isMock, excluded };
   osmMemo.set(key, entry);

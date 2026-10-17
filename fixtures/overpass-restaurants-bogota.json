@@ -1,0 +1,2473 @@
+{
+ "_attribution": "© OpenStreetMap contributors, ODbL 1.0. Real Overpass sample (Bogotá, amenity=restaurant|cafe|fast_food), 2026-10-17. Only name/category/brand tags kept; OSM ids replaced by synthetic indexes and every natural-person name replaced by a synthetic one of the same shape.",
+ "_persons": [],
+ "elements": [
+  {
+   "type": "node",
+   "id": 1,
+   "tags": {
+    "name": "Vegetariano Vega",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 2,
+   "tags": {
+    "name": "Vegetariano Ajonjoli",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 3,
+   "tags": {
+    "name": "Desayunadero De La 42",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 4,
+   "tags": {
+    "name": "La Cafeteria",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 5,
+   "tags": {
+    "name": "Shi Zen",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 6,
+   "tags": {
+    "name": "Crepes & Waffles",
+    "amenity": "restaurant",
+    "brand": "Crepes & Waffles"
+   }
+  },
+  {
+   "type": "node",
+   "id": 7,
+   "tags": {
+    "name": "Juan Valdez Café",
+    "amenity": "cafe",
+    "shop": "coffee",
+    "brand": "Juan Valdez Café"
+   }
+  },
+  {
+   "type": "node",
+   "id": 8,
+   "tags": {
+    "name": "Vegetariano Espiga",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 9,
+   "tags": {
+    "name": "La Mona",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 10,
+   "tags": {
+    "name": "Chamois",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 11,
+   "tags": {
+    "name": "Pan Pa' Ya!",
+    "amenity": "fast_food",
+    "shop": "bakery",
+    "brand": "Pan Pa' Ya!"
+   }
+  },
+  {
+   "type": "node",
+   "id": 12,
+   "tags": {
+    "name": "Sabrosito",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 13,
+   "tags": {
+    "name": "Café OMA",
+    "amenity": "cafe",
+    "brand": "Café OMA"
+   }
+  },
+  {
+   "type": "node",
+   "id": 14,
+   "tags": {
+    "name": "PPC",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 15,
+   "tags": {
+    "name": "Mala Flor",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 16,
+   "tags": {
+    "name": "Juan Valdez Café",
+    "amenity": "cafe",
+    "shop": "coffee",
+    "brand": "Juan Valdez Café"
+   }
+  },
+  {
+   "type": "node",
+   "id": 17,
+   "tags": {
+    "name": "Autopan",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 18,
+   "tags": {
+    "name": "Buffalo Wings",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 19,
+   "tags": {
+    "name": "El Corral",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 20,
+   "tags": {
+    "name": "Kokorico",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 21,
+   "tags": {
+    "name": "Las Acacias",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 22,
+   "tags": {
+    "name": "Tatis",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 23,
+   "tags": {
+    "name": "Mini-Mal",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 24,
+   "tags": {
+    "name": "Limbapan",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 25,
+   "tags": {
+    "name": "Caserito",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 26,
+   "tags": {
+    "name": "El Corral",
+    "amenity": "fast_food",
+    "brand": "El Corral"
+   }
+  },
+  {
+   "type": "node",
+   "id": 27,
+   "tags": {
+    "name": "Americana",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 28,
+   "tags": {
+    "name": "Casa",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 29,
+   "tags": {
+    "name": "La Brasserie",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 30,
+   "tags": {
+    "name": "Vapiano",
+    "amenity": "restaurant",
+    "brand": "Vapiano"
+   }
+  },
+  {
+   "type": "node",
+   "id": 31,
+   "tags": {
+    "name": "Cevicheria Central",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 32,
+   "tags": {
+    "name": "Angus",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 33,
+   "tags": {
+    "name": "Café OMA",
+    "amenity": "cafe",
+    "brand": "Café OMA"
+   }
+  },
+  {
+   "type": "node",
+   "id": 34,
+   "tags": {
+    "name": "Renata",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 35,
+   "tags": {
+    "name": "Crepes & Waffles",
+    "amenity": "restaurant",
+    "brand": "Crepes & Waffles"
+   }
+  },
+  {
+   "type": "node",
+   "id": 36,
+   "tags": {
+    "name": "Cafe Renault",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 37,
+   "tags": {
+    "name": "D' Sol Aroma",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 38,
+   "tags": {
+    "name": "La Marqueterie",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 39,
+   "tags": {
+    "name": "Juan Valdez Café",
+    "amenity": "cafe",
+    "shop": "coffee",
+    "brand": "Juan Valdez Café"
+   }
+  },
+  {
+   "type": "node",
+   "id": 40,
+   "tags": {
+    "name": "Subway",
+    "amenity": "fast_food",
+    "brand": "Subway"
+   }
+  },
+  {
+   "type": "node",
+   "id": 41,
+   "tags": {
+    "name": "Bah Bah",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 42,
+   "tags": {
+    "name": "Salzig",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 43,
+   "tags": {
+    "name": "Café OMA",
+    "amenity": "cafe",
+    "brand": "Café OMA"
+   }
+  },
+  {
+   "type": "node",
+   "id": 44,
+   "tags": {
+    "name": "El Corral",
+    "amenity": "fast_food",
+    "brand": "El Corral"
+   }
+  },
+  {
+   "type": "node",
+   "id": 45,
+   "tags": {
+    "name": "La Mesa Vegetariana",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 46,
+   "tags": {
+    "name": "La Flor de Loto",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 47,
+   "tags": {
+    "name": "Cevichería y Pescadería",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 48,
+   "tags": {
+    "name": "Cuatro Estaciones",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 49,
+   "tags": {
+    "name": "Crepes & Waffles",
+    "amenity": "restaurant",
+    "brand": "Crepes & Waffles"
+   }
+  },
+  {
+   "type": "node",
+   "id": 50,
+   "tags": {
+    "name": "Randys",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 51,
+   "tags": {
+    "name": "Milenio",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 52,
+   "tags": {
+    "name": "La Cuisine Suisse",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 53,
+   "tags": {
+    "name": "Bellini",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 54,
+   "tags": {
+    "name": "Gyros & Kebab",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 55,
+   "tags": {
+    "name": "Storia d'Amore",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 56,
+   "tags": {
+    "name": "Las Cafetales",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 57,
+   "tags": {
+    "name": "Sr. Choo",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 58,
+   "tags": {
+    "name": "Yumi Yumi",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 59,
+   "tags": {
+    "name": "Chopinar",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 60,
+   "tags": {
+    "name": "La Bella Antioquia",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 61,
+   "tags": {
+    "name": "Las Acacias",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 62,
+   "tags": {
+    "name": "Pizza Hut",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 63,
+   "tags": {
+    "name": "Jeno's Pizza",
+    "amenity": "fast_food",
+    "brand": "Jeno's Pizza"
+   }
+  },
+  {
+   "type": "node",
+   "id": 64,
+   "tags": {
+    "name": "Crepes & Waffles",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 65,
+   "tags": {
+    "name": "Pizza 1969",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 66,
+   "tags": {
+    "name": "El Corral",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 67,
+   "tags": {
+    "name": "Tostao’",
+    "amenity": "cafe",
+    "shop": "beverages",
+    "brand": "Tostao’"
+   }
+  },
+  {
+   "type": "node",
+   "id": 68,
+   "tags": {
+    "name": "Café OMA",
+    "amenity": "cafe",
+    "brand": "Café OMA"
+   }
+  },
+  {
+   "type": "node",
+   "id": 69,
+   "tags": {
+    "name": "Domino's",
+    "amenity": "fast_food",
+    "brand": "Domino's"
+   }
+  },
+  {
+   "type": "node",
+   "id": 70,
+   "tags": {
+    "name": "Juan Valdez Cafe",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 71,
+   "tags": {
+    "name": "amínta",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 72,
+   "tags": {
+    "name": "Charlies Roastbeef",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 73,
+   "tags": {
+    "name": "Toro Burger",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 74,
+   "tags": {
+    "name": "El Deseo",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 75,
+   "tags": {
+    "name": "Diletto",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 76,
+   "tags": {
+    "name": "Mari's Pizza",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 77,
+   "tags": {
+    "name": "Soul Burger",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 78,
+   "tags": {
+    "name": "De Fierro",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 79,
+   "tags": {
+    "name": "El Corral",
+    "amenity": "fast_food",
+    "brand": "El Corral"
+   }
+  },
+  {
+   "type": "node",
+   "id": 80,
+   "tags": {
+    "name": "Thai Express",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 81,
+   "tags": {
+    "name": "Juan Valdez Café",
+    "amenity": "cafe",
+    "shop": "coffee",
+    "brand": "Juan Valdez Café"
+   }
+  },
+  {
+   "type": "node",
+   "id": 82,
+   "tags": {
+    "name": "Subway",
+    "amenity": "fast_food",
+    "brand": "Subway"
+   }
+  },
+  {
+   "type": "node",
+   "id": 83,
+   "tags": {
+    "name": "Dos del Alma",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 84,
+   "tags": {
+    "name": "Café OMA",
+    "amenity": "cafe",
+    "brand": "Café OMA"
+   }
+  },
+  {
+   "type": "node",
+   "id": 85,
+   "tags": {
+    "name": "Rio de Enero",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 86,
+   "tags": {
+    "name": "Andrés D.C.",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 87,
+   "tags": {
+    "name": "Ovejo",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 88,
+   "tags": {
+    "name": "KFC",
+    "amenity": "fast_food",
+    "brand": "KFC"
+   }
+  },
+  {
+   "type": "node",
+   "id": 89,
+   "tags": {
+    "name": "Burguer Town",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 90,
+   "tags": {
+    "name": "Mama Criolla",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 91,
+   "tags": {
+    "name": "Wok",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 92,
+   "tags": {
+    "name": "Teriyaki",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 93,
+   "tags": {
+    "name": "Sándwich Qbano",
+    "amenity": "fast_food",
+    "brand": "Sándwich Qbano"
+   }
+  },
+  {
+   "type": "node",
+   "id": 94,
+   "tags": {
+    "name": "Nirvana",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 95,
+   "tags": {
+    "name": "La Esquina Vegetariana",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 96,
+   "tags": {
+    "name": "Cafe Sabio",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 97,
+   "tags": {
+    "name": "Masa",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 98,
+   "tags": {
+    "name": "Mi Gran Parrilla Boyacense",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 99,
+   "tags": {
+    "name": "Ishiro Restaurante Maid",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 100,
+   "tags": {
+    "name": "Dunkin'",
+    "amenity": "fast_food",
+    "brand": "Dunkin'"
+   }
+  },
+  {
+   "type": "node",
+   "id": 101,
+   "tags": {
+    "name": "Juan Valdez - Skandia",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 102,
+   "tags": {
+    "name": "Harald Restaurante Alemán",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 103,
+   "tags": {
+    "name": "Mi cálido Ranchito",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 104,
+   "tags": {
+    "name": "Mi Gran Parrilla Sofileña",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 105,
+   "tags": {
+    "name": "Budares",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 106,
+   "tags": {
+    "name": "El Corral",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 107,
+   "tags": {
+    "name": "The Lunch Bogota",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 108,
+   "tags": {
+    "name": "Dunkin'",
+    "amenity": "fast_food",
+    "brand": "Dunkin'"
+   }
+  },
+  {
+   "type": "node",
+   "id": 109,
+   "tags": {
+    "name": "Bosforo Comida Turca",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 110,
+   "tags": {
+    "name": "Burger King",
+    "amenity": "fast_food",
+    "brand": "Burger King"
+   }
+  },
+  {
+   "type": "node",
+   "id": 111,
+   "tags": {
+    "name": "Burger King",
+    "amenity": "fast_food",
+    "brand": "Burger King"
+   }
+  },
+  {
+   "type": "node",
+   "id": 112,
+   "tags": {
+    "name": "La Brasa Roja",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 113,
+   "tags": {
+    "name": "Sushigozen",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 114,
+   "tags": {
+    "name": "Árbol del Pan",
+    "amenity": "cafe",
+    "shop": "bakery"
+   }
+  },
+  {
+   "type": "node",
+   "id": 115,
+   "tags": {
+    "name": "Subway",
+    "amenity": "fast_food",
+    "brand": "Subway"
+   }
+  },
+  {
+   "type": "node",
+   "id": 116,
+   "tags": {
+    "name": "SubWay",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 117,
+   "tags": {
+    "name": "Taco Loco",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 118,
+   "tags": {
+    "name": "Buritaka",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 119,
+   "tags": {
+    "name": "Bagatelle",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 120,
+   "tags": {
+    "name": "La Biferia",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 121,
+   "tags": {
+    "name": "Osk Peru",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 122,
+   "tags": {
+    "name": "Di Lucca",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 123,
+   "tags": {
+    "name": "Matilde",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 124,
+   "tags": {
+    "name": "Criterion",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 125,
+   "tags": {
+    "name": "Kong",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 126,
+   "tags": {
+    "name": "Alice's",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 127,
+   "tags": {
+    "name": "Teriyaki",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 128,
+   "tags": {
+    "name": "La Biferia",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 129,
+   "tags": {
+    "name": "Corral Gourmet",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 130,
+   "tags": {
+    "name": "El Arabe",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 131,
+   "tags": {
+    "name": "El Butcher",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 132,
+   "tags": {
+    "name": "La Cigale",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 133,
+   "tags": {
+    "name": "Pan, Paz y Vino",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 134,
+   "tags": {
+    "name": "Domino's Pizza",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 135,
+   "tags": {
+    "name": "Suna",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 136,
+   "tags": {
+    "name": "Tortilla",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 137,
+   "tags": {
+    "name": "Sopas y Sopitas",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 138,
+   "tags": {
+    "name": "Juan Valdez Origenes",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 139,
+   "tags": {
+    "name": "Masa",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 140,
+   "tags": {
+    "name": "Ugly American",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 141,
+   "tags": {
+    "name": "La Cesta",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 142,
+   "tags": {
+    "name": "Empanaditas de Pipian",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 143,
+   "tags": {
+    "name": "Julia",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 144,
+   "tags": {
+    "name": "Cali Mio",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 145,
+   "tags": {
+    "name": "El Corral",
+    "amenity": "fast_food",
+    "brand": "El Corral"
+   }
+  },
+  {
+   "type": "node",
+   "id": 146,
+   "tags": {
+    "name": "Agadon",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 147,
+   "tags": {
+    "name": "Primi",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 148,
+   "tags": {
+    "name": "The Country House",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 149,
+   "tags": {
+    "name": "Hipermar",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 150,
+   "tags": {
+    "name": "Café Cultor",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 151,
+   "tags": {
+    "name": "Corral",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 152,
+   "tags": {
+    "name": "Dicami",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 153,
+   "tags": {
+    "name": "Mostaza & Tizón",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 154,
+   "tags": {
+    "name": "Café OMA",
+    "amenity": "cafe",
+    "brand": "Café OMA"
+   }
+  },
+  {
+   "type": "node",
+   "id": 155,
+   "tags": {
+    "name": "arep'art",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 156,
+   "tags": {
+    "name": "Comidas Rapidas del Condado",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 157,
+   "tags": {
+    "name": "la 53",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 158,
+   "tags": {
+    "name": "Cafe Pop",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 159,
+   "tags": {
+    "name": "Empanadas Que Gustan",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 160,
+   "tags": {
+    "name": "Kokoriko",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 161,
+   "tags": {
+    "name": "Sierra Nevada",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 162,
+   "tags": {
+    "name": "Sierra Nevada",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 163,
+   "tags": {
+    "name": "Picantería Ipiales",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 164,
+   "tags": {
+    "name": "Home Burgers",
+    "amenity": "fast_food",
+    "brand": "Home Burgers"
+   }
+  },
+  {
+   "type": "node",
+   "id": 165,
+   "tags": {
+    "name": "La Hamburguesería Chicó",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 166,
+   "tags": {
+    "name": "Santa Costilla",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 167,
+   "tags": {
+    "name": "Duocafe",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 168,
+   "tags": {
+    "name": "El Tranvia",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 169,
+   "tags": {
+    "name": "Willys",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 170,
+   "tags": {
+    "name": "MegaObleas",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 171,
+   "tags": {
+    "name": "Los Tíos",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 172,
+   "tags": {
+    "name": "Del Quindio Tienda Cafe",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 173,
+   "tags": {
+    "name": "Cafe Arbol",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 174,
+   "tags": {
+    "name": "Starbucks",
+    "amenity": "cafe",
+    "brand": "Starbucks"
+   }
+  },
+  {
+   "type": "node",
+   "id": 175,
+   "tags": {
+    "name": "Burguer Kill",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 176,
+   "tags": {
+    "name": "Calentaos 90",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 177,
+   "tags": {
+    "name": "Subway",
+    "amenity": "fast_food",
+    "brand": "Subway"
+   }
+  },
+  {
+   "type": "node",
+   "id": 178,
+   "tags": {
+    "name": "Juan Valdez Café",
+    "amenity": "cafe",
+    "shop": "coffee",
+    "brand": "Juan Valdez Café"
+   }
+  },
+  {
+   "type": "node",
+   "id": 179,
+   "tags": {
+    "name": "Pequeña Italia",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 180,
+   "tags": {
+    "name": "Paella Pastel y Café",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 181,
+   "tags": {
+    "name": "Parrilla",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 182,
+   "tags": {
+    "name": "Subway",
+    "amenity": "fast_food",
+    "brand": "Subway"
+   }
+  },
+  {
+   "type": "node",
+   "id": 183,
+   "tags": {
+    "name": "Sabor y Sazón",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 184,
+   "tags": {
+    "name": "Starbucks",
+    "amenity": "cafe",
+    "brand": "Starbucks"
+   }
+  },
+  {
+   "type": "node",
+   "id": 185,
+   "tags": {
+    "name": "Arakawa",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 186,
+   "tags": {
+    "name": "Restaurante Pozzetto",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 187,
+   "tags": {
+    "name": "Restaurante Bambu",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 188,
+   "tags": {
+    "name": "Carbon",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 189,
+   "tags": {
+    "name": "Aquí en Santa Fé",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 190,
+   "tags": {
+    "name": "Restaurante Las Margaritas",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 191,
+   "tags": {
+    "name": "Café OMA",
+    "amenity": "cafe",
+    "brand": "Café OMA"
+   }
+  },
+  {
+   "type": "node",
+   "id": 192,
+   "tags": {
+    "name": "Natural Food Gourmet",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 193,
+   "tags": {
+    "name": "Zuckerino",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 194,
+   "tags": {
+    "name": "Donte Rico",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 195,
+   "tags": {
+    "name": "Julia",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 196,
+   "tags": {
+    "name": "El Asturiano",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 197,
+   "tags": {
+    "name": "Café Adriatica",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 198,
+   "tags": {
+    "name": "Starbucks",
+    "amenity": "cafe",
+    "brand": "Starbucks"
+   }
+  },
+  {
+   "type": "node",
+   "id": 199,
+   "tags": {
+    "name": "deli",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 200,
+   "tags": {
+    "name": "La casa amarilla se llama: plazoleta de comidas La Casona",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 201,
+   "tags": {
+    "name": "sabor y sazón",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 202,
+   "tags": {
+    "name": "Pilon",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 203,
+   "tags": {
+    "name": "Subway",
+    "amenity": "fast_food",
+    "brand": "Subway"
+   }
+  },
+  {
+   "type": "node",
+   "id": 204,
+   "tags": {
+    "name": "Parrilla Pimenton",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 205,
+   "tags": {
+    "name": "El Corral",
+    "amenity": "fast_food",
+    "brand": "El Corral"
+   }
+  },
+  {
+   "type": "node",
+   "id": 206,
+   "tags": {
+    "name": "Las Cazuelas de la Abuela",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 207,
+   "tags": {
+    "name": "Plazoleta de comidas",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 208,
+   "tags": {
+    "name": "Subway",
+    "amenity": "fast_food",
+    "brand": "Subway"
+   }
+  },
+  {
+   "type": "node",
+   "id": 209,
+   "tags": {
+    "name": "Juan Valdez Café",
+    "amenity": "cafe",
+    "shop": "coffee",
+    "brand": "Juan Valdez Café"
+   }
+  },
+  {
+   "type": "node",
+   "id": 210,
+   "tags": {
+    "name": "Dunkin'",
+    "amenity": "fast_food",
+    "brand": "Dunkin'"
+   }
+  },
+  {
+   "type": "node",
+   "id": 211,
+   "tags": {
+    "name": "Del Rodeo",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 212,
+   "tags": {
+    "name": "Stromboli",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 213,
+   "tags": {
+    "name": "Meet The Burger",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 214,
+   "tags": {
+    "name": "Pincho Pancho",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 215,
+   "tags": {
+    "name": "Café OMA",
+    "amenity": "cafe",
+    "brand": "Café OMA"
+   }
+  },
+  {
+   "type": "node",
+   "id": 216,
+   "tags": {
+    "name": "Budare's",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 217,
+   "tags": {
+    "name": "Viva la Pizza",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 218,
+   "tags": {
+    "name": "La Cocinita Verde",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 219,
+   "tags": {
+    "name": "Piquetiadero Doña Segunda",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 220,
+   "tags": {
+    "name": "Bogota Burger",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 221,
+   "tags": {
+    "name": "Deli Soya",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 222,
+   "tags": {
+    "name": "Trattoria Divina Comedia",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 223,
+   "tags": {
+    "name": "La Castana Empanadas",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 224,
+   "tags": {
+    "name": "Ceviche Fusión",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 225,
+   "tags": {
+    "name": "Mesa Franca",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 226,
+   "tags": {
+    "name": "Loló Coffee y Snacks",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 227,
+   "tags": {
+    "name": "Suschi itto bogotacr",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 228,
+   "tags": {
+    "name": "Masón Santé",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 229,
+   "tags": {
+    "name": "Social Coffee House",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 230,
+   "tags": {
+    "name": "Salva Patria",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 231,
+   "tags": {
+    "name": "Amor Perfecto",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 232,
+   "tags": {
+    "name": "Casa Rosa",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 233,
+   "tags": {
+    "name": "Tostao’",
+    "amenity": "cafe",
+    "brand": "Tostao’"
+   }
+  },
+  {
+   "type": "node",
+   "id": 234,
+   "tags": {
+    "name": "Arepas La Reina",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 235,
+   "tags": {
+    "name": "El Chato",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 236,
+   "tags": {
+    "name": "Cafeteria Amiga",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 237,
+   "tags": {
+    "name": "Bourbon coffee Roasters",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 238,
+   "tags": {
+    "name": "Alimenta Food",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 239,
+   "tags": {
+    "name": "魯府",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 240,
+   "tags": {
+    "name": "Azahar Café",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 241,
+   "tags": {
+    "name": "成都川菜",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 242,
+   "tags": {
+    "name": "Subway",
+    "amenity": "fast_food",
+    "brand": "Subway"
+   }
+  },
+  {
+   "type": "node",
+   "id": 243,
+   "tags": {
+    "name": "Wingz and Beer",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 244,
+   "tags": {
+    "name": "Restaurante Beijing",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 245,
+   "tags": {
+    "name": "Crêpe del otro mundo",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 246,
+   "tags": {
+    "name": "Rappitenderos",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 247,
+   "tags": {
+    "name": "Cantina y Punto",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 248,
+   "tags": {
+    "name": "La esquina del café express",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 249,
+   "tags": {
+    "name": "Chorizos al carbón \"El Mono\"",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 250,
+   "tags": {
+    "name": "Seratta",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 251,
+   "tags": {
+    "name": "La Diva",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 252,
+   "tags": {
+    "name": "Tostao'",
+    "amenity": "cafe",
+    "brand": "Tostao'"
+   }
+  },
+  {
+   "type": "node",
+   "id": 253,
+   "tags": {
+    "name": "Afternoon Tea",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 254,
+   "tags": {
+    "name": "Viejo Pocho",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 255,
+   "tags": {
+    "name": "Cuzco",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 256,
+   "tags": {
+    "name": "La Herencia",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 257,
+   "tags": {
+    "name": "El Sabor De La Barbacoa",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 258,
+   "tags": {
+    "name": "Gauchos",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 259,
+   "tags": {
+    "name": "La Mera Mera",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 260,
+   "tags": {
+    "name": "Mexico",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 261,
+   "tags": {
+    "name": "Papa John's",
+    "amenity": "fast_food",
+    "brand": "Papa John's"
+   }
+  },
+  {
+   "type": "node",
+   "id": 262,
+   "tags": {
+    "name": "Starbucks",
+    "amenity": "cafe",
+    "brand": "Starbucks"
+   }
+  },
+  {
+   "type": "node",
+   "id": 263,
+   "tags": {
+    "name": "Danka",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 264,
+   "tags": {
+    "name": "Subway",
+    "amenity": "fast_food",
+    "brand": "Subway"
+   }
+  },
+  {
+   "type": "node",
+   "id": 265,
+   "tags": {
+    "name": "Carbon",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 266,
+   "tags": {
+    "name": "World's Greatest Hamburgers",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 267,
+   "tags": {
+    "name": "Starbucks",
+    "amenity": "cafe",
+    "brand": "Starbucks"
+   }
+  },
+  {
+   "type": "node",
+   "id": 268,
+   "tags": {
+    "name": "El Chócolo",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 269,
+   "tags": {
+    "name": "Cafeteria Andina",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 270,
+   "tags": {
+    "name": "Argenta Platería",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 271,
+   "tags": {
+    "name": "Pizza Hut",
+    "amenity": "restaurant",
+    "brand": "Pizza Hut"
+   }
+  },
+  {
+   "type": "node",
+   "id": 272,
+   "tags": {
+    "name": "Wingstop",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 273,
+   "tags": {
+    "name": "Doña Dicha",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 274,
+   "tags": {
+    "name": "Chicanas",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 275,
+   "tags": {
+    "name": "Freshway panadería",
+    "amenity": "fast_food"
+   }
+  },
+  {
+   "type": "node",
+   "id": 276,
+   "tags": {
+    "name": "Pizza Hut",
+    "amenity": "restaurant",
+    "brand": "Pizza Hut"
+   }
+  },
+  {
+   "type": "node",
+   "id": 277,
+   "tags": {
+    "name": "Los Fulanitos",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 278,
+   "tags": {
+    "name": "El Cafeta",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 279,
+   "tags": {
+    "name": "Takuma",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 280,
+   "tags": {
+    "name": "Azul",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 281,
+   "tags": {
+    "name": "Pepinillo",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 282,
+   "tags": {
+    "name": "Café Quindío",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 283,
+   "tags": {
+    "name": "Un Toro & Siele Vacas",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 284,
+   "tags": {
+    "name": "Santa Juana Restaurant",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 285,
+   "tags": {
+    "name": "Camacho",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 286,
+   "tags": {
+    "name": "Surtiaves 22",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 287,
+   "tags": {
+    "name": "La Grande",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 288,
+   "tags": {
+    "name": "OAK Ahumados",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 289,
+   "tags": {
+    "name": "Abasto",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 290,
+   "tags": {
+    "name": "Tostao’",
+    "amenity": "cafe",
+    "brand": "Tostao’"
+   }
+  },
+  {
+   "type": "node",
+   "id": 291,
+   "tags": {
+    "name": "M Cocina Arabe",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 292,
+   "tags": {
+    "name": "Misia",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 293,
+   "tags": {
+    "name": "Papa John's",
+    "amenity": "fast_food",
+    "brand": "Papa John's"
+   }
+  },
+  {
+   "type": "node",
+   "id": 294,
+   "tags": {
+    "name": "Tactica",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 295,
+   "tags": {
+    "name": "Subway",
+    "amenity": "fast_food",
+    "brand": "Subway"
+   }
+  },
+  {
+   "type": "node",
+   "id": 296,
+   "tags": {
+    "name": "Veggie Beans",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 297,
+   "tags": {
+    "name": "Los Angeles",
+    "amenity": "restaurant"
+   }
+  },
+  {
+   "type": "node",
+   "id": 298,
+   "tags": {
+    "name": "Cafeteria Y Golosinas",
+    "amenity": "cafe"
+   }
+  },
+  {
+   "type": "node",
+   "id": 299,
+   "tags": {
+    "name": "Subway",
+    "amenity": "fast_food",
+    "brand": "Subway"
+   }
+  },
+  {
+   "type": "node",
+   "id": 300,
+   "tags": {
+    "name": "Bistecca e Vino",
+    "amenity": "restaurant"
+   }
+  }
+ ]
+}
