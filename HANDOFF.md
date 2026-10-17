@@ -31,3 +31,4 @@
 - 2026-10-17 04:53 · F17 → DONE: WhatsApp vía Dapta: CSV de secuencias tras WHATSAPP_ENABLED, solo teléfonos de empresa CO, webhook con secreto, STOP suprime; 3 MINOR
 - 2026-10-17 04:54 · F16 → DONE: UTM builder, fbclid→meta_ads, carga de gasto manual/CSV con clave demo separada, CPL meta_ads real; 1 MINOR
 - 2026-10-17 04:56 · F11 → DONE: Webhook Resend (Svix) con idempotencia, reply→responded sin retroceder, baja por texto suprime siempre, marcado manual auditado; 3 NIT
+- 2026-10-17 05:05 · F21 → DONE: README completo (arquitectura, fuentes/licencias, costos, cómo correr verificado desde cero); requireAppAccess en receipt/matrix; F19 pendiente de actualizar en README
