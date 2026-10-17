@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
-test("lead receipt demo page renders, is labelled DEMO and has no horizontal scroll", async ({ page }, info) => {
+test("lead receipt demo page renders, is labelled DEMO and has no horizontal scroll", async ({ page, context }, info) => {
+  await context.addCookies([{ name: "faro_key", value: process.env.APP_ACCESS_KEY ?? "e2e-app-key", domain: "localhost", path: "/" }]);
   await page.goto("/app/dev/receipt?demo=1");
   await expect(page.getByRole("article", { name: /Recibo de lead/ })).toBeVisible();
   await expect(page.getByText("DEMO", { exact: true })).toBeVisible();
@@ -11,5 +12,5 @@ test("lead receipt demo page renders, is labelled DEMO and has no horizontal scr
   await page.screenshot({ path: `artifacts/screens/F13-receipt-${width}.png`, fullPage: true });
 
   expect((await page.request.get("/api/metrics/receipt/not-a-uuid", { headers: { "x-app-key": process.env.APP_ACCESS_KEY ?? "" } })).status()).toBe(400);
-  expect((await page.request.get("/api/metrics/receipt/not-a-uuid")).status()).toBe(401);
+  expect((await page.request.get("/api/metrics/receipt/not-a-uuid", { headers: { "x-app-key": "wrong-key" } })).status()).toBe(401);
 });

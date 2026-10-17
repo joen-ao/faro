@@ -66,15 +66,33 @@ function nextOpening(from: LocalParts): Date {
   throw new Error("No send window found within 14 days");
 }
 
+export type SendWindowPolicy = "ley2300" | "extendida";
+
+/** Team-chosen policy via SEND_WINDOW_POLICY. Default and anything unknown -> the strict Ley 2300 window. */
+export function sendWindowPolicy(env: Record<string, string | undefined> = process.env): SendWindowPolicy {
+  return env.SEND_WINDOW_POLICY?.trim().toLowerCase() === "extendida" ? "extendida" : "ley2300";
+}
+
+/** "extendida": every day, holidays included, 8:00-20:00 America/Bogota (still never at night). */
+const EXTENDED_WINDOW: [number, number] = [8, 20];
+
 /**
  * Ley 2300 (adopted voluntarily): CO Mon-Fri 7:00-19:00, Sat 8:00-15:00 (America/Bogota),
  * never Sunday or holiday. US: email only under CAN-SPAM, no time window.
+ * With SEND_WINDOW_POLICY=extendida the team opts out of that voluntary rule: daily 8:00-20:00 Bogotá.
  */
-export function checkSendWindow(date: Date, country: Country): SendWindowResult {
+export function checkSendWindow(date: Date, country: Country, policy: SendWindowPolicy = sendWindowPolicy()): SendWindowResult {
   if (country === "US") {
     return { allowed: true, reason: "EE. UU.: sin ventana horaria; solo correo con CAN-SPAM", nextAllowedAt: null };
   }
   const t = localParts(date);
+  if (policy === "extendida") {
+    const [start, end] = EXTENDED_WINDOW;
+    const mins = t.hour * 60 + t.minute;
+    if (mins < start * 60) return { allowed: false, reason: `Antes de las ${start}:00 (ventana extendida, hora Colombia)`, nextAllowedAt: bogotaInstant(t.iso, start) };
+    if (mins > end * 60) return { allowed: false, reason: `Después de las ${end}:00 (ventana extendida, hora Colombia)`, nextAllowedAt: bogotaInstant(addDays(t.iso, 1), start) };
+    return { allowed: true, reason: "Dentro de la ventana extendida del equipo (8:00–20:00, todos los días; fuera de la Ley 2300)", nextAllowedAt: null };
+  }
   const holiday = HOLIDAYS_CO_2026[t.iso];
   if (holiday) {
     return { allowed: false, reason: `Festivo en Colombia (${holiday}): no se envía`, nextAllowedAt: nextOpening({ ...t, hour: 23 }) };
