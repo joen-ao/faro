@@ -4,7 +4,7 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 
 | ID | Feature | Prio | Estado | Rama | Rondas review | Nota |
 |---|---|---|---|---|---|---|
-| F00 | Scaffold (Next.js, TS, Tailwind, shadcn, Drizzle+PGlite, Vitest, Playwright, check) | P0 | TODO | | 0 | |
+| F00 | Scaffold (Next.js, TS, Tailwind, shadcn, Drizzle+PGlite, Vitest, Playwright, check) | P0 | DONE | feat/F00-scaffold | 1 | Next 16 + Tailwind v4 + Drizzle/PGlite + Vitest + Playwright; check verde; 4 MINOR en review |
 | F01 | Modelo de datos + migraciones + seed demo | P0 | TODO | | 0 | |
 | F02 | Prueba de cobertura (reports/coverage.md real) | P0 | TODO | | 0 | |
 | F03 | Adapter Overpass | P0 | TODO | | 0 | |

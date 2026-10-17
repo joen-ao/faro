@@ -9,3 +9,6 @@
 4. SIM y WhatsApp: máximo 1 hora.
 5. Conectar credenciales (ver checklist que deja el loop) y desplegar en Vercel.
 6. Activar `SEND_ENABLED=true` solo para el lote real del sábado, antes de las 15:00.
+
+## Progreso del loop nocturno
+- 2026-10-17 03:24 · F00 → DONE: Next 16 + Tailwind v4 + Drizzle/PGlite + Vitest + Playwright; check verde; 4 MINOR en review
