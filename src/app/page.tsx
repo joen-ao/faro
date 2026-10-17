@@ -1,39 +1,44 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Metadata } from "next";
+import { getReadyDb } from "@/db/client";
+import type { AppDb } from "@/db/types";
+import { buildLandingStats, getPublicMetrics, type PublicMetrics } from "@/features/metrics";
+import { Compliance } from "@/components/landing/compliance";
+import { DemoVideo } from "@/components/landing/demo-video";
+import { Footer } from "@/components/landing/footer";
+import { Hero } from "@/components/landing/hero";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { PaidVsFree } from "@/components/landing/paid-vs-free";
 
-const steps = [
-  { n: "01", t: "Encontrar", d: "Empresas reales desde fuentes abiertas y registros públicos." },
-  { n: "02", t: "Contactar", d: "Solo canales genéricos y con reglas de cumplimiento." },
-  { n: "03", t: "Medir", d: "Cada dólar trazado hasta el costo por lead." },
-  { n: "04", t: "Calificar", d: "Con Dapta, el lead llega listo para vender." },
-];
+export const dynamic = "force-dynamic";
 
-export default function Home() {
+export const metadata: Metadata = {
+  title: "Faro — ¿Dónde están tus próximos clientes y cuánto te cuestan?",
+  description: "Describe a tu cliente ideal. Faro lo busca en fuentes gratuitas, lo contacta, lo califica con Dapta y mide el costo por lead de cada fuente.",
+};
+
+/** Real aggregates only; any failure degrades to the honest empty state. */
+async function loadMetrics(): Promise<PublicMetrics | null> {
+  try {
+    const db = (await getReadyDb()) as unknown as AppDb;
+    return await getPublicMetrics(db);
+  } catch (e) {
+    console.error("landing metrics unavailable", e);
+    return null;
+  }
+}
+
+export default async function Home() {
+  const stats = buildLandingStats(await loadMetrics());
   return (
-    <main className="relative isolate mx-auto flex min-h-dvh max-w-5xl flex-col justify-center gap-12 overflow-hidden px-6 py-16">
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px]" style={{ background: "var(--faro-glow-violet)" }} />
-      <section className="flex flex-col items-start gap-6">
-        <Badge>Scaffold F00 · en construcción</Badge>
-        <h1 className="max-w-3xl text-4xl font-bold leading-[1.05] sm:text-6xl">
-          ¿Dónde están tus próximos clientes y cuánto te cuestan?
-        </h1>
-        <p className="max-w-xl text-lg text-faro-text-2">
-          Faro busca empresas, las contacta con respeto y te dice qué fuente rinde más por cada peso invertido.
-        </p>
-        <Button size="lg">Encontrar mis clientes</Button>
-      </section>
-      <section aria-label="Cómo funciona" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {steps.map((s) => (
-          <Card key={s.n}>
-            <CardHeader>
-              <span className="font-display text-sm text-faro-accent">{s.n}</span>
-              <CardTitle>{s.t}</CardTitle>
-              <CardDescription>{s.d}</CardDescription>
-            </CardHeader>
-          </Card>
-        ))}
-      </section>
-    </main>
+    <>
+      <Hero />
+      <main>
+        <DemoVideo />
+        <HowItWorks />
+        <PaidVsFree stats={stats} />
+        <Compliance />
+      </main>
+      <Footer />
+    </>
   );
 }

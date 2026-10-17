@@ -36,3 +36,16 @@ html { color-scheme: dark; }
 body { background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
 h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; }
 :focus-visible { outline: 2px solid var(--faro-accent); outline-offset: 2px; }
+
+/* Landing: radar beam + pulsing dots (CSS only, compositor-friendly). */
+.faro-beam {
+  background: conic-gradient(from 0deg, rgba(203, 232, 80, 0.28) 0deg, rgba(203, 232, 80, 0) 70deg, transparent 360deg);
+  animation: faro-sweep 9s linear infinite;
+}
+.faro-pulse { animation: faro-pulse 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes faro-sweep { to { transform: rotate(360deg); } }
+@keyframes faro-pulse { 0%, 100% { opacity: 0.35; transform: scale(1); } 50% { opacity: 1; transform: scale(1.7); } }
+@media (prefers-reduced-motion: reduce) {
+  .faro-beam, .faro-pulse { animation: none; }
+  .faro-pulse { opacity: 1; }
+}
