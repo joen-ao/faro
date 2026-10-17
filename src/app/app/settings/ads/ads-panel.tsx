@@ -133,7 +133,7 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
         )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <form onSubmit={submitManual} className="rounded-card border border-border bg-card p-5" aria-labelledby="manual-h">
           <h2 id="manual-h" className="text-lg font-semibold">Carga manual</h2>
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -167,7 +167,7 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
 
         <form onSubmit={submitCsv} className="rounded-card border border-border bg-card p-5" aria-labelledby="csv-h">
           <h2 id="csv-h" className="text-lg font-semibold">Carga por CSV</h2>
-          <p className="mt-1 text-sm text-faro-text-2">Máximo 1 MB. Columnas: <code className="text-faro-accent">platform,campaign,date,usd,impressions,clicks</code> (platform, impressions y clics opcionales). Fecha yyyy-mm-dd.</p>
+          <p className="mt-1 text-sm text-faro-text-2">Máximo 1 MB. Columnas: <code className="break-all text-faro-accent">platform,campaign,date,usd,impressions,clicks</code> (platform, impressions y clics opcionales). Fecha yyyy-mm-dd.</p>
           <label className={`${label} mt-4`} htmlFor="file">Archivo</label>
           <input id="file" name="file" type="file" accept=".csv,text/csv" className="block w-full text-sm text-faro-text-2 file:mr-3 file:h-10 file:cursor-pointer file:rounded-button file:border file:border-border file:bg-faro-surface-2 file:px-3 file:text-sm file:text-foreground" />
           <Button type="submit" variant="secondary" disabled={busy} className="mt-4 w-full">

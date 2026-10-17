@@ -4,6 +4,7 @@ const PORT = 3100;
 process.env.OPTOUT_SECRET ??= "e2e-only-secret"; // inherited by the web server and the test workers
 process.env.FARO_SEED_DEMO = "1"; // seeds demo-clinica (F12) and enables the demo-only events read
 process.env.APP_ACCESS_KEY ??= "e2e-only-app-key"; // /app/settings/ads is gated by requireAppAccess
+process.env.META_ADS_CAMPAIGN_ID ??= "faro-demo"; // shows the UTM link on /app/settings/ads
 process.env.FARO_E2E = "1"; // lets those demo tools run under `next start` (NODE_ENV=production)
 
 export default defineConfig({
