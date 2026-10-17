@@ -10,5 +10,6 @@ test("lead receipt demo page renders, is labelled DEMO and has no horizontal scr
   const width = info.project.use.viewport?.width ?? 1440;
   await page.screenshot({ path: `artifacts/screens/F13-receipt-${width}.png`, fullPage: true });
 
-  expect((await page.request.get("/api/metrics/receipt/not-a-uuid")).status()).toBe(400);
+  expect((await page.request.get("/api/metrics/receipt/not-a-uuid", { headers: { "x-app-key": process.env.APP_ACCESS_KEY ?? "" } })).status()).toBe(400);
+  expect((await page.request.get("/api/metrics/receipt/not-a-uuid")).status()).toBe(401);
 });

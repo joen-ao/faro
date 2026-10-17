@@ -25,7 +25,15 @@ beforeAll(async () => {
 });
 afterAll(() => conn.close());
 
-const req = (url: string) => new Request(`http://x${url}`);
+const KEY = "k-test";
+const req = (url: string, key: string | null = KEY) => new Request(`http://x${url}`, key ? { headers: { "x-app-key": key } } : undefined);
+
+beforeAll(() => {
+  vi.stubEnv("APP_ACCESS_KEY", KEY);
+});
+afterAll(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("/api/metrics endpoints", () => {
   it("receipt: 400 for a bad id, 404 for unknown, 200 with the receipt", async () => {
@@ -49,6 +57,19 @@ describe("/api/metrics endpoints", () => {
     const b = await (await GET(req("/api/metrics/matrix?demo=1"))).json();
     expect(b.demo.totals.found).toBe(3);
     expect(b.real.totals.found).toBe(0);
+  });
+
+  it("receipt and matrix: 401 without or with a wrong key; public stays open", async () => {
+    const receipt = await import("@/app/api/metrics/receipt/[leadId]/route");
+    const matrix = await import("@/app/api/metrics/matrix/route");
+    const pub = await import("@/app/api/metrics/public/route");
+    const id = "00000000-0000-4000-8000-000000000000";
+    const ctx = { params: Promise.resolve({ leadId: id }) };
+    expect((await receipt.GET(req(`/api/metrics/receipt/${id}`, null), ctx)).status).toBe(401);
+    expect((await receipt.GET(req(`/api/metrics/receipt/${id}`, "bad"), ctx)).status).toBe(401);
+    expect((await matrix.GET(req("/api/metrics/matrix", null))).status).toBe(401);
+    expect((await matrix.GET(req("/api/metrics/matrix", "bad"))).status).toBe(401);
+    expect((await pub.GET()).status).toBe(200);
   });
 
   it("public: honest empty state with demo-only data", async () => {
