@@ -12,3 +12,4 @@ playwright-report
 *.tsbuildinfo
 next-env.d.ts
 .cache
+.loop/check-*.log

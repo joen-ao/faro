@@ -12,3 +12,4 @@
 
 ## Progreso del loop nocturno
 - 2026-10-17 03:24 · F00 → DONE: Next 16 + Tailwind v4 + Drizzle/PGlite + Vitest + Playwright; check verde; 4 MINOR en review
+- 2026-10-17 03:27 · F01 → DONE: 16 tablas Drizzle, migraciones PGlite, seed is_demo; 4 MINOR (ver specs/reviews/F01-r1.md)
