@@ -65,7 +65,7 @@ interface Raw {
  * (SPEC §7: mock never mixes with real). The contact channel is that of the first sent message,
  * or `dapta_widget` for inbound widget activity.
  */
-const LEAD_FACTS = `
+export const LEAD_FACTS = `
 with lf as (
   select l.id, l.primary_source::text as src, l.is_demo as demo,
     coalesce(l.fit_score >= coalesce(i.threshold, 60), false) as fit,

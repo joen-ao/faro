@@ -48,6 +48,22 @@ export function mockResponse(prompt: string): string {
     const found = results.filter((r) => r.found).map((r) => r.signal);
     return JSON.stringify({ signals: results, why_now: found.length ? `Muestra senales de ${found.join(", ")}.` : "" });
   }
+  if (task === "outreach_message") {
+    let p: { company?: string; sector?: string; city?: string; offer?: string } = {};
+    try {
+      p = JSON.parse(after(prompt, "PAYLOAD:").split("\n")[0]);
+    } catch {
+      /* fall back to generic copy */
+    }
+    const company = p.company || "su empresa";
+    const where = p.city ? ` en ${p.city}` : "";
+    const what = p.sector ? ` de ${p.sector}` : "";
+    return JSON.stringify({
+      subject: `Una idea para ${company}`,
+      opening: `Vimos que ${company} trabaja en el sector${what}${where} y quisimos escribirle con una idea concreta, sin compromiso.`,
+      value: p.offer && p.offer.length >= 10 ? `${p.offer}`.slice(0, 280) : "Ayudamos a pymes a encontrar nuevos clientes y a medir cuánto cuesta conseguir cada uno.",
+    });
+  }
   // Unknown task: stable pseudo-output so callers can still exercise validation paths.
   return JSON.stringify({ mock: true, hash: fnv(prompt) });
 }
