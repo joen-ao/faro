@@ -11,7 +11,7 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F04 | Adapter Socrata (RUES/REPS) | P0 | DONE | feat/F04-socrata | 1 | RUES por CIIU+cámara, REPS dental, SoQL seguro, filtro jurídico; 4 MINOR (F04-r1) |
 | F05 | Adapter Google Places | P1 | TODO | | 0 | |
 | F06 | Enriquecimiento web (robots.txt + Apify) | P1 | TODO | | 0 | |
-| F07 | Dedupe y merge multi-fuente | P0 | IN_PROGRESS | | 0 | |
+| F07 | Dedupe y merge multi-fuente | P0 | DONE | feat/F07-dedupe | 2 | Dedupe NIT/nombre trigram+80m/dominio/teléfono, nunca pierde fuentes, 5k<2s; 3 MINOR (F07-r2) |
 | F08 | ICP NL + scoring con evidencia | P0 | DONE | feat/F08-icp-scoring | 2 | ICP NL→criteria (Zod), scoring con evidencia y anti-injection, costo IA; mock sin llave. MINOR: legalVerified no persistido → F10 debe bloquear no verificados |
 | F09 | Cumplimiento | P0 | DONE | feat/F09-cumplimiento | 2 | Ventanas CO+festivos 2026, supresión, opt-out HMAC con POST, gate correo genérico, /baja; 2 MINOR (F09-r2). Requiere OPTOUT_SECRET en prod |
 | F10 | Outreach | P0 | TODO | | 0 | |
