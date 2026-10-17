@@ -9,4 +9,4 @@ export function getWhatsappAdapter(env: Pick<Env, "WHATSAPP_ENABLED"> = getEnv()
 
 export * from "./types";
 export { buildWhatsappCsv } from "./real";
-export { selectWhatsappRows, type WhatsappSelection } from "./select";
+export { selectWhatsappRows, reservationId, type WhatsappSelection } from "./select";

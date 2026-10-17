@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { companies, contactPoints, costEntries, costRates, events, leads, messages, suppression } from "@/db/schema";
+import { companies, contactPoints, costEntries, costRates, events, hunts, icpProfiles, leads, messages, suppression, workspaces } from "@/db/schema";
 import { seedCostRates } from "@/db/seed";
 import { getWhatsappAdapter, selectWhatsappRows, buildWhatsappCsv, type WhatsappRow } from "@/integrations/whatsapp";
 import { isStopText, processWhatsappWebhook, verifyWhatsappSecret, whatsappWebhookSchema } from "@/integrations/whatsapp/webhook";
+import { evaluateOutreachForLead } from "@/features/compliance/evaluate";
 import { parseEnv } from "@/lib/env";
 import { createTestDb } from "../helpers/test-db";
 
@@ -39,7 +40,7 @@ describe("csv", () => {
 
 describe("selection", () => {
   let conn: Awaited<ReturnType<typeof createTestDb>>;
-  const mk = async (name: string, phones: { value: string; isGeneric?: boolean; src?: "osm" | null }[], extra: { legal?: boolean; website?: string } = {}) => {
+  const mk = async (name: string, phones: { value: string; isGeneric?: boolean; src?: "osm" | "google_places" | null }[], extra: { legal?: boolean; website?: string; huntId?: string } = {}) => {
     const [c] = await conn.db
       .insert(companies)
       .values({ name, normalizedName: name.toLowerCase(), city: "Bogota", isLegalEntity: extra.legal ?? true, website: extra.website ?? null })
@@ -47,18 +48,23 @@ describe("selection", () => {
     for (const p of phones) {
       await conn.db.insert(contactPoints).values({ companyId: c!.id, type: "phone", value: p.value, isGeneric: p.isGeneric ?? false, sourceChannel: p.src ?? null });
     }
-    const [l] = await conn.db.insert(leads).values({ companyId: c!.id, primarySource: "osm", slug: name.toLowerCase().replace(/\s/g, "-") + "-1a2b", fitScore: 70 }).returning();
+    const [l] = await conn.db.insert(leads).values({ companyId: c!.id, primarySource: "osm", slug: name.toLowerCase().replace(/\s/g, "-") + "-1a2b", fitScore: 70, huntId: extra.huntId ?? null }).returning();
     return { company: c!, lead: l! };
   };
   beforeAll(async () => {
     conn = await createTestDb();
-    await mk("Empresa Ok", [{ value: "+573011110001", src: "osm" }]);
+    await mk("Empresa Ok", [{ value: "+573011110001", src: "google_places" }]);
+    await mk("Celular Osm", [{ value: "+573011110006", src: "osm" }]); // unverified OSM mobile
+    const [ws] = await conn.db.insert(workspaces).values({ name: "US", country: "US" }).returning();
+    const [icp] = await conn.db.insert(icpProfiles).values({ workspaceId: ws!.id, prompt: "x" }).returning();
+    const [h] = await conn.db.insert(hunts).values({ icpProfileId: icp!.id }).returning();
+    await mk("Empresa Us", [{ value: "+12125550100", src: "google_places" }], { huntId: h!.id });
     await mk("Celular Personal", [{ value: "+573011110002" }]); // not generic, no company source
-    await mk("Suprimida", [{ value: "+573011110003", src: "osm" }]);
+    await mk("Suprimida", [{ value: "+573011110003", src: "google_places" }]);
     await conn.db.insert(suppression).values({ kind: "phone", value: "+573011110003", reason: "test" });
-    const c = await mk("Ya Correo", [{ value: "+573011110004", src: "osm" }]);
+    const c = await mk("Ya Correo", [{ value: "+573011110004", src: "google_places" }]);
     await conn.db.insert(messages).values({ leadId: c.lead.id, contactChannel: "email", body: "hola", status: "sent" });
-    await mk("Persona Natural", [{ value: "+573011110005", src: "osm" }], { legal: false });
+    await mk("Persona Natural", [{ value: "+573011110005", src: "google_places" }], { legal: false });
   });
   afterAll(() => conn.close());
 
@@ -68,7 +74,18 @@ describe("selection", () => {
     expect(sel.rows[0]!.diagnosticUrl).toContain("c=whatsapp");
     expect(sel.rows[0]!.optOutUrl).toContain("/baja/");
     const rules = sel.skipped.map((s) => s.rule).sort();
-    expect(rules).toEqual(["already_contacted", "natural_person", "suppressed"]);
+    expect(rules).toEqual(["already_contacted", "channel_not_allowed", "natural_person", "suppressed"]);
+  });
+
+  it("reserves exported companies so a later email sees them as contacted; re-export is stable", async () => {
+    const a = await selectWhatsappRows(conn.db, { appUrl: APP, now: WEEKDAY, reserve: true });
+    expect(a.rows).toHaveLength(1);
+    const ev = await evaluateOutreachForLead(conn.db, a.rows[0]!.leadId, { channel: "email", value: "info@x.co", isGeneric: true }, WEEKDAY);
+    expect(ev.blocks.map((b) => b.rule)).toContain("already_contacted");
+    const b = await selectWhatsappRows(conn.db, { appUrl: APP, now: WEEKDAY, reserve: true });
+    expect(b.rows).toHaveLength(1);
+    const reservations = await conn.db.select().from(messages).where(eq(messages.contactChannel, "whatsapp"));
+    expect(reservations).toHaveLength(1);
   });
 
   it("exports nothing on Sunday (Ley 2300 window)", async () => {
@@ -134,6 +151,15 @@ describe("webhook", () => {
       expect(ev.map((e) => e.type).sort()).toEqual(["delivered", "reply", "sent"]);
       const [m] = await conn.db.select().from(messages).where(eq(messages.leadId, leadId));
       expect(m!.status).toBe("delivered");
+    });
+
+    it("opt_out / STOP with no resolvable lead still suppresses the normalized phone", async () => {
+      const r = await processWhatsappWebhook(conn.db, whatsappWebhookSchema.parse({ event: "opt_out", phone: "+57 601 555 0000" }));
+      expect(r).toMatchObject({ ok: true, leadId: null, optedOut: true });
+      const r2 = await processWhatsappWebhook(conn.db, whatsappWebhookSchema.parse({ event: "reply", phone: "+57 601 555 0001", text: "stop" }));
+      expect(r2).toMatchObject({ ok: true, leadId: null, optedOut: true });
+      const sup = await conn.db.select().from(suppression);
+      expect(sup.map((s) => s.value)).toEqual(expect.arrayContaining(["+576015550000", "+576015550001"]));
     });
 
     it("unknown lead -> 404 result", async () => {

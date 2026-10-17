@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   if (huntId !== undefined && !z.string().uuid().safeParse(huntId).success) {
     return Response.json({ ok: false, error: "invalid_hunt_id" }, { status: 400 });
   }
-  const sel = await selectWhatsappRows(getDb().db, { appUrl: env.NEXT_PUBLIC_APP_URL, huntId });
+  const sel = await selectWhatsappRows(getDb().db, { appUrl: env.NEXT_PUBLIC_APP_URL, huntId, reserve: true });
   const out = getWhatsappAdapter(env).exportCsv(sel.rows);
   return new Response(out.csv, {
     headers: {

@@ -10,7 +10,9 @@ export async function POST(req: Request) {
   if (!verifyWhatsappSecret(req)) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   let body: unknown;
   try {
-    body = await req.json();
+    const raw = await req.text();
+    if (raw.length > 64 * 1024) return NextResponse.json({ ok: false, error: "payload_too_large" }, { status: 413 });
+    body = JSON.parse(raw);
   } catch {
     return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
   }

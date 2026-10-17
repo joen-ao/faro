@@ -1,11 +1,11 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { seedCostRates } from "@/db/seed";
 import { z } from "zod";
 import { contactPoints, costEntries, costRates, events, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { safeEqual } from "@/lib/app-access";
 import { normalizeSuppressionValue, suppress } from "@/features/compliance/suppression";
 
-export const DEFAULT_TEMPLATE_USD = 0.0125;
 const optStr = z.string().trim().min(1).max(500).optional().nullable();
 
 export const whatsappWebhookSchema = z
@@ -58,12 +58,15 @@ async function findLead(db: AppDb, p: WhatsappWebhookPayload) {
 }
 
 export type WhatsappOutcome =
-  | { ok: true; duplicate: boolean; leadId: string; event: string; optedOut: boolean; costUsd: number }
+  | { ok: true; duplicate: boolean; leadId: string | null; event: string; optedOut: boolean; costUsd: number }
   | { ok: false; status: 404; error: "lead_not_found" };
 
+/** The template rate lives only in cost_rates (seeded on demand if the row is missing). */
 async function templateRate(db: AppDb): Promise<number> {
-  const [r] = await db.select().from(costRates).where(eq(costRates.key, "whatsapp_template")).limit(1);
-  return r?.usd ?? DEFAULT_TEMPLATE_USD;
+  const read = async () => (await db.select().from(costRates).where(eq(costRates.key, "whatsapp_template")).limit(1))[0];
+  const r = (await read()) ?? (await seedCostRates(db), await read());
+  if (!r) throw new Error("cost_rates.whatsapp_template missing");
+  return r.usd;
 }
 
 async function optOut(db: AppDb, lead: typeof leads.$inferSelect, phone: string | null | undefined): Promise<void> {
@@ -80,32 +83,51 @@ async function optOut(db: AppDb, lead: typeof leads.$inferSelect, phone: string 
 /** Applies one WhatsApp event reported by Dapta/Meta. `sent` is idempotent by `message_id`. */
 export async function processWhatsappWebhook(db: AppDb, p: WhatsappWebhookPayload): Promise<WhatsappOutcome> {
   const lead = await findLead(db, p);
-  if (!lead) return { ok: false, status: 404, error: "lead_not_found" };
   const phone = p.phone ? normalizeSuppressionValue(p.phone).value : null;
+  if (!lead) {
+    // An opt-out is fail-safe: suppress the phone even when no lead matches.
+    if (phone && (p.event === "opt_out" || (p.event === "reply" && isStopText(p.text)))) {
+      await suppress(db, phone, "opt-out de WhatsApp (BAJA/STOP)");
+      return { ok: true, duplicate: false, leadId: null, event: p.event, optedOut: true, costUsd: 0 };
+    }
+    return { ok: false, status: 404, error: "lead_not_found" };
+  }
   const base = { leadId: lead.id, event: p.event };
   const payload = { channel: "whatsapp", ...(p.message_id ? { message_id: p.message_id } : {}) };
 
   if (p.event === "sent") {
-    if (p.message_id) {
-      const [dup] = await db
-        .select({ id: messages.id })
-        .from(messages)
-        .where(and(eq(messages.contactChannel, "whatsapp"), eq(messages.providerId, p.message_id)))
-        .limit(1);
-      if (dup) return { ok: true, duplicate: true, optedOut: false, costUsd: 0, ...base };
-    }
     const rate = await templateRate(db);
-    await db.insert(messages).values({
-      leadId: lead.id, contactChannel: "whatsapp", body: "Plantilla de WhatsApp (Dapta)", status: "sent", providerId: p.message_id ?? null,
-      recipient: phone, sentAt: new Date(),
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${"wa:" + lead.id}))`);
+      const msgId = p.message_id ?? null;
+      if (msgId) {
+        const [dup] = await tx
+          .select({ id: messages.id })
+          .from(messages)
+          .where(and(eq(messages.contactChannel, "whatsapp"), eq(messages.providerId, msgId), inArray(messages.status, ["sent", "delivered"])))
+          .limit(1);
+        if (dup) return { ok: true as const, duplicate: true, optedOut: false, costUsd: 0, ...base };
+      }
+      // Claim the export reservation (queued -> sent); otherwise record a fresh message.
+      const claimed = await tx
+        .update(messages)
+        .set({ status: "sent", sentAt: new Date(), ...(msgId ? { providerId: msgId } : {}), ...(phone ? { recipient: phone } : {}) })
+        .where(and(eq(messages.leadId, lead.id), eq(messages.contactChannel, "whatsapp"), eq(messages.status, "queued")))
+        .returning({ id: messages.id });
+      if (!claimed.length) {
+        await tx.insert(messages).values({
+          leadId: lead.id, contactChannel: "whatsapp", body: "Plantilla de WhatsApp (Dapta)", status: "sent", providerId: msgId,
+          recipient: phone, sentAt: new Date(),
+        });
+      }
+      await tx.insert(events).values({ leadId: lead.id, type: "sent", payload, isDemo: lead.isDemo });
+      await tx.insert(costEntries).values({
+        leadId: lead.id, huntId: lead.huntId, sourceChannel: lead.primarySource, contactChannel: "whatsapp", category: "whatsapp",
+        quantity: 1, unit: "template", rate, usd: rate, evidence: `whatsapp template ${msgId ?? "sent"}`, isDemo: lead.isDemo, isMock: false,
+      });
+      if (["found", "fit"].includes(lead.status)) await tx.update(leads).set({ status: "contacted" }).where(eq(leads.id, lead.id));
+      return { ok: true as const, duplicate: false, optedOut: false, costUsd: rate, ...base };
     });
-    await db.insert(events).values({ leadId: lead.id, type: "sent", payload, isDemo: lead.isDemo });
-    await db.insert(costEntries).values({
-      leadId: lead.id, huntId: lead.huntId, sourceChannel: lead.primarySource, contactChannel: "whatsapp", category: "whatsapp",
-      quantity: 1, unit: "template", rate, usd: rate, evidence: `whatsapp template ${p.message_id ?? "sent"}`, isDemo: lead.isDemo, isMock: false,
-    });
-    if (["found", "fit"].includes(lead.status)) await db.update(leads).set({ status: "contacted" }).where(eq(leads.id, lead.id));
-    return { ok: true, duplicate: false, optedOut: false, costUsd: rate, ...base };
   }
 
   if (p.event === "delivered") {
