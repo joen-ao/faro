@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.beforeEach(async ({ context }) => {
-  await context.addCookies([{ name: "faro_key", value: "e2e-key", url: "http://localhost:3100" }]);
+  await context.addCookies([{ name: "faro_key", value: process.env.APP_ACCESS_KEY ?? "e2e-key", url: "http://localhost:3100" }]);
 });
 
 test("dashboard: empty real state, then demo toggle shows separated DEMO data", async ({ page }, info) => {
@@ -25,7 +25,7 @@ test("dashboard: empty real state, then demo toggle shows separated DEMO data", 
   await expect(bandit.getByTestId("bandit-real")).toHaveCount(0);
   expect(await noHScroll()).toBe(true);
   await bandit.screenshot({ path: `artifacts/screens/F20-bandit-${width}.png` });
-  await bandit.getByRole("switch", { name: "Ver simulación" }).click();
+  await bandit.getByRole("switch", { name: "Volver a datos reales" }).click();
 
   await page.getByRole("switch", { name: /Incluir datos de prueba/ }).click();
   await page.waitForURL(/demo=1/);

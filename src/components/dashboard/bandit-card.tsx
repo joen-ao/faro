@@ -31,7 +31,7 @@ export function BanditCard({ real, simulation }: { real: NextBudget; simulation:
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-display text-lg font-semibold">Dónde invertir el próximo dólar</h3>
-          <p className="mt-1 text-sm text-faro-text-2">Muestreo de Thompson sobre calificados por dólar, solo con datos reales.</p>
+          <p className="mt-1 text-sm text-faro-text-2">{sim ? "Simulación con tasas y costos supuestos, sin datos reales." : "Muestreo de Thompson sobre calificados por dólar, solo con datos reales."}</p>
         </div>
         <button
           type="button"
@@ -40,7 +40,7 @@ export function BanditCard({ real, simulation }: { real: NextBudget; simulation:
           onClick={() => setSim((v) => !v)}
           className="inline-flex min-h-11 items-center gap-2 rounded-button border border-border px-3.5 text-sm text-faro-text-2 transition-colors hover:text-white aria-checked:border-faro-accent aria-checked:text-white"
         >
-          Ver simulación
+          {sim ? "Volver a datos reales" : "Ver simulación"}
         </button>
       </div>
 
@@ -65,13 +65,13 @@ export function BanditCard({ real, simulation }: { real: NextBudget; simulation:
           </div>
         ) : (
           <div data-testid="bandit-real">
-            <p className="mb-3 text-sm text-faro-text-2">Reparto sugerido de {fmtUsd(real.budgetUsd)}:</p>
+            <p className="mb-3 text-sm text-faro-text-2">Presupuesto ilustrativo: {fmtUsd(real.budgetUsd)} (no es tu presupuesto). Reparto sugerido:</p>
             <ul className="space-y-2.5">
               {real.allocations.map((a) => (
-                <Bar key={a.source} label={sourceLabel(a.source)} pct={a.probabilityBest} right={`${fmtUsd(a.budgetUsd)} · ${fmtPct(a.probabilityBest)} mejor`} />
+                <Bar key={a.source} label={sourceLabel(a.source)} pct={a.probabilityBest} right={`${a.free ? "esfuerzo" : fmtUsd(a.budgetUsd)} · ${fmtPct(a.probabilityBest)} mejor`} />
               ))}
             </ul>
-            <p className="mt-3 text-xs text-faro-text-3">% mejor = probabilidad de que la fuente sea la más rentable ({real.samples.toLocaleString("en-US")} muestras).</p>
+            <p className="mt-3 text-xs text-faro-text-3">% mejor = probabilidad de que la fuente sea la más rentable ({real.samples.toLocaleString("en-US")} muestras). Fuentes gratuitas: su parte es esfuerzo (leads a contactar), no dólares; se calculan con un costo piso de $0,01 por lead.</p>
           </div>
         )}
       </div>

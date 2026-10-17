@@ -106,6 +106,8 @@ export interface Allocation {
   source: string;
   budgetUsd: number;
   probabilityBest: number;
+  /** true when the source costs nothing: its share is effort (leads to contact), not dollars */
+  free: boolean;
   n: number;
   k: number;
 }
@@ -116,7 +118,9 @@ export type NextBudget =
 /** Suggested split of the next budget across REAL sources. Demo data is never read. */
 export function recommendNextBudget(metrics: { real: Pick<MetricsBucket, "bySource"> }, budgetUsd: number, seed = 20): NextBudget {
   const rows = metrics.real.bySource.filter((r) => r.source !== null && r.fit >= MIN_FIT);
-  const qualified = rows.reduce((a, r) => a + r.qualified, 0);
+  // k = qualified leads WITHIN the profile (qualifiedRate.k); `qualified` also counts leads below the ICP threshold.
+  const kOf = (r: (typeof rows)[number]) => Math.min(r.qualifiedRate.k, r.fit);
+  const qualified = rows.reduce((a, r) => a + kOf(r), 0);
   if (rows.length < 2 || qualified < MIN_TOTAL_QUALIFIED) {
     return {
       status: "insufficient",
@@ -124,7 +128,7 @@ export function recommendNextBudget(metrics: { real: Pick<MetricsBucket, "bySour
       reason: `Datos insuficientes: se necesitan al menos 2 fuentes con ${MIN_FIT} leads del perfil y ${MIN_TOTAL_QUALIFIED} calificados en total (hay ${rows.length} fuente(s) y ${qualified} calificado(s)).`,
     };
   }
-  const arms: Arm[] = rows.map((r) => ({ source: r.source as string, n: r.fit, k: r.qualified, costPerLead: r.fit > 0 ? r.costUsd / r.fit : 0 }));
+  const arms: Arm[] = rows.map((r) => ({ source: r.source as string, n: r.fit, k: kOf(r), costPerLead: r.fit > 0 ? r.costUsd / r.fit : 0 }));
   const p = probabilityBest(arms, seed);
   const split = splitCents(budgetUsd, p);
   return {
@@ -132,7 +136,7 @@ export function recommendNextBudget(metrics: { real: Pick<MetricsBucket, "bySour
     kind: "real",
     budgetUsd,
     samples: SAMPLES,
-    allocations: arms.map((a, i) => ({ source: a.source, budgetUsd: split[i], probabilityBest: p[i], n: a.n, k: a.k })).sort((x, y) => y.budgetUsd - x.budgetUsd),
+    allocations: arms.map((a, i) => ({ source: a.source, budgetUsd: split[i], probabilityBest: p[i], free: a.costPerLead === 0, n: a.n, k: a.k })).sort((x, y) => y.budgetUsd - x.budgetUsd),
   };
 }
 
