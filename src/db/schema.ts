@@ -312,7 +312,7 @@ export const adSpend = pgTable(
     isDemo: boolean("is_demo").notNull().default(false),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("ad_spend_platform_campaign_date_uq").on(t.platform, t.campaign, t.date)],
+  (t) => [uniqueIndex("ad_spend_platform_campaign_date_demo_uq").on(t.platform, t.campaign, t.date, t.isDemo)],
 );
 
 export const suppression = pgTable(
