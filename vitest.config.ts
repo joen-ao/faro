@@ -6,6 +6,6 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/unit/**/*.test.ts", "src/**/*.test.ts"],
-    coverage: { provider: "v8", include: ["src/features/**", "src/integrations/**", "src/lib/**", "src/db/**"], reporter: ["text", "html"] },
+    coverage: { provider: "v8", include: ["src/features/**", "src/integrations/**", "src/lib/**", "src/db/**"], reporter: ["text", "html"], exclude: ["**/*.sql", "**/migrations/**"] },
   },
 });

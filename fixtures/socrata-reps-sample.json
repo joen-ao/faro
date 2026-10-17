@@ -1,0 +1,114 @@
+{
+ "_attribution": "Datos Abiertos Colombia (datos.gov.co) REPS c36g-9fc2, CC BY-SA 4.0. Real sample, dental IPS Bogotá. Contact data masked.",
+ "rows": [
+  {
+   "codigoprestador": "1100104035",
+   "nombresede": "CENTRO ODONTOLOGICO COLMEDICA CALLE 84",
+   "nombreprestador": "UNIDAD MEDICA Y DE DIAGNOSTICO S.A",
+   "numeroidentificacion": "830001007",
+   "tipoid": "NI",
+   "claseprestador": "Instituciones Prestadoras de Servicios de Salud - IPS",
+   "email_sede": "redacted@example.invalid",
+   "t_lefonosede": "000-0000000",
+   "direcci_nsede": "Calle 1 # 1-1"
+  },
+  {
+   "codigoprestador": "1100104261",
+   "nombresede": "INSTITUTO DE ESTUDIOS CIENTIFICOS EN ODONTOLOGIA S A SIGLA: IECO",
+   "nombreprestador": "INSTITUTO DE ESTUDIOS CIENTIFICOS EN ODONTOLOGIA S.A SIGLA IECO",
+   "numeroidentificacion": "830017652",
+   "tipoid": "NI",
+   "claseprestador": "Instituciones Prestadoras de Servicios de Salud - IPS",
+   "email_sede": "redacted@example.invalid",
+   "t_lefonosede": "000-0000000",
+   "direcci_nsede": "Calle 1 # 1-1"
+  },
+  {
+   "codigoprestador": "1100104261",
+   "nombresede": "CONSULTORIO RADIOLOGICO ORAL Y MAXILOFACIAL",
+   "nombreprestador": "INSTITUTO DE ESTUDIOS CIENTIFICOS EN ODONTOLOGIA S.A SIGLA IECO",
+   "numeroidentificacion": "830017652",
+   "tipoid": "NI",
+   "claseprestador": "Instituciones Prestadoras de Servicios de Salud - IPS",
+   "email_sede": "redacted@example.invalid",
+   "t_lefonosede": "000-0000000",
+   "direcci_nsede": "Calle 1 # 1-1"
+  },
+  {
+   "codigoprestador": "1100104261",
+   "nombresede": "CLINICAS ODONTOLOGICAS IECO S.A. - CONSULTA PRIORITARIA",
+   "nombreprestador": "INSTITUTO DE ESTUDIOS CIENTIFICOS EN ODONTOLOGIA S.A SIGLA IECO",
+   "numeroidentificacion": "830017652",
+   "tipoid": "NI",
+   "claseprestador": "Instituciones Prestadoras de Servicios de Salud - IPS",
+   "email_sede": "redacted@example.invalid",
+   "t_lefonosede": "000-0000000",
+   "direcci_nsede": "Calle 1 # 1-1"
+  },
+  {
+   "codigoprestador": "1100104261",
+   "nombresede": "IECO IMAGENES DIAGNOSTICAS CLINICA COLOMBIA",
+   "nombreprestador": "INSTITUTO DE ESTUDIOS CIENTIFICOS EN ODONTOLOGIA S.A SIGLA IECO",
+   "numeroidentificacion": "830017652",
+   "tipoid": "NI",
+   "claseprestador": "Instituciones Prestadoras de Servicios de Salud - IPS",
+   "email_sede": "redacted@example.invalid",
+   "t_lefonosede": "000-0000000",
+   "direcci_nsede": "Calle 1 # 1-1"
+  },
+  {
+   "codigoprestador": "1100104261",
+   "nombresede": "ATENCION PRIORITARIA CLINICA COLOMBIA",
+   "nombreprestador": "INSTITUTO DE ESTUDIOS CIENTIFICOS EN ODONTOLOGIA S.A SIGLA IECO",
+   "numeroidentificacion": "830017652",
+   "tipoid": "NI",
+   "claseprestador": "Instituciones Prestadoras de Servicios de Salud - IPS",
+   "email_sede": "redacted@example.invalid",
+   "t_lefonosede": "000-0000000",
+   "direcci_nsede": "Calle 1 # 1-1"
+  },
+  {
+   "codigoprestador": "1100104261",
+   "nombresede": "IECO CLINICA ODONTOLOGICA LAS AMERICAS",
+   "nombreprestador": "INSTITUTO DE ESTUDIOS CIENTIFICOS EN ODONTOLOGIA S.A SIGLA IECO",
+   "numeroidentificacion": "830017652",
+   "tipoid": "NI",
+   "claseprestador": "Instituciones Prestadoras de Servicios de Salud - IPS",
+   "email_sede": "redacted@example.invalid",
+   "t_lefonosede": "000-0000000",
+   "direcci_nsede": "Calle 1 # 1-1"
+  },
+  {
+   "codigoprestador": "1100104471",
+   "nombresede": "INDESAN S.A SONRIA -NORMANDIA",
+   "nombreprestador": "INVERSIONES DENTALES SANTANDER S.A.S",
+   "numeroidentificacion": "830028950",
+   "tipoid": "NI",
+   "claseprestador": "Instituciones Prestadoras de Servicios de Salud - IPS",
+   "email_sede": "redacted@example.invalid",
+   "direcci_nsede": "Calle 1 # 1-1"
+  },
+  {
+   "codigoprestador": "1100105040",
+   "nombresede": "FEDERACION ODONTOLOGICA COLOMBIANA",
+   "nombreprestador": "FEDERACION ODONTOLOGICA COLOMBIANA",
+   "numeroidentificacion": "860006792",
+   "tipoid": "NI",
+   "claseprestador": "Instituciones Prestadoras de Servicios de Salud - IPS",
+   "email_sede": "redacted@example.invalid",
+   "t_lefonosede": "000-0000000",
+   "direcci_nsede": "Calle 1 # 1-1"
+  },
+  {
+   "codigoprestador": "1100105766",
+   "nombresede": "FUNDACION OPERACION SONRISA COLOMBIA",
+   "nombreprestador": "FUNDACION OPERACION SONRISA COLOMBIA",
+   "numeroidentificacion": "800252821",
+   "tipoid": "NI",
+   "claseprestador": "Instituciones Prestadoras de Servicios de Salud - IPS",
+   "email_sede": "redacted@example.invalid",
+   "t_lefonosede": "000-0000000",
+   "direcci_nsede": "Calle 1 # 1-1"
+  }
+ ]
+}

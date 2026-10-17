@@ -1,0 +1,80 @@
+{
+ "_attribution": "Datos Abiertos Colombia (datos.gov.co) RUES c82u-588k, CC BY-SA 4.0. Real sample, active legal entities CIIU 8622 BOGOTA. Razones sociales de E.U. con nombre propio sustituidas por nombres sintéticos.",
+ "rows": [
+  {
+   "razon_social": "SERVICIO DE SALUD ORAL INTEGRAL LTDA",
+   "cod_ciiu_act_econ_pri": "8622",
+   "organizacion_juridica": "SOCIEDAD LIMITADA",
+   "camara_comercio": "BOGOTA"
+  },
+  {
+   "razon_social": "PROFESIONES ODONTOLOGOS PRODONTOLOGOS LTDA. EN LIQUIDACION",
+   "cod_ciiu_act_econ_pri": "8622",
+   "organizacion_juridica": "SOCIEDAD LIMITADA",
+   "camara_comercio": "BOGOTA"
+  },
+  {
+   "razon_social": "PROFOSALUD E.U. - EN LIQUIDACION",
+   "cod_ciiu_act_econ_pri": "8622",
+   "organizacion_juridica": "EMPRESAS UNIPERSONALES",
+   "camara_comercio": "BOGOTA"
+  },
+  {
+   "razon_social": "EMPRESA UNIPERSONAL 1 E U",
+   "cod_ciiu_act_econ_pri": "8622",
+   "organizacion_juridica": "EMPRESAS UNIPERSONALES",
+   "camara_comercio": "BOGOTA",
+   "nit": "900000000"
+  },
+  {
+   "razon_social": "EMPRESA UNIPERSONAL 2 E U",
+   "cod_ciiu_act_econ_pri": "8622",
+   "organizacion_juridica": "EMPRESAS UNIPERSONALES",
+   "camara_comercio": "BOGOTA",
+   "nit": "900000000"
+  },
+  {
+   "razon_social": "INVERSIONES EJEMPLO Y CIA LTDA",
+   "cod_ciiu_act_econ_pri": "8622",
+   "organizacion_juridica": "SOCIEDAD LIMITADA",
+   "camara_comercio": "BOGOTA"
+  },
+  {
+   "razon_social": "EMPRESA UNIPERSONAL 3 E U",
+   "cod_ciiu_act_econ_pri": "8622",
+   "organizacion_juridica": "EMPRESAS UNIPERSONALES",
+   "camara_comercio": "BOGOTA",
+   "nit": "900000000"
+  },
+  {
+   "razon_social": "BIOQUALITY SYSTEM E U - EN LIQUIDACION",
+   "cod_ciiu_act_econ_pri": "8622",
+   "organizacion_juridica": "EMPRESAS UNIPERSONALES",
+   "camara_comercio": "BOGOTA"
+  },
+  {
+   "razon_social": "UNIDAD ODONTOMEDICA INTEGRAL CHIA LTDA EN LIQUIDACION",
+   "cod_ciiu_act_econ_pri": "8622",
+   "organizacion_juridica": "SOCIEDAD LIMITADA",
+   "camara_comercio": "BOGOTA"
+  },
+  {
+   "razon_social": "HECASALUD LTDA - EN LIQUIDACION",
+   "cod_ciiu_act_econ_pri": "8622",
+   "organizacion_juridica": "SOCIEDAD LIMITADA",
+   "camara_comercio": "BOGOTA"
+  },
+  {
+   "razon_social": "UNIDAD DE SERVICIOS ODONTOLOGICOS INFANTILES LTDA EN LIQUIDACION",
+   "cod_ciiu_act_econ_pri": "8622",
+   "organizacion_juridica": "SOCIEDAD LIMITADA",
+   "camara_comercio": "BOGOTA"
+  },
+  {
+   "razon_social": "D C SISTEMAS LTDA - EN LIQUIDACION",
+   "cod_ciiu_act_econ_pri": "8622",
+   "organizacion_juridica": "SOCIEDAD LIMITADA",
+   "camara_comercio": "BOGOTA"
+  }
+ ]
+}

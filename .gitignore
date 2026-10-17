@@ -6,7 +6,7 @@ node_modules
 artifacts/tmp
 .pglite
 .DS_Store
-coverage
+/coverage
 test-results
 playwright-report
 *.tsbuildinfo

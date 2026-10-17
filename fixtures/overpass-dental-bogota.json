@@ -1,0 +1,160 @@
+{
+ "_attribution": "© OpenStreetMap contributors, ODbL 1.0. Sample of real Overpass response (Bogotá, amenity/healthcare=dentist). Phones/emails masked.",
+ "elements": [
+  {
+   "type": "node",
+   "id": 4597314789,
+   "lat": 4.6043171,
+   "lon": -74.1136047,
+   "tags": {
+    "addr:housenumber": "38 A 41",
+    "addr:street": "Calle 8 Sur",
+    "amenity": "dentist",
+    "email": "redacted@example.invalid",
+    "name": "Centro de Rehabilitación Oral Odontoven",
+    "opening_hours": "Mo-Su 09:30-20:00",
+    "phone": "+57 000 000 0000",
+    "website": "https://www.odontoven.com/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 12550015801,
+   "lat": 4.6864865,
+   "lon": -74.0536286,
+   "tags": {
+    "addr:housenumber": "19A-30",
+    "addr:street": "Avenida Calle 100",
+    "amenity": "dentist",
+    "name": "Malo Dental",
+    "opening_hours": "Mo-Fr 08:00-18:00; Sa 08:00-12:00",
+    "phone": "+57 000 000 0000",
+    "website": "https://www.malodental.com.co/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 13853489601,
+   "lat": 4.652687,
+   "lon": -74.0632488,
+   "tags": {
+    "addr:housenumber": "#13-27",
+    "addr:street": "Calle 66",
+    "amenity": "dentist",
+    "name": "Odontología Integral DENTISMAI",
+    "opening_hours": "Mo-Fr 09:00-18:30; Sa 09:00-14:00",
+    "phone": "+57 000 000 0000",
+    "website": "https://www.dentismai.com/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 4122150389,
+   "lat": 4.7522791,
+   "lon": -74.0976462,
+   "tags": {
+    "addr:housenumber": "3",
+    "addr:street": "Calle 151 # 109 A 50\n",
+    "amenity": "dentist",
+    "email": "redacted@example.invalid",
+    "healthcare": "dentist",
+    "name": "VIP Dental Solutions",
+    "opening_hours": "Mo-Sa 10:00-19:00",
+    "phone": "+57 000 000 0000"
+   }
+  },
+  {
+   "type": "node",
+   "id": 4619004389,
+   "lat": 4.6746456,
+   "lon": -74.1425932,
+   "tags": {
+    "addr:housenumber": "99-18",
+    "addr:street": "Calle 20",
+    "amenity": "dentist",
+    "healthcare": "dentist",
+    "name": "Oral Advance AD",
+    "phone": "+57 000 000 0000"
+   }
+  },
+  {
+   "type": "node",
+   "id": 4648875291,
+   "lat": 4.555735,
+   "lon": -74.1104848,
+   "tags": {
+    "addr:street": "Calle 48L S",
+    "amenity": "dentist",
+    "name": "Acadent",
+    "opening_hours": "Mo-Sa 08:00-20:00",
+    "phone": "+57 000 000 0000"
+   }
+  },
+  {
+   "type": "node",
+   "id": 3152627670,
+   "lat": 4.7572534,
+   "lon": -74.098191,
+   "tags": {
+    "addr:housenumber": "152D-4",
+    "addr:street": "Carrera 114",
+    "amenity": "dentist",
+    "healthcare": "dentist",
+    "name": "Aso Dent Clínica Odontológicas",
+    "opening_hours": "Mo-Fr 09:00-20:00; Sa 08:00-12:00"
+   }
+  },
+  {
+   "type": "node",
+   "id": 3413518779,
+   "lat": 4.7427638,
+   "lon": -74.1083985,
+   "tags": {
+    "amenity": "dentist",
+    "name": "Orallife"
+   }
+  },
+  {
+   "type": "node",
+   "id": 3413706568,
+   "lat": 4.7108565,
+   "lon": -74.135832,
+   "tags": {
+    "addr:housenumber": "67-12",
+    "addr:street": "Carrera 115 A",
+    "amenity": "dentist",
+    "name": "Consultorio odontologico detiyac"
+   }
+  },
+  {
+   "type": "node",
+   "id": 3417948425,
+   "lat": 4.7450444,
+   "lon": -74.1077363,
+   "tags": {
+    "amenity": "dentist",
+    "name": "Diseña sonrrisas"
+   }
+  },
+  {
+   "type": "node",
+   "id": 3418907201,
+   "lat": 4.5996342,
+   "lon": -74.1546291,
+   "tags": {
+    "amenity": "dentist",
+    "name": "Dentiexpress"
+   }
+  },
+  {
+   "type": "node",
+   "id": 3420868307,
+   "lat": 4.616019,
+   "lon": -74.1675224,
+   "tags": {
+    "amenity": "dentist",
+    "name": "Consultorio Odontológico La esperanza"
+   }
+  }
+ ]
+}
