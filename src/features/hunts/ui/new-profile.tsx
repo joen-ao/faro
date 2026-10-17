@@ -58,6 +58,7 @@ function ChipAdder({ label, onAdd }: { label: string; onAdd: (v: string) => void
         }}
         onBlur={commit}
         placeholder={`Añadir ${label}`}
+        style={{ outline: "none" }}
         className="w-28 bg-transparent text-[13px] text-white outline-none placeholder:text-faro-text-3 focus-visible:outline-none"
       />
     </label>

@@ -39,8 +39,8 @@ const SNAP_ORDER: Snap[] = ["peek", "half", "full"];
 function StatusPill({ status, active, isDemo }: { status: string | null; active: boolean; isDemo: boolean }) {
   const live = active || status === "running" || status === "pending";
   return (
-    <div className="flex items-center gap-2">
-      <span className={cn("inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[12px] font-medium", live ? "border-faro-accent/50 text-white" : "border-white/20 text-faro-text-2")} data-testid="hunt-status">
+    <div className="flex flex-wrap items-center gap-2">
+      <span className={cn("inline-flex items-center gap-2 rounded-full border px-2.5 py-1 whitespace-nowrap text-[12px] font-medium", live ? "border-faro-accent/50 text-white" : "border-white/20 text-faro-text-2")} data-testid="hunt-status">
         {live ? <span className="faro-live-dot" aria-hidden /> : status === "completed" ? <Check className="size-3.5 text-faro-accent" aria-hidden /> : null}
         {live ? "Buscando en vivo" : status === "completed" ? "Búsqueda completa" : status === "failed" ? "Con errores" : "Lista"}
       </span>

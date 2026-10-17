@@ -85,7 +85,7 @@ export interface StreamResponse {
   updates: StatusUpdate[];
   counters: Counters;
   sources: Partial<HuntSourcesProgress>;
-  duplicates: { merged: number };
+  duplicates: { merged: number; mock: number };
 }
 
 export type { MergedPair };

@@ -73,6 +73,10 @@ describe("review r1 fixes", () => {
     expect(c.total).toMatchObject({ found: 15, fit: 5 });
     expect(c.test).toMatchObject({ found: 7, fit: 7 });
     expect(c.bySource.rues.found).toBe(7);
+    // duplicates of mock rows never reach the real total
+    const dup = countersFromGroups([], [{ mergedChannel: "osm" }, { mergedChannel: "rues", isMock: true }, { mergedChannel: "rues", isMock: true }]);
+    expect(dup.total.duplicates).toBe(1);
+    expect(dup.test?.duplicates).toBe(2);
     const d = countersFromGroups([{ source: "osm", status: "fit", isDemo: true, n: 4 }], [], true);
     expect(d.total.found).toBe(4);
     expect(d.test).toBeNull();

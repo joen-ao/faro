@@ -226,6 +226,12 @@ async function seedDemo(db: AppDb): Promise<string> {
     await db.insert(companySources).values(
       part.map((r) => ({ companyId: compIds[r.i], sourceChannel: r.source, externalId: `demo:${r.source}:${r.i + 1}`, raw: { demo: true, ciiu: r.source === "rues" ? "8622" : undefined }, sourceUrl: `${URL[r.source]}/${r.i + 1}`, license: LIC[r.source], isMock: true })),
     );
+    const fused = part.filter((r) => r.source === "osm" && r.registry);
+    if (fused.length) {
+      await db.insert(companySources).values(
+        fused.map((r) => ({ companyId: compIds[r.i], sourceChannel: "rues" as const, externalId: `demo:rues:fused:${r.i + 1}`, raw: { demo: true, ciiu: "8622" }, sourceUrl: `${URL.rues}/${r.i + 1}`, license: LIC.rues, isMock: true })),
+      );
+    }
     const ins = await db
       .insert(leads)
       .values(

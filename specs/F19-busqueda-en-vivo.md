@@ -12,7 +12,7 @@ SPEC §9.1, §10 vistas 2-4, §11: del texto libre al mapa en vivo. Orquestar la
 Enriquecimiento web y mensajes (F10), recibo real (F13: aquí un recibo mínimo desde `cost_entries`), autenticación.
 
 ## Contratos
-- `StreamPoint {id, lat|null, lng|null, status: found|fit|contacted|qualified, source, name, score}`; respuesta `{status, cursor, hasMore, points[], updates[], counters{total, bySource}, sources{state,fetched,total,cursor,isMock,log[]}}`.
+- `StreamPoint {id, lat|null, lng|null, status: found|fit|contacted|qualified, source, name, score}`; respuesta `{status, cursor, hasMore, points[], updates[], counters{total (solo real), bySource, test (mock/demo aparte)}, sources{state,fetched,total,cursor,isMock,log[]}}`.
 - `cursor` = offset en la lista de la fuente; la lista es determinista y cacheada (Overpass: caché de disco; Socrata: LRU). Un lote repetido es idempotente (dedupe por `(canal, external_id)`, lead único por `(company, hunt)`).
 - RUES/REPS no traen coordenadas: cuentan y aparecen en la lista ("sin ubicación"), no en el mapa.
 
@@ -23,6 +23,8 @@ Enriquecimiento web y mensajes (F10), recibo real (F13: aquí un recibo mínimo 
 4. Capturas 1440×900 y 390×844 de new, hunt y drawer; `npm run check` y `e2e:smoke` verdes.
 
 ## Verificación real
-Búsqueda real (modo real, Overpass + REPS en vivo, 17 oct 2026), "Clínicas dentales en Bogotá que tengan sitio web": OSM devolvió **408** lugares con nombre (407 empresas + 1 fusionada con otra) en 3 lotes (32 s el primero por Overpass en frío, 2 s y 0,4 s los siguientes); REPS **150** empresas en 2 lotes. 407 puntos reales con coordenadas en el mapa. Casi ningún lead llega al umbral 60 sin enriquecimiento web (F10): OSM solo aporta sitio web, sector y ciudad (REPS/RUES no traen coordenadas ni web). Algunas entradas de OSM tienen nombre de persona natural: quedan "por verificar" y nunca se contactan sin NIT en RUES/REPS.
+Búsqueda real (modo real, Overpass + REPS en vivo, 17 oct 2026), "Clínicas dentales en Bogotá que tengan sitio web": OSM devolvió **408** lugares con nombre (407 empresas + 1 fusionada con otra) en 3 lotes (32 s el primero por Overpass en frío, 2 s y 0,4 s los siguientes); REPS **150** empresas en 2 lotes. 407 puntos reales con coordenadas en el mapa. Casi ningún lead llega al umbral 60 sin enriquecimiento web (F10): OSM solo aporta sitio web, sector y ciudad (REPS/RUES no traen coordenadas ni web). Algunas entradas de OSM tienen nombre de persona natural: se excluyen antes de guardarse (lista blanca: palabra de negocio, tag `brand` o NIT) y solo se cuentan como `excluded_personal`.
 
 Capturas: `artifacts/screens/F19-{new,hunt,drawer}-{1440,390}.png` (WebGL por software con SwiftShader; teselas CARTO cargan en headless con red).
+
+Demo en producción: `/app/hunts/demo` y su lectura de stream requieren `FARO_ALLOW_DEMO=1` (como el demo de F10). Acceso: clave `APP_ACCESS_KEY` (cookie `faro_key` o header `x-app-key`).

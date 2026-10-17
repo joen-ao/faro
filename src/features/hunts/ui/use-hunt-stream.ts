@@ -132,7 +132,7 @@ export function useHuntStream(huntId: string): HuntStreamState {
     points,
     counters: data?.counters ?? null,
     sources: data?.sources ?? {},
-    mergedDuplicates: data?.duplicates.merged ?? 0,
+    mergedDuplicates: (data?.duplicates.merged ?? 0) + (data?.duplicates.mock ?? 0),
     version,
     arrival,
     retry,

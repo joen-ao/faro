@@ -8,6 +8,8 @@ import { DEFAULT_THRESHOLD, IcpCriteria } from "@/features/icp/schema";
 import { scoreFit, type ScoreCompany } from "@/features/scoring/fit";
 import { allDone, initialSourcesProgress, isHuntSource } from "./batch";
 import { computeCounters, toPointStatus } from "./counters";
+import { OSM_LICENSE } from "@/integrations/overpass/types";
+import { SOCRATA_LICENSE } from "@/integrations/socrata/types";
 import { fetchBatch, type SourceDeps } from "./sources";
 import type { Counters, HuntSource, HuntSourcesProgress, SourceProgress, StatusUpdate, StreamPoint, StreamResponse } from "./types";
 
@@ -226,6 +228,25 @@ async function runBatchInner(db: AppDb, huntId: string, source: HuntSource, curs
         .onConflictDoNothing()
         .returning({ id: leads.id });
     }
+    // Data cost: public sources are free (USD 0) but each new lead gets its line with the licence, so its receipt is never empty.
+    if (created.length) {
+      const license = source === "osm" ? OSM_LICENSE : SOCRATA_LICENSE;
+      await tx.insert(costEntries).values(
+        created.map((l) => ({
+          leadId: l.id,
+          huntId,
+          sourceChannel: source,
+          category: "data" as const,
+          quantity: 1,
+          unit: "record",
+          rate: 0,
+          usd: 0,
+          evidence: `Fuente pública gratuita · ${license}`,
+          isDemo: batch.isMock,
+          isMock: batch.isMock,
+        })),
+      );
+    }
     // Re-score leads whose company gained a source through a merge: more evidence can promote them.
     const mergedLeadIds = existingLeads.filter((l) => dedupe.pairs.some((p) => p.keptCompanyId === l.companyId)).map((l) => l.id);
     const toScore = [...created.map((l) => l.id), ...mergedLeadIds];
@@ -244,7 +265,8 @@ async function runBatchInner(db: AppDb, huntId: string, source: HuntSource, curs
         cursor: nextCursor,
         total: batch.total ?? p.total ?? (batch.done ? nextCursor : null),
         fetched: p.fetched + fetchedNow,
-        excludedPersonal: (p.excludedPersonal ?? 0) + batch.excluded,
+        // Batch 0 reports the whole exclusion count: assign (not add) so a replayed batch 0 stays idempotent.
+        excludedPersonal: cursor === 0 ? batch.excluded : (p.excludedPersonal ?? 0) + batch.excluded,
         isMock: batch.isMock,
         error: undefined,
         log: addLog(p, batch.done ? `${text} · fuente completa` : text),
@@ -369,7 +391,7 @@ export async function getStream(db: AppDb, huntId: string, opts: StreamOptions =
     updates,
     counters,
     sources: progress.sources ?? {},
-    duplicates: { merged: pairs.length },
+    duplicates: { merged: pairs.filter((x) => !x.isMock).length, mock: pairs.filter((x) => x.isMock).length },
     rev,
   };
 }
@@ -380,7 +402,7 @@ export async function getStream(db: AppDb, huntId: string, opts: StreamOptions =
  */
 export function countersFromGroups(
   groups: ReadonlyArray<{ source: string; status: string; isDemo?: boolean; n: number }>,
-  pairs: readonly Pick<MergedPair, "mergedChannel">[],
+  pairs: readonly Pick<MergedPair, "mergedChannel" | "isMock">[],
   huntIsDemo = false,
 ): Counters {
   const out = computeCounters([], huntIsDemo ? pairs : []);
@@ -399,11 +421,12 @@ export function countersFromGroups(
     else add(out.total, status, g.n);
   }
   if (!huntIsDemo) {
-    // duplicates of real sources only
+    // Real pairs add to the totals; mock/demo pairs are reported apart in `test.duplicates`.
     for (const pr of pairs) {
-      if (!out.bySource[pr.mergedChannel]) out.bySource[pr.mergedChannel] = { found: 0, fit: 0, contacted: 0, qualified: 0, duplicates: 0 };
-      out.bySource[pr.mergedChannel].duplicates++;
-      out.total.duplicates++;
+      const row = (out.bySource[pr.mergedChannel] ??= { found: 0, fit: 0, contacted: 0, qualified: 0, duplicates: 0 });
+      row.duplicates++;
+      if (pr.isMock) (test ??= { found: 0, fit: 0, contacted: 0, qualified: 0, duplicates: 0 }).duplicates++;
+      else out.total.duplicates++;
     }
   }
   out.test = test;

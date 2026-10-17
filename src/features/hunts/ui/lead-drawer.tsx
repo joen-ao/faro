@@ -130,7 +130,7 @@ export function LeadDrawer({ huntId, leadId, name, onClose, mobile }: { huntId: 
       data-testid="lead-drawer"
       className={cn(
         "absolute z-30 flex flex-col overflow-hidden border border-white/[0.14] bg-faro-surface-1 shadow-[0_24px_60px_rgba(0,0,0,0.6)]",
-        mobile ? "faro-sheet-in inset-x-0 top-[6dvh] bottom-0 rounded-t-[16px]" : "faro-slide-in top-3 right-3 bottom-3 w-[460px] rounded-[16px]",
+        mobile ? "faro-sheet-in inset-0 rounded-none border-0" : "faro-slide-in top-3 right-3 bottom-3 w-[460px] rounded-[16px]",
       )}
     >
       <header className="flex items-start gap-3 px-6 pt-5 pb-4">

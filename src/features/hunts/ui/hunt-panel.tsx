@@ -177,6 +177,7 @@ function Duplicates({ huntId, merged }: { huntId: string; merged: number }) {
             </span>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+            {p.isMock && <span className="rounded-[5px] border border-dashed border-white/30 px-1.5 py-0.5 font-semibold tracking-wide text-faro-text-2 uppercase">Mock</span>}
             <span className="rounded-[5px] bg-faro-surface-3/60 px-1.5 py-0.5 font-medium text-white">{REASON_LABEL[p.reason] ?? p.reason}</span>
             <span className="rounded-[5px] bg-faro-surface-3/60 px-1.5 py-0.5 text-faro-text-2 tabular-nums">similitud {Math.round(p.similarity * 100)} %</span>
             {p.distanceMeters != null && <span className="rounded-[5px] bg-faro-surface-3/60 px-1.5 py-0.5 text-faro-text-2 tabular-nums">a {p.distanceMeters} m</span>}
@@ -244,10 +245,10 @@ export function HuntPanel(p: PanelProps) {
         <Big loading={loading} value={t?.fit ?? 0} label="Del perfil" accent />
         <Big loading={loading} value={t?.duplicates ?? p.mergedDuplicates} label="Duplicados fusionados" />
       </div>
-      {p.counters?.test && (
+      {p.counters?.test && (p.counters.test.found > 0 || p.counters.test.duplicates > 0) && (
         <p className="mt-3 inline-flex items-center gap-2 rounded-[8px] border border-dashed border-white/30 px-2.5 py-1 text-[12px] text-faro-text-2" data-testid="test-counter">
           <span className="font-semibold tracking-wide text-white">PRUEBA</span>
-          +{fmtInt(p.counters.test.found)} mock, {fmtInt(p.counters.test.fit)} del perfil: no suman a los totales reales
+          +{fmtInt(p.counters.test.found)} mock, {fmtInt(p.counters.test.fit)} del perfil, {fmtInt(p.counters.test.duplicates)} duplicados: no suman a los totales reales
         </p>
       )}
       </div>
