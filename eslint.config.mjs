@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     "coverage/**",
     ".cache/**",
     ".claude/**",
+    "public/**",
   ]),
 ]);
 

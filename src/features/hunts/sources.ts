@@ -15,6 +15,7 @@ import {
 } from "@/integrations/socrata";
 import type { SourceCompany } from "@/integrations/types";
 import type { SourceCompany as OsmCompany } from "@/integrations/overpass/types";
+import { looksLikePersonName } from "@/features/compliance/person-name";
 import { BATCH_SIZE, sliceBatch } from "./batch";
 import type { HuntSource } from "./types";
 
@@ -43,7 +44,7 @@ export interface FetchedBatch {
 const accentless = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 /** OSM results by hunt, kept in memory between batches (the adapter also caches to disk). */
-const osmMemo = new Map<string, { at: number; list: OsmCompany[]; isMock: boolean }>();
+const osmMemo = new Map<string, { at: number; list: OsmCompany[]; isMock: boolean; excluded: number }>();
 const MEMO_TTL_MS = 10 * 60_000;
 
 async function osmList(key: string, c: IcpCriteria, overpass: OverpassAdapter) {
@@ -58,8 +59,11 @@ async function osmList(key: string, c: IcpCriteria, overpass: OverpassAdapter) {
     }),
   );
   // Stable order so a cursor means the same thing on every call.
-  const list = [...res.companies].sort((a, b) => a.externalId.localeCompare(b.externalId));
-  const entry = { at: Date.now(), list, isMock: res.isMock };
+  // SPEC §8: names that read like a natural person are dropped here, before anything is stored.
+  const kept = res.companies.filter((c) => !looksLikePersonName(c.name));
+  const excluded = res.companies.length - kept.length;
+  const list = [...kept].sort((a, b) => a.externalId.localeCompare(b.externalId));
+  const entry = { at: Date.now(), list, isMock: res.isMock, excluded };
   osmMemo.set(key, entry);
   if (osmMemo.size > 20) osmMemo.delete(osmMemo.keys().next().value as string);
   return entry;
@@ -78,9 +82,10 @@ export async function fetchBatch(
   size = BATCH_SIZE,
 ): Promise<FetchedBatch> {
   if (source === "osm") {
-    const { list, isMock } = await osmList(`${huntId}:osm`, c, deps.overpass);
+    const { list, isMock, excluded } = await osmList(`${huntId}:osm`, c, deps.overpass);
     const s = sliceBatch(list, cursor, size);
-    return { companies: s.items, nextCursor: s.nextCursor, done: s.done, total: list.length, isMock, excluded: 0 };
+    // The excluded count is reported once, with the first batch.
+    return { companies: s.items, nextCursor: s.nextCursor, done: s.done, total: list.length, isMock, excluded: cursor === 0 ? excluded : 0 };
   }
   const isRues = source === "rues";
   const dataset = isRues ? RUES_DATASET : REPS_DATASET;

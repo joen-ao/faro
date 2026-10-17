@@ -58,7 +58,7 @@ function ChipAdder({ label, onAdd }: { label: string; onAdd: (v: string) => void
         }}
         onBlur={commit}
         placeholder={`Añadir ${label}`}
-        className="w-28 bg-transparent text-[13px] text-white placeholder:text-faro-text-3 focus:outline-none"
+        className="w-28 bg-transparent text-[13px] text-white outline-none placeholder:text-faro-text-3 focus-visible:outline-none"
       />
     </label>
   );
@@ -373,7 +373,7 @@ export function NewProfile() {
                         <ChipAdder label="exclusión" onAdd={(v) => !criteria.exclusions.includes(v) && patch({ exclusions: [...criteria.exclusions, v] })} />
                       </Group>
                       {(criteria.ciiu.length > 0 || criteria.osmTags.length > 0) && (
-                        <p className="border-t border-white/[0.08] pt-4 text-[12.5px] leading-relaxed text-faro-text-3">
+                        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-2 border-t border-white/[0.08] pt-4 text-[12.5px] leading-relaxed text-faro-text-3">
                           Lo buscaremos como{" "}
                           {[...criteria.ciiu.map((c) => `CIIU ${c}`), ...criteria.osmTags].map((t, i) => (
                             <code key={t} className="mr-1.5 rounded-md bg-faro-surface-3/50 px-1.5 py-0.5 font-mono text-[11.5px] text-faro-text-2">

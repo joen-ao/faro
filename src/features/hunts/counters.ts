@@ -21,7 +21,7 @@ export function computeCounters(points: Iterable<StreamPoint>, pairs: readonly P
     src.duplicates++;
     total.duplicates++;
   }
-  return { total, bySource };
+  return { total, bySource, test: null };
 }
 
 /** Maps the lead lifecycle status (SPEC §4) to what the map shows. */

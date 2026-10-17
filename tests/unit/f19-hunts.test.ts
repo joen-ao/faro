@@ -166,7 +166,8 @@ describe("run orchestration", () => {
     const reps = await runBatch(db, huntId, "reps", undefined, deps());
     expect(rues.done && reps.done).toBe(true);
     const s = await getStream(db, huntId);
-    expect(s.counters.total.found).toBe(rues.newLeads + reps.newLeads);
+    expect(s.counters.total.found).toBe(0); // mock rows never count as real
+    expect(s.counters.test?.found).toBe(rues.newLeads + reps.newLeads);
     expect(s.points.every((p) => p.lat === null || typeof p.lat === "number")).toBe(true);
   });
 });

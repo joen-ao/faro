@@ -46,17 +46,6 @@ export async function createHunt(db: AppDb, input: CreateHuntInput): Promise<{ h
   });
 }
 
-/* ---------- per-hunt serialisation ---------- */
-
-/** Runs are serialised per hunt in-process so `hunts.progress` read-modify-writes never interleave. */
-const chains = new Map<string, Promise<unknown>>();
-function exclusive<T>(huntId: string, fn: () => Promise<T>): Promise<T> {
-  const prev = chains.get(huntId) ?? Promise.resolve();
-  const next = prev.then(fn, fn);
-  chains.set(huntId, next.catch(() => undefined));
-  return next;
-}
-
 const LOG_MAX = 12;
 const nowIso = () => new Date().toISOString();
 
@@ -143,7 +132,20 @@ const slugOf = () => randomBytes(6).toString("base64url").toLowerCase().replace(
  * Idempotent: replaying a cursor inserts nothing new (dedupe by `(channel, external_id)`, one lead per company+hunt).
  */
 export function runBatch(db: AppDb, huntId: string, source: HuntSource, cursor: number | undefined, deps: SourceDeps): Promise<RunBatchResult> {
-  return exclusive(huntId, () => runBatchInner(db, huntId, source, cursor, deps));
+  return runBatchInner(db, huntId, source, cursor, deps);
+}
+
+/**
+ * Per-hunt critical section: a transaction holding `pg_advisory_xact_lock(hunt)`. Every write to `hunts.progress`
+ * (sources, dedupe) and every lead insert of a batch happen inside it, so concurrent batches of different sources
+ * (even on different serverless instances) serialise and never lose each other's progress.
+ * The slow network fetch stays OUTSIDE the lock.
+ */
+async function locked<T>(db: AppDb, huntId: string, fn: (tx: AppDb) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${huntId}))`);
+    return fn(tx as unknown as AppDb);
+  });
 }
 
 async function writeSource(db: AppDb, huntId: string, source: HuntSource, patch: (prev: SourceProgress) => SourceProgress, hunt?: Partial<typeof hunts.$inferInsert>) {
@@ -182,68 +184,73 @@ async function runBatchInner(db: AppDb, huntId: string, source: HuntSource, curs
   const criteria = parsed.data;
   const cursor = Math.max(0, Math.trunc(cursorParam ?? sp.cursor));
 
-  await writeSource(db, huntId, source, (p) => ({ ...p, state: "running", error: undefined }), {
-    status: "running",
-    startedAt: row.hunt.startedAt ?? new Date(),
-  });
+  await locked(db, huntId, (tx) =>
+    writeSource(tx, huntId, source, (p) => ({ ...p, state: "running", error: undefined }), { status: "running", startedAt: row.hunt.startedAt ?? new Date() }),
+  );
 
   let batch;
   try {
     batch = await fetchBatch(huntId, source, criteria, cursor, deps);
   } catch (e) {
     const message = e instanceof Error ? e.message.slice(0, 200) : "Error desconocido";
-    await writeSource(db, huntId, source, (p) => ({ ...p, state: "error", error: message, log: addLog(p, `Error: ${message}`) }));
+    await locked(db, huntId, (tx) => writeSource(tx, huntId, source, (p) => ({ ...p, state: "error", error: message, log: addLog(p, `Error: ${message}`) })));
     throw new HuntError(`Falló la fuente ${source}: ${message}`, 502);
   }
 
-  const dedupe = await dedupeAndPersist(db, huntId, batch.companies);
-
-  // Companies touched by this batch (new or merged) -> one lead each per hunt.
-  const keys = batch.companies.map((c) => c.externalId);
-  const srcRows = keys.length
-    ? await db
-        .select({ companyId: companySources.companyId, externalId: companySources.externalId, channel: companySources.sourceChannel })
-        .from(companySources)
-        .where(and(eq(companySources.sourceChannel, source), inArray(companySources.externalId, keys)))
-    : [];
-  const companyIds = [...new Set(srcRows.map((r) => r.companyId))];
-  const existingLeads = companyIds.length
-    ? await db.select({ id: leads.id, companyId: leads.companyId }).from(leads).where(and(eq(leads.huntId, huntId), inArray(leads.companyId, companyIds)))
-    : [];
-  const have = new Set(existingLeads.map((l) => l.companyId));
-  const compRows = companyIds.length ? await db.select({ id: companies.id, isDemo: companies.isDemo }).from(companies).where(inArray(companies.id, companyIds)) : [];
-  const demoOf = new Map(compRows.map((c) => [c.id, c.isDemo]));
-  const fresh = companyIds.filter((id) => !have.has(id));
-  let created: Array<{ id: string }> = [];
-  if (fresh.length) {
-    created = await db
-      .insert(leads)
-      .values(fresh.map((companyId) => ({ companyId, huntId, primarySource: source, slug: slugOf(), isDemo: demoOf.get(companyId) ?? false })))
-      .onConflictDoNothing()
-      .returning({ id: leads.id });
-  }
-  // Re-score leads whose company gained a source through a merge: more evidence can promote them.
-  const mergedLeadIds = existingLeads.filter((l) => dedupe.pairs.some((p) => p.keptCompanyId === l.companyId)).map((l) => l.id);
-  const toScore = [...created.map((l) => l.id), ...mergedLeadIds];
-  const fit = await scoreLeadsDeterministic(db, toScore, criteria, row.icp.id, row.icp.threshold);
-
   const nextCursor = batch.nextCursor;
   const fetchedNow = batch.companies.length;
-  const { finished } = await writeSource(db, huntId, source, (p) => {
-    const text =
-      `${fetchedNow} registros procesados · ${created.length} empresas nuevas` +
-      (dedupe.merged ? ` · ${dedupe.merged} duplicados fusionados` : "") +
-      (batch.excluded ? ` · ${batch.excluded} personas naturales excluidas` : "");
-    return {
-      ...p,
-      state: batch.done ? "done" : "running",
-      cursor: nextCursor,
-      total: batch.total ?? p.total ?? (batch.done ? nextCursor : null),
-      fetched: p.fetched + fetchedNow,
-      isMock: batch.isMock,
-      error: undefined,
-      log: addLog(p, batch.done ? `${text} · fuente completa` : text),
-    };
+  const { dedupe, created, fit, finished } = await locked(db, huntId, async (tx) => {
+    const dedupe = await dedupeAndPersist(tx, huntId, batch.companies);
+
+    // Companies touched by this batch (new or merged) -> one lead each per hunt.
+    const keys = batch.companies.map((c) => c.externalId);
+    const srcRows = keys.length
+      ? await tx
+          .select({ companyId: companySources.companyId, externalId: companySources.externalId, channel: companySources.sourceChannel })
+          .from(companySources)
+          .where(and(eq(companySources.sourceChannel, source), inArray(companySources.externalId, keys)))
+      : [];
+    const companyIds = [...new Set(srcRows.map((r) => r.companyId))];
+    const existingLeads = companyIds.length
+      ? await tx.select({ id: leads.id, companyId: leads.companyId }).from(leads).where(and(eq(leads.huntId, huntId), inArray(leads.companyId, companyIds)))
+      : [];
+    const have = new Set(existingLeads.map((l) => l.companyId));
+    const compRows = companyIds.length ? await tx.select({ id: companies.id, isDemo: companies.isDemo }).from(companies).where(inArray(companies.id, companyIds)) : [];
+    const demoOf = new Map(compRows.map((c) => [c.id, c.isDemo]));
+    const fresh = companyIds.filter((id) => !have.has(id));
+    let created: Array<{ id: string }> = [];
+    if (fresh.length) {
+      created = await tx
+        .insert(leads)
+        .values(fresh.map((companyId) => ({ companyId, huntId, primarySource: source, slug: slugOf(), isDemo: demoOf.get(companyId) ?? false, createdAt: sql<Date>`clock_timestamp()` })))
+        .onConflictDoNothing()
+        .returning({ id: leads.id });
+    }
+    // Re-score leads whose company gained a source through a merge: more evidence can promote them.
+    const mergedLeadIds = existingLeads.filter((l) => dedupe.pairs.some((p) => p.keptCompanyId === l.companyId)).map((l) => l.id);
+    const toScore = [...created.map((l) => l.id), ...mergedLeadIds];
+    const fit = await scoreLeadsDeterministic(tx, toScore, criteria, row.icp.id, row.icp.threshold);
+
+    const nextCursor = batch.nextCursor;
+    const fetchedNow = batch.companies.length;
+    const { finished } = await writeSource(tx, huntId, source, (p) => {
+      const text =
+        `${fetchedNow} registros procesados · ${created.length} empresas nuevas` +
+        (dedupe.merged ? ` · ${dedupe.merged} duplicados fusionados` : "") +
+        (batch.excluded ? ` · ${batch.excluded} posibles personas naturales excluidas` : "");
+      return {
+        ...p,
+        state: batch.done ? "done" : "running",
+        cursor: nextCursor,
+        total: batch.total ?? p.total ?? (batch.done ? nextCursor : null),
+        fetched: p.fetched + fetchedNow,
+        excludedPersonal: (p.excludedPersonal ?? 0) + batch.excluded,
+        isMock: batch.isMock,
+        error: undefined,
+        log: addLog(p, batch.done ? `${text} · fuente completa` : text),
+      };
+    });
+    return { dedupe, created, fit, finished };
   });
   return {
     source,
@@ -318,13 +325,13 @@ export async function getStream(db: AppDb, huntId: string, opts: StreamOptions =
   const cursor = rows.length ? rows[rows.length - 1].ts : since;
 
   const grouped = await db
-    .select({ source: leads.primarySource, status: leads.status, n: sql<number>`count(*)::int` })
+    .select({ source: leads.primarySource, status: leads.status, isDemo: leads.isDemo, n: sql<number>`count(*)::int` })
     .from(leads)
     .where(eq(leads.huntId, huntId))
-    .groupBy(leads.primarySource, leads.status);
+    .groupBy(leads.primarySource, leads.status, leads.isDemo);
   const progress = row.hunt.progress as { sources?: HuntSourcesProgress; dedupe?: DedupeProgress };
   const pairs: MergedPair[] = progress.dedupe?.pairs ?? [];
-  const counters = countersFromGroups(grouped, pairs);
+  const counters = countersFromGroups(grouped, pairs, Boolean((row.hunt.progress as { isDemo?: boolean }).isDemo));
   const rev = grouped
     .map((g) => `${g.status}:${g.n}`)
     .sort()
@@ -367,20 +374,39 @@ export async function getStream(db: AppDb, huntId: string, opts: StreamOptions =
   };
 }
 
-export function countersFromGroups(groups: ReadonlyArray<{ source: string; status: string; n: number }>, pairs: readonly Pick<MergedPair, "mergedChannel">[]): Counters {
-  // Reuse the point-based aggregator by expanding groups lazily (counts only, no allocation per lead).
-  const fake: StreamPoint[] = [];
-  const out = computeCounters(fake, pairs);
+/**
+ * Totals only add REAL leads (SPEC §7: mock/demo never mix with real). Mock/demo leads of a real hunt are reported
+ * apart in `test`. A hunt that is entirely DEMO (`huntIsDemo`) shows its own total under the DEMO badge.
+ */
+export function countersFromGroups(
+  groups: ReadonlyArray<{ source: string; status: string; isDemo?: boolean; n: number }>,
+  pairs: readonly Pick<MergedPair, "mergedChannel">[],
+  huntIsDemo = false,
+): Counters {
+  const out = computeCounters([], huntIsDemo ? pairs : []);
+  let test: Counters["test"] = null;
+  const add = (c: Counters["total"], status: StreamPoint["status"], n: number) => {
+    c.found += n;
+    if (status !== "found") c.fit += n;
+    if (status === "contacted" || status === "qualified") c.contacted += n;
+    if (status === "qualified") c.qualified += n;
+  };
   for (const g of groups) {
-    const src = (out.bySource[g.source] ??= { found: 0, fit: 0, contacted: 0, qualified: 0, duplicates: 0 });
     const status = toPointStatus(g.status);
-    for (const c of [src, out.total]) {
-      c.found += g.n;
-      if (status !== "found") c.fit += g.n;
-      if (status === "contacted" || status === "qualified") c.contacted += g.n;
-      if (status === "qualified") c.qualified += g.n;
+    const src = (out.bySource[g.source] ??= { found: 0, fit: 0, contacted: 0, qualified: 0, duplicates: 0 });
+    add(src, status, g.n);
+    if (g.isDemo && !huntIsDemo) add((test ??= { found: 0, fit: 0, contacted: 0, qualified: 0, duplicates: 0 }), status, g.n);
+    else add(out.total, status, g.n);
+  }
+  if (!huntIsDemo) {
+    // duplicates of real sources only
+    for (const pr of pairs) {
+      if (!out.bySource[pr.mergedChannel]) out.bySource[pr.mergedChannel] = { found: 0, fit: 0, contacted: 0, qualified: 0, duplicates: 0 };
+      out.bySource[pr.mergedChannel].duplicates++;
+      out.total.duplicates++;
     }
   }
+  out.test = test;
   return out;
 }
 
@@ -390,11 +416,16 @@ export async function getLeadDetail(db: AppDb, huntId: string, leadId: string) {
   const [lead] = await db.select().from(leads).where(and(eq(leads.id, leadId), eq(leads.huntId, huntId))).limit(1);
   if (!lead) throw new HuntError("Lead no encontrado", 404);
   const [company] = await db.select().from(companies).where(eq(companies.id, lead.companyId)).limit(1);
-  const [hunt] = await db.select({ progress: hunts.progress, icp: hunts.icpProfileId }).from(hunts).where(eq(hunts.id, huntId)).limit(1);
+  const [hunt] = await db
+    .select({ progress: hunts.progress, icp: hunts.icpProfileId, threshold: icpProfiles.threshold })
+    .from(hunts)
+    .innerJoin(icpProfiles, eq(icpProfiles.id, hunts.icpProfileId))
+    .where(eq(hunts.id, huntId))
+    .limit(1);
   const [sources, contacts, assessment, evts, quals, costs] = await Promise.all([
     db.select().from(companySources).where(eq(companySources.companyId, lead.companyId)),
     db.select().from(contactPoints).where(eq(contactPoints.companyId, lead.companyId)),
-    db.select().from(fitAssessments).where(eq(fitAssessments.companyId, lead.companyId)).orderBy(sql`${fitAssessments.createdAt} desc`).limit(1),
+    db.select().from(fitAssessments).where(and(eq(fitAssessments.companyId, lead.companyId), eq(fitAssessments.icpProfileId, hunt.icp))).orderBy(sql`${fitAssessments.createdAt} desc`).limit(1),
     db.select().from(events).where(eq(events.leadId, lead.id)).orderBy(asc(events.at)),
     db.select().from(qualifications).where(eq(qualifications.leadId, lead.id)).orderBy(sql`${qualifications.createdAt} desc`).limit(1),
     db.select().from(costEntries).where(eq(costEntries.leadId, lead.id)).orderBy(asc(costEntries.at)),
@@ -402,11 +433,12 @@ export async function getLeadDetail(db: AppDb, huntId: string, leadId: string) {
   const pairs = ((hunt?.progress as { dedupe?: DedupeProgress })?.dedupe?.pairs ?? []).filter((p) => p.keptCompanyId === lead.companyId);
   const a = assessment[0];
   return {
+    threshold: hunt.threshold,
     lead: { id: lead.id, status: toPointStatus(lead.status), rawStatus: lead.status, score: lead.fitScore, primarySource: lead.primarySource, isDemo: lead.isDemo, slug: lead.slug },
     company: { id: company.id, name: company.name, nit: company.nit, address: company.address, city: company.city, website: company.website, lat: company.lat, lng: company.lng, isLegalEntity: company.isLegalEntity, isDemo: company.isDemo },
     sources: sources.map((s) => ({ channel: s.sourceChannel, url: s.sourceUrl, license: s.license, isMock: s.isMock, fetchedAt: s.fetchedAt })),
-    // Generic company mailboxes and company phone lines only; personal-looking emails are never shown.
-    contacts: contacts.filter((c) => c.type !== "email" || c.isGeneric).map((c) => ({ type: c.type, value: c.value, isGeneric: c.isGeneric, source: c.sourceChannel, evidenceUrl: c.evidenceUrl })),
+    // Only generic company contacts are shown (SPEC §8): non-generic phones and emails are never returned.
+    contacts: contacts.filter((c) => c.isGeneric).map((c) => ({ type: c.type, value: c.value, isGeneric: c.isGeneric, source: c.sourceChannel, evidenceUrl: c.evidenceUrl })),
     fit: a ? { score: a.score, criteria: a.criteriaMet, whyNow: a.whyNow, model: a.model } : null,
     merged: pairs.map((p) => ({ name: p.mergedName, channel: p.mergedChannel, reason: p.reason, similarity: p.similarity, distanceMeters: p.distanceMeters ?? null })),
     events: evts.map((e) => ({ type: e.type, at: e.at, isMock: e.isMock })),

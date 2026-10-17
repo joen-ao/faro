@@ -24,6 +24,8 @@ export interface SourceProgress {
   /** Size of the source result list, known after the first batch. */
   total: number | null;
   fetched: number;
+  /** Records dropped because the name reads like a natural person (counted, never stored). */
+  excludedPersonal?: number;
   isMock: boolean;
   error?: string;
   /** Why it is skipped (e.g. RUES does not cover Miami). */
@@ -61,8 +63,12 @@ export interface SourceCounters {
 }
 
 export interface Counters {
+  /** Real leads only (or everything, for a hunt that is entirely DEMO). */
   total: SourceCounters;
+  /** Per source, whatever its mode: the row carries its own Real/Mock label. */
   bySource: Record<string, SourceCounters>;
+  /** Mock/demo leads of a real hunt, never added to `total`. Null when there are none. */
+  test: SourceCounters | null;
 }
 
 export interface StreamResponse {

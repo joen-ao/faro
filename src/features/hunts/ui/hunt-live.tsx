@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, ChevronUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronUp } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -193,6 +193,13 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
               <StatusPill status={stream.status} active={runnerActive.size > 0} isDemo={stream.isDemo} />
             </div>
           </div>
+          <Link
+            href={`/app/hunts/${huntId}/outreach`}
+            data-testid="to-outreach"
+            className="ml-1 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] bg-faro-accent px-3 text-[13px] font-semibold text-faro-accent-ink transition-[filter] hover:brightness-110"
+          >
+            Contactar <ArrowRight className="size-3.5" aria-hidden />
+          </Link>
         </div>
         {!mobile && (
           <ul className="pointer-events-auto faro-rise hidden w-fit items-center gap-4 rounded-[10px] border border-white/[0.14] bg-faro-surface-1/95 px-3.5 py-2 text-[12px] text-faro-text-2 md:flex" aria-label="Leyenda del mapa" style={{ animationDelay: "80ms" }}>

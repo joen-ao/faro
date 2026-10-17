@@ -238,10 +238,18 @@ export function HuntPanel(p: PanelProps) {
   ];
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="grid grid-cols-3 gap-3 px-5 pt-3 pb-3 md:pt-5 md:pb-4" aria-live="polite">
+      <div className="px-5 pt-3 pb-3 md:pt-5 md:pb-4" aria-live="polite">
+      <div className="grid grid-cols-3 gap-3">
         <Big loading={loading} value={t?.found ?? 0} label="Empresas encontradas" />
         <Big loading={loading} value={t?.fit ?? 0} label="Del perfil" accent />
         <Big loading={loading} value={t?.duplicates ?? p.mergedDuplicates} label="Duplicados fusionados" />
+      </div>
+      {p.counters?.test && (
+        <p className="mt-3 inline-flex items-center gap-2 rounded-[8px] border border-dashed border-white/30 px-2.5 py-1 text-[12px] text-faro-text-2" data-testid="test-counter">
+          <span className="font-semibold tracking-wide text-white">PRUEBA</span>
+          +{fmtInt(p.counters.test.found)} mock, {fmtInt(p.counters.test.fit)} del perfil: no suman a los totales reales
+        </p>
+      )}
       </div>
 
       <div className={cn("px-4 pb-3", p.compact ? "flex gap-2" : "space-y-2")}>
@@ -310,7 +318,7 @@ export function HuntPanel(p: PanelProps) {
                       className={cn("inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-medium transition-colors", on ? "border-faro-accent bg-faro-surface-2 text-white" : "border-white/[0.14] text-faro-text-2 hover:border-white/30 hover:text-white")}
                     >
                       <StatusDot status={s} className="!size-2" />
-                      {STATUS_LABEL[s]}
+                      {s === "fit" ? "Solo del perfil" : STATUS_LABEL[s]}
                       <span className="text-faro-text-3 tabular-nums">{fmtInt(s === "found" ? (t?.found ?? 0) - (t?.fit ?? 0) : s === "fit" ? (t?.fit ?? 0) - (t?.contacted ?? 0) : s === "contacted" ? (t?.contacted ?? 0) - (t?.qualified ?? 0) : (t?.qualified ?? 0))}</span>
                     </button>
                   );

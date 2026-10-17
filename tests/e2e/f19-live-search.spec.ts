@@ -3,6 +3,11 @@ import { expect, test } from "@playwright/test";
 // Software GL so MapLibre renders in headless CI.
 test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] } });
 
+const KEY = process.env.APP_ACCESS_KEY ?? "";
+test.beforeEach(async ({ context, baseURL }) => {
+  await context.addCookies([{ name: "faro_key", value: KEY, url: baseURL ?? "http://localhost:3100" }]);
+});
+
 const widthOf = (info: { project: { use: { viewport?: { width: number } | null } } }) => info.project.use.viewport?.width ?? 1440;
 
 test("new profile: conversation, editable chips and source cards", async ({ page }, info) => {
@@ -37,6 +42,7 @@ test("live hunt (DEMO 2.000 points): map, virtual list, filters and lead drawer"
   await page.goto("/app/hunts/demo");
   await expect(page.getByTestId("demo-badge")).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId("hunt-title")).toContainText("Bogotá");
+  await expect(page.getByTestId("to-outreach")).toHaveAttribute("href", /\/app\/hunts\/.+\/outreach$/);
 
   // attribution must always be visible (SPEC §8)
   await expect(page.getByTestId("map").getByRole("link", { name: "OpenStreetMap" })).toBeVisible({ timeout: 30_000 });
@@ -78,14 +84,19 @@ test("live hunt (DEMO 2.000 points): map, virtual list, filters and lead drawer"
   await expect(drawer).toBeVisible();
   await expect(page.getByTestId("drawer-score")).toBeVisible();
   await expect(drawer.getByText("Fuentes y licencias")).toBeVisible();
-  await expect(drawer.getByText("Recibo de lead").first()).toBeVisible();
+  await expect(page.getByTestId("receipt")).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(1500);
   await page.screenshot({ path: `artifacts/screens/F19-drawer-${width}.png` });
   await page.keyboard.press("Escape");
   await expect(drawer).toBeHidden();
 });
 
-test("stream and run API contracts", async ({ request }) => {
+test("stream and run API contracts (gated by the app key)", async ({ playwright, baseURL }) => {
+  const anon = await playwright.request.newContext({ baseURL });
+  expect((await anon.get("/api/hunts/00000000-0000-4000-8000-00000000f019/stream")).status()).toBe(401);
+  expect((await anon.post("/api/hunts", { data: {} })).status()).toBe(401);
+  await anon.dispose();
+  const request = await playwright.request.newContext({ baseURL, extraHTTPHeaders: { "x-app-key": KEY } });
   const bad = await request.get("/api/hunts/not-a-uuid/stream");
   expect(bad.status()).toBe(400);
   const missing = await request.get("/api/hunts/00000000-0000-4000-8000-0000000000aa/stream");
@@ -96,4 +107,5 @@ test("stream and run API contracts", async ({ request }) => {
   expect(demo.isDemo).toBe(true);
   expect(demo.points.length).toBeGreaterThan(1000);
   expect(demo.counters.total.found).toBeGreaterThanOrEqual(2000);
+  await request.dispose();
 });

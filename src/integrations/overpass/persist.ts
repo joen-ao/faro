@@ -2,12 +2,15 @@ import { eq, inArray } from "drizzle-orm";
 import { normalizeName } from "@/features/coverage/metrics";
 import { companies, companySources, hunts } from "@/db/schema";
 import type { AppDb } from "@/db/types";
+import { looksLikePersonName } from "@/features/compliance/person-name";
 import type { SourceCompany } from "./types";
 
 export interface PersistSummary {
   found: number;
   inserted: number;
   skipped: number;
+  /** Names that read like a natural person: neither stored nor shown, only counted. */
+  excluded_personal: number;
 }
 
 /**
@@ -15,7 +18,9 @@ export interface PersistSummary {
  * Idempotent per `(channel, external_id)`. Mock rows are flagged `is_mock` + `is_demo` so they stay out of real totals.
  * Records `{found, inserted, skipped}` in `hunts.progress.osm`. Cost is 0 (Overpass is free); license/URL are kept per source.
  */
-export async function persistOverpassResults(db: AppDb, huntId: string, items: readonly SourceCompany[]): Promise<PersistSummary> {
+export async function persistOverpassResults(db: AppDb, huntId: string, all: readonly SourceCompany[]): Promise<PersistSummary> {
+  const items = all.filter((c) => !looksLikePersonName(c.name));
+  const excludedPersonal = all.length - items.length;
   return db.transaction(async (tx) => {
     const ids = items.map((c) => c.externalId);
     const existing = ids.length
@@ -55,7 +60,7 @@ export async function persistOverpassResults(db: AppDb, huntId: string, items: r
         })),
       );
     }
-    const summary = { found: items.length, inserted: fresh.length, skipped: items.length - fresh.length };
+    const summary = { found: items.length, inserted: fresh.length, skipped: items.length - fresh.length, excluded_personal: excludedPersonal };
     const [hunt] = await tx.select({ progress: hunts.progress }).from(hunts).where(eq(hunts.id, huntId)).limit(1);
     if (hunt) await tx.update(hunts).set({ progress: { ...hunt.progress, osm: summary } }).where(eq(hunts.id, huntId));
     return summary;

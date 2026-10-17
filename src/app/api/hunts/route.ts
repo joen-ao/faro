@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getHuntsDb } from "@/features/hunts/db";
+import { getReadyDb } from "@/db/client";
+import type { AppDb } from "@/db/types";
+import { requireAppAccess } from "@/lib/app-access";
 import { errorResponse } from "@/features/hunts/http";
 import { createHunt } from "@/features/hunts/service";
 import { IcpCriteria } from "@/features/icp/schema";
@@ -15,6 +17,8 @@ const Body = z.object({
 
 /** Creates the ICP profile and the hunt (state `pending`); the client then drives `POST /api/hunts/[id]/run`. */
 export async function POST(req: Request) {
+  const denied = requireAppAccess(req);
+  if (denied) return denied;
   let json: unknown;
   try {
     json = await req.json();
@@ -26,7 +30,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Solicitud invalida", issues: body.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })) }, { status: 400 });
   }
   try {
-    const r = await createHunt(await getHuntsDb(), body.data);
+    const r = await createHunt(((await getReadyDb()) as unknown as AppDb), body.data);
     return NextResponse.json(r, { status: 201 });
   } catch (e) {
     return errorResponse(e);

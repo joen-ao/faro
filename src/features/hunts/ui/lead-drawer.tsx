@@ -4,13 +4,14 @@ import { AlertTriangle, ArrowUpRight, Check, GitMerge, Mail, MapPin, Minus, Phon
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { getLeadDetail } from "../service";
-import { COST_LABEL, EVENT_LABEL, REASON_LABEL, SOURCE_LABEL, STATUS_LABEL, fmtClock, fmtDate, fmtUsd } from "./format";
+import { EVENT_LABEL, REASON_LABEL, SOURCE_LABEL, STATUS_LABEL, fmtClock, fmtDate } from "./format";
+import { LeadReceipt } from "@/components/lead-receipt";
+import type { LeadReceipt as Receipt } from "@/features/metrics/receipt";
 import { StatusDot } from "./lead-list";
 
 export type LeadDetail = Awaited<ReturnType<typeof getLeadDetail>>;
 type Criterion = { criterio: string; cumplido: boolean; evidencia: string; url: string | null; peso: number };
 
-const THRESHOLD = 60;
 
 function Section({ title, children, aside }: { title: string; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
@@ -26,43 +27,32 @@ function Section({ title, children, aside }: { title: string; children: React.Re
   );
 }
 
-/** Placeholder for F13's LeadReceipt: built from this lead's own `cost_entries`. */
-function ReceiptSlot({ d }: { d: LeadDetail }) {
-  const total = d.costs.reduce((a, c) => a + c.usd, 0);
-  const test = d.lead.isDemo || d.costs.some((c) => c.isMock || c.isDemo);
+/** F13's LeadReceipt, fed by `GET /api/metrics/receipt/[leadId]` (itemised from the lead's own cost_entries). */
+function ReceiptSlot({ leadId, isDemo }: { leadId: string; isDemo: boolean }) {
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [state, setState] = useState<"loading" | "ok" | "error">("loading");
+  useEffect(() => {
+    let off = false;
+    fetch(`/api/metrics/receipt/${leadId}`)
+      .then((r) => (r.ok ? (r.json() as Promise<Receipt>) : Promise.reject(new Error(String(r.status)))))
+      .then((r) => !off && (setReceipt(r), setState("ok")))
+      .catch(() => !off && setState("error"));
+    return () => {
+      off = true;
+    };
+  }, [leadId]);
+  if (state === "loading") return <div className="faro-skeleton h-40" />;
+  if (state === "error" || !receipt) return <p className="text-[13px] text-faro-text-3">El recibo de este lead todavía no está disponible.</p>;
   return (
-    <div className="faro-receipt rounded-t-[10px] px-5 pt-5" data-testid="receipt">
-      <div className="flex items-baseline justify-between">
-        <span className="text-[11px] font-bold tracking-[0.18em] uppercase">Recibo de lead</span>
-        <span className="font-mono text-[11px] opacity-60">#{d.lead.slug.slice(0, 10)}</span>
-      </div>
-      <p className="mt-1 truncate text-[12px] opacity-70">{d.company.name}</p>
-      <div className="my-3 border-t border-dashed border-black/30" />
-      {d.costs.length === 0 ? (
-        <p className="py-3 text-[12.5px] leading-snug opacity-70">Todavía no se ha atribuido ningún costo a este lead. Aparecerá aquí con cada mensaje y llamada a la IA.</p>
-      ) : (
-        <ul className="space-y-1.5">
-          {d.costs.map((c, i) => (
-            <li key={i} className="faro-receipt-row font-mono text-[12px]">
-              <span className="truncate">{COST_LABEL[c.category] ?? c.category}</span>
-              <span className="dots" aria-hidden />
-              <span className="tabular-nums">{fmtUsd(c.usd)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="my-3 border-t border-dashed border-black/30" />
-      <div className="faro-receipt-row font-mono text-[13px] font-bold">
-        <span>TOTAL</span>
-        <span className="dots" aria-hidden />
-        <span className="tabular-nums">{fmtUsd(total)}</span>
-      </div>
-      {test && <p className="mt-3 text-[11px] leading-snug opacity-65">Datos de prueba: no suman a los totales reales del tablero.</p>}
+    <div data-testid="receipt">
+      <LeadReceipt receipt={receipt} />
+      {isDemo && <p className="mt-3 text-center text-[11px] text-faro-text-3">Datos de prueba: no suman a los totales reales del tablero.</p>}
     </div>
   );
 }
 
 function FitBlock({ d }: { d: LeadDetail }) {
+  const THRESHOLD = d.threshold;
   const fit = d.fit;
   if (!fit) return <p className="text-[13px] text-faro-text-3">Esta empresa todavía no tiene evaluación de encaje.</p>;
   const criteria = fit.criteria as Criterion[];
@@ -135,6 +125,7 @@ export function LeadDrawer({ huntId, leadId, name, onClose, mobile }: { huntId: 
   return (
     <aside
       role="dialog"
+      aria-modal="true"
       aria-label={`Detalle de ${name}`}
       data-testid="lead-drawer"
       className={cn(
@@ -282,7 +273,7 @@ export function LeadDrawer({ huntId, leadId, name, onClose, mobile }: { huntId: 
 
             <div className="border-t border-white/[0.08] px-6 pt-5 pb-8">
               <h3 className="mb-3 text-[13px] font-semibold text-white">Recibo de lead</h3>
-              <ReceiptSlot d={data} />
+              <ReceiptSlot leadId={leadId} isDemo={data.lead.isDemo} />
             </div>
           </>
         )}
