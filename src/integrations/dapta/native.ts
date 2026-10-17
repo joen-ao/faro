@@ -7,8 +7,21 @@
 
 type Flat = Map<string, unknown>;
 
-function flatten(value: unknown, out: Flat = new Map(), prefix = "", depth = 0): Flat {
-  if (depth > 4 || value === null || value === undefined) return out;
+/** Flow Studio forwards object params typed as "Text" as JSON strings; open them so nested fields are searchable. */
+function maybeJson(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const s = value.trim();
+  if (!(s.startsWith("{") || s.startsWith("[")) || s.length > 200_000) return value;
+  try {
+    return JSON.parse(s);
+  } catch {
+    return value;
+  }
+}
+
+function flatten(raw: unknown, out: Flat = new Map(), prefix = "", depth = 0): Flat {
+  const value = maybeJson(raw);
+  if (depth > 6 || value === null || value === undefined) return out;
   if (Array.isArray(value)) {
     value.slice(0, 50).forEach((v, i) => flatten(v, out, `${prefix}[${i}]`, depth + 1));
     return out;
@@ -16,8 +29,9 @@ function flatten(value: unknown, out: Flat = new Map(), prefix = "", depth = 0):
   if (typeof value === "object") {
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       const path = prefix ? `${prefix}.${k}` : k;
-      if (v !== null && typeof v === "object") flatten(v, out, path, depth + 1);
-      else out.set(path, v);
+      const parsed = maybeJson(v);
+      if (parsed !== null && typeof parsed === "object") flatten(parsed, out, path, depth + 1);
+      else out.set(path, parsed);
     }
     return out;
   }
@@ -73,7 +87,12 @@ export function normalizeDaptaNative(body: unknown): NativeMapping {
     }
   }
   const topId = body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>).id : undefined;
-  const phone = pick(flat, ["phone", "phonenumber", "contactphone", "customerphone", "userphone", "whatsapp", "waid", "from", "number", "telefono"], isPhone);
+  // Only the contact's side: never "to"/"to_number", which is Faro's own WhatsApp line.
+  const phone = pick(
+    flat,
+    ["phone", "phonenumber", "contactphone", "customerphone", "userphone", "fromnumber", "customernumber", "contactnumber", "whatsapp", "waid", "from", "number", "telefono"],
+    isPhone,
+  );
   const email = pick(flat, ["email", "contactemail", "useremail", "correo"], isEmail);
   const summary = pick(flat, ["resumen", "summary"], (v) => typeof v === "string" && v.trim().length > 0);
   return {

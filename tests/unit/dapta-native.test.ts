@@ -28,6 +28,15 @@ describe("normalizeDaptaNative", () => {
     });
   });
 
+  it("opens event/call/data forwarded by Flow Studio as JSON strings", () => {
+    const forwarded = {
+      event: "conversation_analyzed",
+      call: JSON.stringify({ conversation_id: "conv_fs_1", from_number: "+57 300 999 8877" }),
+      data: JSON.stringify({ calificado: false, pidio_baja: true, resumen: "Pidió no volver a ser contactada." }),
+    };
+    expect(normalizeDaptaNative(forwarded)).toMatchObject({ conversation_id: "conv_fs_1", phone: "+57 300 999 8877", qualified: false, opt_out: true, summary: "Pidió no volver a ser contactada." });
+  });
+
   it("falls back to a top-level id and reads email", () => {
     const n = normalizeDaptaNative({ id: 42, user: { email: " INFO@Clinica.co " }, variables: [{ name: "x", calificado: "no" }] });
     expect(n).toMatchObject({ conversation_id: "42", email: "info@clinica.co", qualified: false });
