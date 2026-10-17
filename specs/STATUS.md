@@ -21,8 +21,8 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F14 | Tablero | P0/P1 | DONE | feat/F14-tablero | 2 | Tablero: KPIs con IC 90%, matriz fuente×canal trazable a recibos, embudo, pauta vs gratis, recomendación honesta, cumplimiento, toggle demo; 3 MINOR (F14-r2) |
 | F15 | Integración Dapta | P1 | DONE | feat/F15-dapta | 2 | Webhook con secreto, http_push con SSRF y SEND_ENABLED, csv_export anti-fórmulas, créditos; requireAppAccess (APP_ACCESS_KEY). 7 MINOR (F15-r2) |
 | F16 | Meta Ads | P1 | IN_REVIEW | | 0 | |
-| F17 | WhatsApp vía Dapta | P2 | TODO | | 0 | |
+| F17 | WhatsApp vía Dapta | P2 | IN_PROGRESS | | 0 | |
 | F18 | Landing + video HyperFrames | P1 | IN_REVIEW | | 0 | |
-| F19 | Búsqueda en vivo con mapa | P1 | IN_PROGRESS | | 0 | |
-| F20 | Recomendación + bandit | P2 | IN_PROGRESS | | 0 | |
+| F19 | Búsqueda en vivo con mapa | P1 | IN_REVIEW | | 0 | |
+| F20 | Recomendación + bandit | P2 | IN_REVIEW | | 0 | |
 | F21 | README + HANDOFF | P0 | TODO | | 0 | |
