@@ -15,6 +15,13 @@
       "when": 1792227856524,
       "tag": "0001_outreach_simulated",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792228719615,
+      "tag": "0002_outreach_sending",
+      "breakpoints": true
     }
   ]
 }

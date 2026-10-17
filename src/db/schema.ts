@@ -44,6 +44,8 @@ export const messageStatusEnum = pgEnum("message_status", [
   "blocked",
   /** SEND_ENABLED=false: the pipeline ran but nothing left (or an assisted send done as practice). */
   "simulated",
+  /** Claimed by a worker (atomic queued -> sending). Stays here if the process dies after calling the provider: manual review. */
+  "sending",
 ]);
 export const eventTypeEnum = pgEnum("event_type", [
   "sent",

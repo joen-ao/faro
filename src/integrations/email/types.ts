@@ -7,6 +7,8 @@ export interface EmailMessage {
   html: string;
   /** e.g. List-Unsubscribe / List-Unsubscribe-Post (RFC 8058). */
   headers?: Record<string, string>;
+  /** Provider-side dedupe key (Resend `Idempotency-Key`). */
+  idempotencyKey?: string;
 }
 
 export interface EmailSendResult {

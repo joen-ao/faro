@@ -10,6 +10,7 @@ const LeadId = z.uuid("leadId debe ser un UUID");
 export const PreviewBody = z.object({ leadId: LeadId, channel: Channel.optional(), generate: z.boolean().optional(),
   /** Demo leads only (screenshots): evaluate the window as of this instant. Ignored for real leads. */
   asOf: z.iso.datetime().optional(),
+  refresh: z.boolean().optional(),
 });
 export const SendBody = z.object({
   items: z
@@ -25,7 +26,7 @@ export const SendBody = z.object({
     .default([]),
   /** Run the queue after enqueuing (default true). */
   process: z.boolean().default(true),
-  huntId: z.uuid().optional(),
+  huntId: z.uuid("huntId es obligatorio"),
 });
 export const AssistedBody = z.object({
   leadId: LeadId,
@@ -65,7 +66,7 @@ export function handleSend(db: AppDb, json: unknown, deps: OutreachDeps, now = n
         await enqueue(db, { leadId: item.leadId, ...(item.channel ? { channel: item.channel } : {}), subject: item.subject ?? null, body: item.body ?? null }, deps, now),
       );
     }
-    const queue = body.data.process ? await processQueue(db, deps, { now, ...(body.data.huntId ? { huntId: body.data.huntId } : {}) }) : null;
+    const queue = body.data.process ? await processQueue(db, deps, { now, huntId: body.data.huntId }) : null;
     return { status: 200, body: { enqueued, queue, sendEnabled: (deps.env?.SEND_ENABLED ?? false) === true } };
   });
 }

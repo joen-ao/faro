@@ -18,7 +18,7 @@ import { isSuppressed } from "@/features/compliance/suppression";
 import { checkSendWindow, type Country } from "@/features/compliance/windows";
 import { dbCallRecorder, loadAiRates, recordAiCost } from "@/features/scoring/cost";
 import { AiError, type AnthropicAdapter } from "@/integrations/anthropic";
-import type { EmailAdapter } from "@/integrations/email";
+import { EmailSendError, type EmailAdapter } from "@/integrations/email";
 import { getEnv, type Env } from "@/lib/env";
 import { channelOptions, optionFor, selectChannel, type ChannelOption } from "./channel";
 import { buildLinks, generateMessage, textToHtml, type GeneratedMessage } from "./generate";
@@ -116,7 +116,7 @@ async function companyAlreadyContacted(db: AppDb, companyId: string, excludeMess
     .where(
       and(
         eq(leads.companyId, companyId),
-        inArray(messages.status, ["queued", "sent", "delivered"]),
+        inArray(messages.status, ["queued", "sending", "sent", "delivered"]),
         ...(excludeMessageId ? [ne(messages.id, excludeMessageId)] : []),
       ),
     )
@@ -173,6 +173,7 @@ export async function assess(
   }
   if (enabled) {
     const missing = [
+      ["EMAIL_FROM", env.EMAIL_FROM],
       ["SENDER_LEGAL_NAME", env.SENDER_LEGAL_NAME],
       ["SENDER_ADDRESS", env.SENDER_ADDRESS],
       ["EMAIL_REPLY_TO", replyTo],
@@ -188,8 +189,11 @@ export async function assess(
       message: "Naturaleza jurídica por verificar (sin RUES/REPS): no se envía de verdad hasta confirmarla o permitirlo en el ICP.",
     });
   }
-  if (extra.body !== undefined && channel === "email" && !/\/baja\/[^\s]+/.test(extra.body)) {
-    blocks.push({ rule: "missing_unsubscribe", message: "El mensaje editado debe conservar el enlace de baja de un clic." });
+  if (extra.body !== undefined && channel === "email") {
+    const links = buildLinks({ id: ctx.lead.id, slug: ctx.lead.slug, primarySource: ctx.lead.primarySource }, "email", value, env);
+    if (!extra.body.includes(links.optOutUrl)) {
+      blocks.push({ rule: "missing_unsubscribe", message: "El mensaje debe contener el enlace de baja exacto de este lead." });
+    }
   }
   const timeBlock = blocks.find((b) => b.rule === "outside_window");
   const allowed = blocks.length === 0;
@@ -230,10 +234,17 @@ function resolveChannel(ctx: LeadContext, env: Env, wanted?: ContactChannel): { 
   return { channel: first ? first.channel : null, option: first };
 }
 
+const PREVIEW_TTL_MS = 10 * 60_000;
+const previewCache = new Map<string, { at: number; message: NonNullable<PreviewResult["message"]>; isMockAi: boolean }>();
+/** Test hook. */
+export function clearPreviewCache() {
+  previewCache.clear();
+}
+
 /** Builds the (editable) message and the live compliance verdict. `generate:false` only evaluates. */
 export async function previewOutreach(
   db: AppDb,
-  input: { leadId: string; channel?: ContactChannel; generate?: boolean; asOf?: string },
+  input: { leadId: string; channel?: ContactChannel; generate?: boolean; asOf?: string; refresh?: boolean },
   deps: OutreachDeps,
   nowArg: Date = new Date(),
 ): Promise<PreviewResult> {
@@ -250,7 +261,13 @@ export async function previewOutreach(
   let isMockAi = false;
   if (input.generate !== false && channel && recipient) {
     if (!ctx.icp || !ctx.workspace) throw new OutreachError("El lead no pertenece a una búsqueda con ICP y workspace", 422);
-    try {
+    // Draft cache per lead/channel/recipient: repeated previews do not spend AI again.
+    const cacheKey = `${ctx.lead.id}|${channel}|${recipient}|${ctx.company.name}|${ctx.workspace.offerDescription ?? ""}`;
+    const hit = previewCache.get(cacheKey);
+    if (hit && !input.refresh && Date.now() - hit.at < PREVIEW_TTL_MS) {
+      message = hit.message;
+      isMockAi = hit.isMockAi;
+    } else try {
       const g = await generateMessage(
         { id: ctx.lead.id, slug: ctx.lead.slug, primarySource: ctx.lead.primarySource },
         { name: ctx.company.name, city: ctx.company.city },
@@ -277,6 +294,7 @@ export async function previewOutreach(
         senderIdentified: g.senderIdentified,
         replyTo: g.replyTo,
       };
+      previewCache.set(cacheKey, { at: Date.now(), message, isMockAi });
     } catch (e) {
       if (e instanceof AiError) {
         // The (possibly billed) usage is never lost, even on failure.
@@ -306,6 +324,18 @@ export async function previewOutreach(
   };
 }
 
+/** Re-injects what the law requires if an edit removed it: exact opt-out link, sender line and postal address. */
+export function ensureCompliantBody(body: string, ctx: LeadContext, recipient: string, env: Env): string {
+  const { optOutUrl } = buildLinks({ id: ctx.lead.id, slug: ctx.lead.slug, primarySource: ctx.lead.primarySource }, "email", recipient, env);
+  let out = body.trimEnd();
+  if (!out.includes(optOutUrl)) out += `\n\nSi no desea recibir mensajes nuestros, darse de baja toma un clic: ${optOutUrl}`;
+  const who = [env.NEXT_PUBLIC_PRODUCT_NAME, "proyecto del 30X Hackathon", env.SENDER_LEGAL_NAME].filter(Boolean).join(" · ");
+  const missingSender = !out.includes("30X Hackathon") || !out.includes(env.NEXT_PUBLIC_PRODUCT_NAME);
+  const missingAddress = !!env.SENDER_ADDRESS && !out.includes(env.SENDER_ADDRESS);
+  if (missingSender || missingAddress) out += `\n\n${[who, env.SENDER_ADDRESS].filter(Boolean).join(" · ")}`;
+  return out;
+}
+
 /* ---------------------------------- enqueue ---------------------------------- */
 
 export interface EnqueueInput {
@@ -332,7 +362,16 @@ export interface EnqueueResult {
 export async function enqueue(db: AppDb, input: EnqueueInput, deps: OutreachDeps, now: Date = new Date()): Promise<EnqueueResult> {
   const env = deps.env ?? getEnv();
   const ctx = await loadLeadContext(db, input.leadId);
-  const { channel, option } = resolveChannel(ctx, env, input.channel);
+  const wanted = input.channel ?? "email";
+  if (wanted !== "email") {
+    // Only email goes through the queue: forms are assisted (/api/outreach/assisted), WhatsApp is F17.
+    const message =
+      wanted === "web_form"
+        ? "El formulario web es asistido: usa el modo asistido (/api/outreach/assisted), no la cola."
+        : "WhatsApp no está habilitado para la cola de envío todavía.";
+    return { leadId: ctx.lead.id, status: "blocked", messageId: null, channel: wanted, blocks: [{ rule: "channel_unavailable", message }] };
+  }
+  const { channel, option } = resolveChannel(ctx, env, "email");
   const recipient = option?.value ?? null;
 
   const noChannel = (): EnqueueResult => ({
@@ -377,6 +416,7 @@ export async function enqueue(db: AppDb, input: EnqueueInput, deps: OutreachDeps
   }
   if (!body) return storeBlocked([{ rule: "no_channel", message: "No se pudo generar el mensaje." }], subject, null);
 
+  body = ensureCompliantBody(body, ctx, recipient, env);
   const a = await assess(db, ctx, channel, recipient, now, env, { body });
   const blocking = a.blocks.filter((b) => b.rule !== "outside_window");
   if (blocking.length > 0) return storeBlocked(blocking, subject, body);
@@ -470,6 +510,12 @@ export async function processQueue(
       result.items.push({ messageId: m.id, leadId: m.leadId, outcome: "deferred", detail: a.blocks[0]?.message ?? "", nextAllowedAt: a.nextAllowedAt });
       continue;
     }
+    // Atomic claim: only one worker can move queued -> sending (double click, retry, cron + UI).
+    const claimed = await db.update(messages).set({ status: "sending", blockedByRule: null }).where(and(eq(messages.id, m.id), eq(messages.status, "queued"))).returning({ id: messages.id });
+    if (claimed.length === 0) {
+      result.items.push({ messageId: m.id, leadId: m.leadId, outcome: "skipped", detail: "Otro proceso ya reclamó este mensaje." });
+      continue;
+    }
     worked++;
     result.processed++;
     if (!a.allowed) {
@@ -484,7 +530,7 @@ export async function processQueue(
 
     if (!sendEnabled(env)) {
       // SEND_ENABLED != true: the adapter is never touched.
-      await db.update(messages).set({ status: "simulated", blockedByRule: null }).where(eq(messages.id, m.id));
+      await db.update(messages).set({ status: "simulated", blockedByRule: null, isMock: true }).where(eq(messages.id, m.id));
       await db.insert(events).values({
         leadId: m.leadId,
         type: "sent",
@@ -512,6 +558,7 @@ export async function processQueue(
         subject: (m.subject ?? "").replace(/[\r\n]+/g, " "),
         text: m.body,
         html: textToHtml(m.body),
+        idempotencyKey: `faro-msg-${m.id}`,
         headers: {
           "List-Unsubscribe": [`<${links.oneClickUrl}>`, ...(replyTo ? [`<mailto:${replyTo}?subject=baja>`] : [])].join(", "),
           "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
@@ -546,9 +593,17 @@ export async function processQueue(
       result.sent++;
       result.items.push({ messageId: m.id, leadId: m.leadId, outcome: "sent", detail: sent.id });
     } catch (e) {
-      await db.update(messages).set({ status: "failed" }).where(eq(messages.id, m.id));
+      // A definitive provider rejection is `failed`. Anything else (timeout, crash) may have been delivered:
+      // the message stays `sending` for manual review and is never retried automatically.
+      const definitive = e instanceof EmailSendError && e.status >= 400 && e.status < 500;
+      if (definitive) await db.update(messages).set({ status: "failed" }).where(eq(messages.id, m.id));
       result.failed++;
-      result.items.push({ messageId: m.id, leadId: m.leadId, outcome: "failed", detail: e instanceof Error ? e.message : String(e) });
+      result.items.push({
+        messageId: m.id,
+        leadId: m.leadId,
+        outcome: "failed",
+        detail: `${e instanceof Error ? e.message : String(e)}${definitive ? "" : " (queda en 'sending' para revisión manual)"}`,
+      });
     }
   }
   return result;

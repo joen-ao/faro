@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/db/client";
+import { getDb, getReadyDb } from "@/db/client";
 import type { AppDb } from "@/db/types";
 import type { HandlerResult } from "@/features/icp/api";
 import { getAnthropic } from "@/integrations/anthropic";
@@ -21,6 +21,7 @@ export async function runOutreachRoute(req: Request, handler: Handler): Promise<
     return NextResponse.json({ error: "JSON invalido" }, { status: 400 });
   }
   const env = getEnv();
+  await getReadyDb();
   const res = await handler(getDb().db, json, { ai: getAnthropic(env), email: getEmail(env), env });
   return NextResponse.json(res.body, { status: res.status });
 }

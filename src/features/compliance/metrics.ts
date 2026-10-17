@@ -3,7 +3,7 @@ import { companies, events, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 
 export interface ComplianceMessageRow {
-  status: "draft" | "queued" | "sent" | "delivered" | "failed" | "blocked" | "simulated";
+  status: "draft" | "queued" | "sent" | "delivered" | "failed" | "blocked" | "simulated" | "sending";
   body: string;
   blockedByRule: string | null;
   isMock: boolean;

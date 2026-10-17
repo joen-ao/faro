@@ -20,9 +20,10 @@ export function createDb(databaseUrl: string | undefined = process.env.DATABASE_
   return { kind: "pglite" as const, db: drizzlePglite(client, { schema }), close: () => client.close() };
 }
 
-let singleton: ReturnType<typeof createDb> | undefined;
+// Shared through globalThis: Next bundles each route separately, and two PGlite instances on one dir diverge.
+const g = globalThis as unknown as { __faroDb?: ReturnType<typeof createDb> };
 export function getDb() {
-  return (singleton ??= createDb());
+  return (g.__faroDb ??= createDb());
 }
 
 const ready = new WeakMap<object, Promise<void>>();

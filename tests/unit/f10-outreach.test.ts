@@ -8,9 +8,10 @@ import { verifyOptOutToken } from "@/features/compliance/optout";
 import { handleAssisted, handlePreview, handleSend } from "@/features/outreach/api";
 import { channelOptions, selectChannel } from "@/features/outreach/channel";
 import { escapeHtml, generateMessage, sanitizeCopy, textToHtml } from "@/features/outreach/generate";
-import { assess, enqueue, loadLeadContext, previewOutreach, processQueue, recordAssistedSend, type OutreachDeps } from "@/features/outreach/service";
+import { buildLinks } from "@/features/outreach/generate";
+import { assess, enqueue, loadLeadContext, clearPreviewCache, previewOutreach, processQueue, recordAssistedSend, type OutreachDeps } from "@/features/outreach/service";
 import { createMockAnthropic, type AnthropicAdapter } from "@/integrations/anthropic";
-import { createMockEmail, createRealEmail, getEmail, RESEND_ENDPOINT } from "@/integrations/email";
+import { createMockEmail, createRealEmail, EmailSendError, getEmail, RESEND_ENDPOINT } from "@/integrations/email";
 import { parseEnv, type Env } from "@/lib/env";
 import { createTestDb } from "../helpers/test-db";
 
@@ -345,11 +346,31 @@ describe("blocks", () => {
     expect(rows).toHaveLength(1);
   });
 
-  it("an edited body without the opt-out link is blocked", async () => {
+  it("an edited body that lost the opt-out link, sender or address gets them re-injected (exact link)", async () => {
     const a = await mkLead({ registry: true });
-    const r = await enqueue(db, { leadId: a.lead.id, subject: "Hola", body: "Mensaje sin enlace de baja ni nada." }, deps(envOff), SAT_10);
-    expect(r.status).toBe("blocked");
-    expect(r.blocks.map((b) => b.rule)).toContain("missing_unsubscribe");
+    const r = await enqueue(db, { leadId: a.lead.id, subject: "Hola", body: "Mensaje sin enlace de baja ni nada. https://evil.example/baja/xyz" }, deps(envOff), SAT_10);
+    expect(r.status).toBe("queued");
+    const [m] = await db.select().from(messages).where(eq(messages.id, r.messageId!));
+    const ctx = await loadLeadContext(db, a.lead.id);
+    expect(m!.body).toContain(buildLinks({ id: ctx.lead.id, slug: ctx.lead.slug, primarySource: "osm" }, "email", m!.recipient, envOff).optOutUrl);
+    expect(m!.body).toContain("30X Hackathon");
+    expect(m!.body).toContain("Calle 1 # 2-3, Bogota");
+    // a body that only carries a foreign /baja/ link is flagged by the gate
+    const bad = await assess(db, ctx, "email", m!.recipient, SAT_10, envOff, { body: "x https://evil.example/baja/xyz" });
+    expect(bad.blocks.map((b) => b.rule)).toContain("missing_unsubscribe");
+  });
+
+  it("only email goes through the queue: web_form and whatsapp are rejected without leaving a queued row", async () => {
+    const a = await mkLead({ webForm: "https://forme.example/c", whatsapp: "+573001112233", registry: true });
+    const f = await enqueue(db, { leadId: a.lead.id, channel: "web_form" }, deps(envOff), SAT_10);
+    expect(f).toMatchObject({ status: "blocked", messageId: null });
+    expect(f.blocks[0]!.message).toMatch(/asistido/);
+    const w = await enqueue(db, { leadId: a.lead.id, channel: "whatsapp" }, deps(envOff), SAT_10);
+    expect(w).toMatchObject({ status: "blocked", messageId: null });
+    expect(w.blocks[0]!.rule).toBe("channel_unavailable");
+    expect(await db.select().from(messages).where(eq(messages.leadId, a.lead.id))).toHaveLength(0);
+    // the company is not locked: email still queues
+    expect((await enqueue(db, { leadId: a.lead.id }, deps(envOff), SAT_10)).status).toBe("queued");
   });
 
   it("a lead without any usable channel is explained", async () => {
@@ -394,7 +415,7 @@ describe("assisted web form", () => {
 describe("API handlers", () => {
   it("validate input and run the pipeline", async () => {
     expect((await handlePreview(db, { leadId: "nope" }, deps(envOff))).status).toBe(400);
-    expect((await handleSend(db, { items: [{ leadId: "x" }] }, deps(envOff))).status).toBe(400);
+    expect((await handleSend(db, { items: [{ leadId: "x" }], huntId }, deps(envOff))).status).toBe(400);
     expect((await handleAssisted(db, { leadId: "x", body: "corto", minutes: 0 }, deps(envOff))).status).toBe(400);
     expect((await handlePreview(db, { leadId: "00000000-0000-4000-8000-000000000000" }, deps(envOff))).status).toBe(404);
 
@@ -402,7 +423,7 @@ describe("API handlers", () => {
     const prev = await handlePreview(db, { leadId: a.lead.id, generate: false }, deps(envOff), SAT_10);
     expect(prev.status).toBe(200);
     expect((prev.body as { message: unknown }).message).toBeNull();
-    const sent = await handleSend(db, { items: [{ leadId: a.lead.id }] }, deps(envOff), SAT_10);
+    const sent = await handleSend(db, { items: [{ leadId: a.lead.id }], huntId }, deps(envOff), SAT_10);
     expect(sent.status).toBe(200);
     expect((sent.body as { sendEnabled: boolean }).sendEnabled).toBe(false);
     expect((sent.body as { queue: { simulated: number } }).queue.simulated).toBeGreaterThanOrEqual(1);
@@ -427,5 +448,75 @@ describe("real send needs a complete sender (F12 note)", () => {
     const sim = parseEnv({ ...baseEnv, SENDER_ADDRESS: "", SEND_ENABLED: "false" });
     expect((await assess(db, ctx, "email", to, SAT_10, sim)).allowed).toBe(true);
     expect((await assess(db, ctx, "email", to, SAT_10, envOn)).allowed).toBe(true);
+  });
+});
+
+describe("atomic claim and idempotency", () => {
+  it("two concurrent processQueue runs send a message exactly once, with an Idempotency-Key", async () => {
+    const { lead } = await mkLead({ registry: true });
+    const sentKeys: (string | undefined)[] = [];
+    const slow = createMockEmail();
+    const email = {
+      isMock: true,
+      async send(m: Parameters<typeof slow.send>[0]) {
+        sentKeys.push(m.idempotencyKey);
+        await new Promise((r) => setTimeout(r, 30));
+        return slow.send(m);
+      },
+    };
+    const d = { ai: createMockAnthropic(), email, env: envOn };
+    const q = await enqueue(db, { leadId: lead.id }, d, SAT_10);
+    const [r1, r2] = await Promise.all([processQueue(db, d, { now: SAT_10, huntId }), processQueue(db, d, { now: SAT_10, huntId })]);
+    expect(r1.sent + r2.sent).toBe(1);
+    expect(sentKeys).toEqual([`faro-msg-${q.messageId}`]);
+    const costs = (await db.select().from(costEntries).where(eq(costEntries.leadId, lead.id))).filter((c) => c.category === "email");
+    expect(costs).toHaveLength(1);
+  });
+
+  it("real adapter forwards the Idempotency-Key header", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ id: "re_1" }), { status: 200 })) as unknown as typeof fetch;
+    await createRealEmail({ apiKey: "k", sendEnabled: true, fetchImpl }).send({ to: "a@b.co", from: "f", subject: "s", text: "t", html: "t", idempotencyKey: "faro-msg-1" });
+    const init = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![1] as RequestInit;
+    expect((init.headers as Record<string, string>)["Idempotency-Key"]).toBe("faro-msg-1");
+  });
+
+  it("an ambiguous failure after the provider call stays in 'sending' and is never resent; a 4xx is failed", async () => {
+    const a = await mkLead({ registry: true });
+    const crash = { isMock: true, send: vi.fn(async () => { throw new Error("socket hang up"); }) };
+    const d = { ai: createMockAnthropic(), email: crash, env: envOn };
+    const q = await enqueue(db, { leadId: a.lead.id }, d, SAT_10);
+    const r = await processQueue(db, d, { now: SAT_10, huntId });
+    expect(r.failed).toBe(1);
+    const [m] = await db.select().from(messages).where(eq(messages.id, q.messageId!));
+    expect(m!.status).toBe("sending");
+    await processQueue(db, d, { now: SAT_10, huntId });
+    expect(crash.send).toHaveBeenCalledTimes(1);
+
+    const b = await mkLead({ registry: true });
+    const reject = { isMock: true, send: vi.fn(async () => { throw new EmailSendError("Resend 422", 422); }) };
+    const d2 = { ai: createMockAnthropic(), email: reject, env: envOn };
+    const q2 = await enqueue(db, { leadId: b.lead.id }, d2, SAT_10);
+    await processQueue(db, d2, { now: SAT_10, huntId });
+    const [m2] = await db.select().from(messages).where(eq(messages.id, q2.messageId!));
+    expect(m2!.status).toBe("failed");
+  });
+
+  it("the sending state still counts as contacted and EMAIL_FROM is required for real sends", async () => {
+    const { lead } = await mkLead({ registry: true });
+    const ctx = await loadLeadContext(db, lead.id);
+    const noFrom = parseEnv({ ...baseEnv, EMAIL_FROM: "", SEND_ENABLED: "true" });
+    const a = await assess(db, ctx, "email", `info@c${n}.example`, SAT_10, noFrom);
+    expect(a.blocks.find((b) => b.rule === "sender_incomplete")?.message).toMatch(/EMAIL_FROM/);
+  });
+
+  it("preview drafts are cached per lead (no second AI spend)", async () => {
+    clearPreviewCache();
+    const { lead } = await mkLead({ registry: true });
+    await previewOutreach(db, { leadId: lead.id }, deps(envOff), SAT_10);
+    await previewOutreach(db, { leadId: lead.id }, deps(envOff), SAT_10);
+    const ai = (await db.select().from(costEntries).where(eq(costEntries.leadId, lead.id))).filter((c) => c.category === "ai");
+    expect(ai).toHaveLength(1);
+    await previewOutreach(db, { leadId: lead.id, refresh: true }, deps(envOff), SAT_10);
+    expect((await db.select().from(costEntries).where(eq(costEntries.leadId, lead.id))).filter((c) => c.category === "ai")).toHaveLength(2);
   });
 });

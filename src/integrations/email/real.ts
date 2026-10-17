@@ -19,7 +19,11 @@ export function createRealEmail(opts: RealEmailOptions): EmailAdapter {
     async send(m) {
       const res = await doFetch(RESEND_ENDPOINT, {
         method: "POST",
-        headers: { Authorization: `Bearer ${opts.apiKey}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${opts.apiKey}`,
+          "Content-Type": "application/json",
+          ...(m.idempotencyKey ? { "Idempotency-Key": m.idempotencyKey } : {}),
+        },
         body: JSON.stringify({
           from: m.from,
           to: [m.to],

@@ -74,7 +74,7 @@ const RULE_LABEL: Record<string, string> = {
   sender_incomplete: "Remitente incompleto",
   channel_unavailable: "Canal desactivado",
 };
-const STATUS_LABEL: Record<string, string> = { queued: "En cola", simulated: "Simulado", sent: "Enviado", blocked: "Bloqueado", failed: "Falló", delivered: "Entregado", draft: "Borrador" };
+const STATUS_LABEL: Record<string, string> = { sending: "Enviando / revisar", queued: "En cola", simulated: "Simulado", sent: "Enviado", blocked: "Bloqueado", failed: "Falló", delivered: "Entregado", draft: "Borrador" };
 
 const fmtTime = (iso: string) =>
   new Intl.DateTimeFormat("es-CO", { timeZone: "America/Bogota", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
@@ -141,7 +141,7 @@ export function OutreachClient(props: {
 
   const active = rows.find((r) => r.leadId === activeId) ?? null;
   const channelOf = (r: RowView): Channel | null => override[r.leadId] ?? r.suggested;
-  const selectable = (r: RowView) => !override[r.leadId] || override[r.leadId] === "email" ? r.suggested === "email" && blocking(r.assessment).length === 0 && !r.latest?.status.match(/queued|sent|delivered/) : false;
+  const selectable = (r: RowView) => !override[r.leadId] || override[r.leadId] === "email" ? r.suggested === "email" && blocking(r.assessment).length === 0 && !r.latest?.status.match(/queued|sending|sent|delivered/) : false;
   const eligible = useMemo(() => rows.filter(selectable), [rows, override]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadPreview = useCallback(async (leadId: string, channel: Channel | null) => {
@@ -349,7 +349,7 @@ export function OutreachClient(props: {
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <button type="button" onClick={() => open(r)} className="truncate text-left font-medium hover:text-faro-accent focus-visible:text-faro-accent">
+                          <button type="button" onClick={() => open(r)} className="break-words text-left font-medium hover:text-faro-accent focus-visible:text-faro-accent [overflow-wrap:anywhere]">
                             {r.name}
                           </button>
                           {r.isDemo && <Chip tone="mute">Demo</Chip>}
@@ -419,7 +419,7 @@ export function OutreachClient(props: {
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <h2 className="truncate font-display text-lg font-semibold">{active.name}</h2>
+                    <h2 className="font-display text-lg font-semibold [overflow-wrap:anywhere]">{active.name}</h2>
                     <p className="text-xs text-faro-text-3">
                       {channel ? CHANNEL_LABEL[channel] : "Sin canal"} · {preview.recipient ?? "sin destinatario"}
                     </p>
@@ -459,7 +459,7 @@ export function OutreachClient(props: {
                       <label htmlFor="body" className="mb-1 block text-xs text-faro-text-3">
                         Mensaje (editable; debe conservar el enlace de baja)
                       </label>
-                      <textarea id="body" data-testid="body" rows={11} className={cn(inputCls, "font-mono text-xs leading-relaxed")} value={body} onChange={(e) => setBody(e.target.value)} />
+                      <textarea id="body" data-testid="body" rows={14} className={cn(inputCls, "min-h-56 max-h-[32rem] overflow-y-auto font-mono text-xs leading-relaxed [field-sizing:content]")} value={body} onChange={(e) => setBody(e.target.value)} />
                     </div>
 
                     {isForm ? (
