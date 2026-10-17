@@ -9,7 +9,7 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F02 | Prueba de cobertura (reports/coverage.md real) | P0 | DONE | squash | 3 | reports/coverage.md real: ICP recomendado dental Bogotá (70 jurídicas verificadas contactables vs 12 restaurantes Bogotá; Miami 336 por verificar) |
 | F03 | Adapter Overpass | P0 | DONE | feat/F03-overpass | 2 | Overpass endurecido: caché, rate limit, mirror, raw con lista blanca, email genérico; 4 MINOR (F03-r2) |
 | F04 | Adapter Socrata (RUES/REPS) | P0 | DONE | feat/F04-socrata | 1 | RUES por CIIU+cámara, REPS dental, SoQL seguro, filtro jurídico; 4 MINOR (F04-r1) |
-| F05 | Adapter Google Places | P1 | IN_PROGRESS | | 0 | |
+| F05 | Adapter Google Places | P1 | DONE | feat/F05-google-places | 2 | Places API (New) Text Search, field mask mínimo, mock sin llave, costo de lista. MINOR: recordPlacesCost no cableado al hunt; riesgos SKU/caché Google |
 | F06 | Enriquecimiento web (robots.txt + Apify) | P1 | TODO | | 0 | |
 | F07 | Dedupe y merge multi-fuente | P0 | DONE | feat/F07-dedupe | 2 | Dedupe NIT/nombre trigram+80m/dominio/teléfono, nunca pierde fuentes, 5k<2s; 3 MINOR (F07-r2) |
 | F08 | ICP NL + scoring con evidencia | P0 | DONE | feat/F08-icp-scoring | 2 | ICP NL→criteria (Zod), scoring con evidencia y anti-injection, costo IA; mock sin llave. MINOR: legalVerified no persistido → F10 debe bloquear no verificados |
