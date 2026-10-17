@@ -4,8 +4,8 @@
 SPEC §9.1, §10 vistas 2-4, §11: del texto libre al mapa en vivo. Orquestar la búsqueda por lotes (< 60 s por request, progreso en `hunts.progress`, reanudable) y mostrarla: puntos que aparecen, clusters, contadores por fuente, duplicados fusionados, lista filtrable, drawer de lead.
 
 ## Alcance
-- `src/features/hunts/`: `types`, `geojson` (leads → FeatureCollection), `counters`, `filters`, `batch` (cursor/plan), `service` (crear hunt, `runBatch`, `getStream`, detalle de lead), `demo` (hunt demo sembrado), `estimates` (estimado por fuente, tomado de `reports/coverage.md`).
-- API: `POST /api/hunts` (workspace + `icp_profiles` + `hunts` con `progress.sources`), `POST /api/hunts/[id]/run?source=osm|rues|reps&cursor=N` (un lote de 200: fuente → `dedupeAndPersist` → `leads` → `scoreFit` determinista sin IA → `fit_assessments`), `GET /api/hunts/[id]/stream?since=<ms>` (**polling JSON incremental**, no SSE: funciona en Vercel serverless sin conexiones largas; el cliente sondea cada 1,2 s), `GET /api/hunts/[id]/leads/[leadId]` (drawer), `GET /api/hunts/estimate`.
+- `src/features/hunts/`: `types`, `geojson` (leads → FeatureCollection), `counters`, `filters`, `batch` (cursor/plan), `service` (crear hunt, `runBatch`, `getStream`, detalle de lead), `demo` (hunt demo sembrado), `estimates` (estimado por fuente, calculado en el cliente con la tabla medida en `reports/coverage.md`; sin endpoint).
+- API: `POST /api/hunts` (workspace + `icp_profiles` + `hunts` con `progress.sources`), `POST /api/hunts/[id]/run?source=osm|rues|reps&cursor=N` (un lote de 200: fuente → `dedupeAndPersist` → `leads` → `scoreFit` determinista sin IA → `fit_assessments`), `GET /api/hunts/[id]/stream?since=<ms>` (**polling JSON incremental**, no SSE: funciona en Vercel serverless sin conexiones largas; el cliente sondea cada 1,2 s), `GET /api/hunts/[id]/leads/[leadId]` (drawer).
 - UI: `/app/new` (conversación, ejemplos clicables, animación de estructurado, chips editables, tarjetas por fuente real/mock, botón "Lanzar búsqueda"); `/app/hunts/[id]` (MapLibre + CARTO Dark Matter, capa GeoJSON con clusters, panel lateral / bottom sheet en 390 px, lista virtualizada, duplicados, línea de tiempo, drawer). `/app/hunts/demo` siembra y abre el hunt demo (2.000 puntos sintéticos en Bogotá, marcado DEMO, `is_demo`).
 
 ## No-alcance
@@ -23,4 +23,6 @@ Enriquecimiento web y mensajes (F10), recibo real (F13: aquí un recibo mínimo 
 4. Capturas 1440×900 y 390×844 de new, hunt y drawer; `npm run check` y `e2e:smoke` verdes.
 
 ## Verificación real
-(se completa al verificar)
+Búsqueda real (modo real, Overpass + REPS en vivo, 17 oct 2026), "Clínicas dentales en Bogotá que tengan sitio web": OSM devolvió **408** lugares con nombre (407 empresas + 1 fusionada con otra) en 3 lotes (32 s el primero por Overpass en frío, 2 s y 0,4 s los siguientes); REPS **150** empresas en 2 lotes. 407 puntos reales con coordenadas en el mapa. Casi ningún lead llega al umbral 60 sin enriquecimiento web (F10): OSM solo aporta sitio web, sector y ciudad (REPS/RUES no traen coordenadas ni web). Algunas entradas de OSM tienen nombre de persona natural: quedan "por verificar" y nunca se contactan sin NIT en RUES/REPS.
+
+Capturas: `artifacts/screens/F19-{new,hunt,drawer}-{1440,390}.png` (WebGL por software con SwiftShader; teselas CARTO cargan en headless con red).
