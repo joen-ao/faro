@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1920, height=1080" />
+<title>Faro demo</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap" />
+<style>
+  :root { --lime:#CBE850; --ink:#1A1A1C; --s1:#0F0F0F; --s2:#1A1A1C; --mut:rgba(255,255,255,.6); }
+  body { margin:0; background:#000; color:#fff; font-family:'DM Sans','Poppins',sans-serif; }
+  #root { position:relative; width:100%; height:100%; overflow:hidden; background:#000; }
+  h1,h2,.hd { font-family:'Poppins',sans-serif; font-weight:700; letter-spacing:-0.02em; margin:0; }
+  .glow { position:absolute; left:50%; top:-420px; width:1700px; height:900px; margin-left:-850px;
+    background:radial-gradient(closest-side, rgba(124,58,237,.35), rgba(124,58,237,0)); }
+  .clip { position:absolute; inset:0; }
+  .scene { position:absolute; inset:0; padding:90px 120px; box-sizing:border-box; display:flex; flex-direction:column; }
+  .brand { position:absolute; left:120px; top:56px; font-family:'Poppins'; font-weight:700; font-size:34px; letter-spacing:-0.02em; z-index:5; }
+  .brand i { display:inline-block; width:16px; height:16px; border-radius:50%; background:var(--lime); margin-right:12px; }
+  .demo-tag { position:absolute; right:56px; top:56px; z-index:9; font-size:22px; padding:8px 18px; border-radius:999px;
+    border:1px solid rgba(255,255,255,.25); color:var(--mut); background:rgba(0,0,0,.5); }
+  .card { background:var(--s1); border:1px solid rgba(255,255,255,.1); border-radius:28px; }
+  .chip { display:inline-flex; align-items:center; gap:10px; padding:12px 26px; border-radius:999px; background:var(--s2);
+    border:1px solid rgba(255,255,255,.14); font-size:28px; color:#fff; }
+  .chip b { color:var(--lime); font-weight:500; }
+  .lime { color:var(--lime); }
+
+  #s1 .scene { justify-content:center; }
+  #s1 .lab { font-size:30px; color:var(--mut); margin-bottom:22px; }
+  #s1 .input { padding:56px 64px; min-height:300px; box-shadow:0 0 0 2px rgba(203,232,80,.5), 0 0 80px rgba(124,58,237,.25); }
+  #typed { font-family:'Poppins'; font-weight:700; font-size:84px; line-height:1.12; letter-spacing:-0.02em; }
+  #caret { display:inline-block; width:6px; height:78px; background:var(--lime); vertical-align:-10px; margin-left:6px; }
+  #chips { display:flex; gap:22px; margin-top:44px; }
+
+  #s2 .scene { padding:0; }
+  #map { position:absolute; inset:0; }
+  .hud { position:absolute; left:120px; bottom:70px; padding:30px 42px; z-index:4; }
+  .hud .n { font-family:'Poppins'; font-weight:700; font-size:48px; letter-spacing:-0.02em; }
+  .hud .n span { color:var(--lime); }
+  .hud .l { font-size:24px; color:var(--mut); margin-top:6px; }
+  .src { position:absolute; right:120px; bottom:70px; display:flex; flex-direction:column; gap:16px; align-items:flex-end; z-index:4; }
+  .legend { position:absolute; left:120px; top:140px; z-index:4; display:flex; gap:28px; font-size:24px; color:var(--mut); }
+  .legend span::before { content:''; display:inline-block; width:16px; height:16px; border-radius:50%; margin-right:10px; vertical-align:-2px; background:#6b6b70; }
+  .legend .f::before { background:var(--lime); } .legend .c::before { background:transparent; border:2px solid #fff; box-sizing:border-box; }
+  .legend .q::before { background:var(--lime); box-shadow:0 0 0 5px rgba(203,232,80,.35); }
+
+  #s3 .scene { flex-direction:row; align-items:center; gap:70px; }
+  #msg { width:1000px; padding:56px 60px; }
+  #msg .to { font-size:24px; color:var(--mut); border-bottom:1px solid rgba(255,255,255,.1); padding-bottom:22px; margin-bottom:34px; }
+  #msg p { font-size:38px; line-height:1.4; margin:0 0 22px; }
+  #msg .unsub { color:var(--lime); text-decoration:underline; font-size:28px; }
+  #s3 .side { flex:1; display:flex; flex-direction:column; gap:30px; }
+  #s3 h2 { font-size:68px; line-height:1.08; }
+  .tag { display:inline-block; align-self:flex-start; background:var(--lime); color:var(--ink); font-weight:700; font-size:28px; padding:14px 28px; border-radius:999px; }
+
+  #s4 .scene { padding-top:150px; }
+  .badge { align-self:flex-start; background:var(--lime); color:var(--ink); font-family:'Poppins'; font-weight:700; font-size:30px; padding:12px 28px; border-radius:999px; margin-bottom:28px; }
+  #s4 h2 { font-size:60px; margin-bottom:34px; }
+  .board { padding:40px 54px; }
+  .row { display:grid; grid-template-columns:330px 1fr 190px; align-items:center; gap:30px; height:104px; }
+  .row.hd2 { height:56px; font-size:24px; color:var(--mut); }
+  .row .nm { font-size:34px; }
+  .track { height:44px; background:var(--s2); border-radius:12px; position:relative; }
+  .bar { position:absolute; left:0; top:0; height:44px; border-radius:12px; background:var(--lime); transform-origin:left center; display:flex; align-items:center; justify-content:flex-end; padding-right:16px; box-sizing:border-box; color:var(--ink); font-family:'Poppins'; font-weight:700; font-size:26px; }
+  .bar.g { background:#6b6b70; color:#fff; }
+  .pct { font-family:'Poppins'; font-weight:700; font-size:40px; text-align:right; }
+  .rec { margin-top:30px; font-size:38px; color:var(--lime); font-weight:500; }
+
+  #s5 .scene { align-items:center; justify-content:center; text-align:center; }
+  #s5 h1 { font-size:104px; line-height:1.08; max-width:1560px; }
+  #s5 .sub { margin-top:44px; font-size:38px; color:var(--mut); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="33">
+  <div class="glow"></div>
+  <div class="brand"><i></i>Faro</div>
+  <div class="demo-tag">Demostración</div>
+
+  <section id="s1" class="clip" data-start="0" data-duration="5.2">
+    <div class="scene">
+      <div class="lab">Describe tu cliente ideal en una frase</div>
+      <div class="card input"><span id="typed"></span><span id="caret"></span></div>
+      <div id="chips">
+        <div class="chip">Sector <b>Clínicas dentales</b></div>
+        <div class="chip">Ciudad <b>Bogotá</b></div>
+        <div class="chip">Señales <b>Sitio web · +5 años</b></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="s2" class="clip" data-start="5" data-duration="9.2">
+    <div class="scene">
+      <svg id="map" viewBox="0 0 1920 1080" width="1920" height="1080"></svg>
+      <div class="legend"><span>Encontrada</span><span class="f">Del perfil</span><span class="c">Contactada</span><span class="q">Calificada por Dapta</span></div>
+      <div class="card hud"><div class="n"><span id="cF">0</span> empresas encontradas · <span id="cM">0</span> del perfil</div><div class="l">Bogotá, Colombia</div></div>
+      <div class="src"><div class="chip" id="src1">OpenStreetMap</div><div class="chip" id="src2">datos.gov.co (RUES/REPS)</div></div>
+    </div>
+  </section>
+
+  <section id="s3" class="clip" data-start="14" data-duration="7.2">
+    <div class="scene">
+      <div class="card" id="msg">
+        <div class="to">Para: contacto@clinicaejemplo.co</div>
+        <p>Hola, escribimos desde Faro (proyecto del 30X Hackathon). Su empresa aparece en OpenStreetMap y nos gustaría presentarle una forma de recibir más pacientes.</p>
+        <p class="unsub">Darse de baja</p>
+      </div>
+      <div class="side">
+        <h2 class="hd">Un mensaje <span class="lime">claro y honesto</span>.</h2>
+        <div class="tag" id="tag3">Solo correos genéricos de empresa</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="s4" class="clip" data-start="21" data-duration="9.2">
+    <div class="scene">
+      <div class="badge" id="badge">DEMOSTRACIÓN · datos de ejemplo</div>
+      <h2 class="hd">Costo por lead (CPL) según la fuente</h2>
+      <div class="card board">
+        <div class="row hd2"><div>Fuente</div><div>CPL (USD)</div><div style="text-align:right">% calificados</div></div>
+        <div class="row"><div class="nm">OpenStreetMap</div><div class="track"><div class="bar" id="b1" style="width:11.4%">$2,1</div></div><div class="pct lime" id="p1">31%</div></div>
+        <div class="row"><div class="nm">datos.gov.co</div><div class="track"><div class="bar" id="b2" style="width:18.4%">$3,4</div></div><div class="pct lime" id="p2">24%</div></div>
+        <div class="row"><div class="nm">Pauta Meta Ads</div><div class="track"><div class="bar g" id="b3" style="width:100%">$18,5</div></div><div class="pct" id="p3">12%</div></div>
+      </div>
+      <div class="rec" id="rec">Recomendación: prioriza OpenStreetMap, es 8,8 veces más barato por lead.</div>
+    </div>
+  </section>
+
+  <section id="s5" class="clip" data-start="30" data-duration="3">
+    <div class="scene">
+      <h1 id="end1">Faro — ¿Dónde están tus próximos clientes y <span class="lime">cuánto te cuestan</span>?</h1>
+      <div class="sub" id="end2">Integrado con Dapta</div>
+    </div>
+  </section>
+</div>
+<script>
+const tl = gsap.timeline({ paused: true });
+const FADE = (sel, end) => tl.to(sel, { opacity: 0, duration: 0.4, ease: "power1.in" }, end - 0.4);
+const IN = (sel, t) => tl.from(sel, { opacity: 0, y: 30, duration: 0.6, ease: "power3.out" }, t);
+
+// Scene 1
+const sentence = "Clínicas dentales en Bogotá con sitio web y más de 5 años";
+const ty = { n: 0 };
+IN("#s1 .lab", 0.1); IN("#s1 .input", 0.2);
+tl.to(ty, { n: sentence.length, duration: 2.6, ease: "none", onUpdate: () => {
+  document.getElementById("typed").textContent = sentence.slice(0, Math.round(ty.n)); } }, 0.6);
+tl.fromTo("#caret", { opacity: 1 }, { opacity: 0, duration: 0.25, repeat: 11, yoyo: true, ease: "none" }, 0.6);
+["#chips .chip:nth-child(1)", "#chips .chip:nth-child(2)", "#chips .chip:nth-child(3)"].forEach((s, i) =>
+  tl.from(s, { opacity: 0, y: 24, scale: 0.92, duration: 0.5, ease: "back.out(1.6)" }, 3.5 + i * 0.4));
+FADE("#s1 .scene", 5.2);
+
+// Scene 2 (map)
+const svg = document.getElementById("map"), NS = "http://www.w3.org/2000/svg";
+const mk = (n, a, p = svg) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); p.appendChild(e); return e; };
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const g = mk("g", { stroke: "rgba(255,255,255,.07)", "stroke-width": 2, fill: "none" });
+for (let x = 0; x <= 1920; x += 120) mk("line", { x1: x + (x % 240 ? 14 : 0), y1: 0, x2: x - 30, y2: 1080 }, g);
+for (let y = 0; y <= 1080; y += 100) mk("line", { x1: 0, y1: y, x2: 1920, y2: y + (y % 200 ? 22 : -18) }, g);
+const g2 = mk("g", { stroke: "rgba(255,255,255,.14)", "stroke-width": 5, fill: "none", "stroke-linecap": "round" });
+mk("path", { d: "M-20 760 C 400 640, 700 820, 1000 560 S 1600 420, 1960 300" }, g2);
+mk("path", { d: "M300 -20 C 380 300, 620 380, 700 1100" }, g2);
+mk("path", { d: "M1200 -20 C 1100 400, 1500 700, 1350 1100" }, g2);
+const dots = [], N = 47;
+for (let i = 0; i < N; i++) {
+  const x = 200 + rnd() * 1520, y = 210 + rnd() * 600, fit = rnd() < 0.42;
+  const base = mk("circle", { cx: x, cy: y, r: 11, fill: "#6b6b70" });
+  const lime = mk("circle", { cx: x, cy: y, r: 11, fill: "#CBE850", opacity: 0 });
+  const halo = mk("circle", { cx: x, cy: y, r: 24, fill: "none", stroke: "#fff", "stroke-width": 3, opacity: 0 });
+  const pulse = mk("circle", { cx: x, cy: y, r: 14, fill: "none", stroke: "#CBE850", "stroke-width": 4, opacity: 0 });
+  dots.push({ base, lime, halo, pulse, fit });
+}
+const fitDots = dots.filter(d => d.fit), M = fitDots.length;
+IN("#s2 .legend", 5.2); IN("#src1", 5.5); IN("#src2", 5.9); IN("#s2 .hud", 5.3);
+const cnt = { f: 0, m: 0 };
+dots.forEach((d, i) => {
+  tl.fromTo(d.base, { opacity: 0, attr: { r: 0 } }, { opacity: 1, attr: { r: 11 }, duration: 0.35, ease: "back.out(2)" }, 5.7 + i * 0.13);
+});
+tl.to(cnt, { f: N, duration: N * 0.13, ease: "none", onUpdate: () => document.getElementById("cF").textContent = Math.round(cnt.f) }, 5.7);
+fitDots.forEach((d, i) => {
+  const t = 8.6 + i * (3.4 / M);
+  tl.to(d.lime, { opacity: 1, duration: 0.3 }, t);
+});
+tl.to(cnt, { m: M, duration: 3.4, ease: "none", onUpdate: () => document.getElementById("cM").textContent = Math.round(cnt.m) }, 8.6);
+fitDots.forEach((d, i) => {
+  if (i % 3 === 2) return;
+  tl.fromTo(d.halo, { opacity: 0, attr: { r: 40 } }, { opacity: 1, attr: { r: 24 }, duration: 0.4, ease: "power2.out" }, 10.4 + i * 0.08);
+});
+fitDots.forEach((d, i) => {
+  if (i % 3 !== 0) return;
+  tl.fromTo(d.pulse, { opacity: 0.9, attr: { r: 14 } }, { opacity: 0, attr: { r: 52 }, duration: 0.9, ease: "power2.out", repeat: 1 }, 11.6 + i * 0.1);
+});
+FADE("#s2 .scene", 14.2);
+
+// Scene 3
+tl.from("#msg", { opacity: 0, y: 50, scale: 0.96, duration: 0.7, ease: "power3.out" }, 14.2);
+tl.from("#msg p:nth-of-type(1)", { opacity: 0, y: 20, duration: 0.6 }, 14.9);
+tl.from("#msg .unsub", { opacity: 0, duration: 0.5 }, 16.6);
+tl.from("#s3 h2", { opacity: 0, x: 40, duration: 0.7, ease: "power3.out" }, 15.4);
+tl.from("#tag3", { opacity: 0, scale: 0.8, duration: 0.6, ease: "back.out(1.8)" }, 17.2);
+FADE("#s3 .scene", 21.2);
+
+// Scene 4
+IN("#badge", 21.1); IN("#s4 h2", 21.3); IN("#s4 .board", 21.5);
+["#b1", "#b2", "#b3"].forEach((s, i) => tl.from(s, { scaleX: 0, duration: 1.0, ease: "power3.out" }, 22.3 + i * 0.4));
+["#p1", "#p2", "#p3"].forEach((s, i) => tl.from(s, { opacity: 0, duration: 0.5 }, 23.2 + i * 0.4));
+tl.from("#rec", { opacity: 0, y: 24, duration: 0.7, ease: "power3.out" }, 25.2);
+FADE("#s4 .scene", 30.2);
+
+// Scene 5
+tl.from("#end1", { opacity: 0, y: 40, duration: 0.8, ease: "power3.out" }, 30.2);
+tl.from("#end2", { opacity: 0, duration: 0.7 }, 31.1);
+
+window.__timelines["main"] = tl;
+</script>
+</body>
+</html>

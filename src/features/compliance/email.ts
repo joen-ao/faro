@@ -8,11 +8,19 @@ const GENERIC_LOCAL = [
 
 const strip = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-/** True for role mailboxes (info@, contacto@, citas@...); false for personal-looking addresses. */
+const GENERIC_TOKENS = new Set([...GENERIC_LOCAL, "contacto", "contactenos", "odontologia", "odontologica", "clinicadental", "citasonline", "agendamiento"]);
+
+/**
+ * True for role mailboxes: the first token of the local part must be exactly a known generic word
+ * (optionally followed by digits), then optional separated suffixes: info, info.bogota, citas-norte, contacto2.
+ * Glued prefixes (clinicajuanperez@, odontomaria@) and suffixes that are first names are NOT generic.
+ */
 export function isGenericEmail(email: string | undefined | null): boolean {
   if (!email) return false;
-  const local = strip(email.split("@")[0] ?? "").replace(/[^a-z]/g, "");
-  return !!local && GENERIC_LOCAL.some((g) => local.startsWith(g));
+  const parts = strip(email.split("@")[0] ?? "").replace(/\+.*$/, "").split(/[._-]+/).filter(Boolean);
+  const first = (parts[0] ?? "").replace(/\d+$/, "");
+  if (!first || !GENERIC_TOKENS.has(first)) return false;
+  return parts.slice(1).every((p) => !COMMON_FIRST_NAMES.has(p.replace(/\d+$/, "")) && !/^[a-z]{1,2}$/.test(p));
 }
 
 const COMMON_FIRST_NAMES = new Set([
