@@ -1,6 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
-const PORT = 3100;
+const PORT = Number(process.env.E2E_PORT ?? 3100);
 process.env.OPTOUT_SECRET ??= "e2e-only-secret"; // inherited by the web server and the test workers
 
 export default defineConfig({

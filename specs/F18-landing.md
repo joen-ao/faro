@@ -25,4 +25,5 @@ Landing pública `/` que explica Faro en 30 s: hero con la pregunta del reto, vi
 - e2e `tests/e2e/landing.spec.ts` (H1, CTA, video lazy con poster, estado vacío, atribuciones, capturas 1440/390).
 
 ## Resultados Lighthouse
-(se completan al medir)
+`next start` local, Lighthouse CLI: mobile → performance 96, accesibilidad 100, mejores prácticas 96, SEO 90 (LCP 2,7 s, TBT 10 ms, CLS 0). Desktop → 100 / 100 / 96 / 90.
+Video: HyperFrames local, 33 s, 1920×1080 H.264 sin audio, 1,2 MB; poster 56 KB.
