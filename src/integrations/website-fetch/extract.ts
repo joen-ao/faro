@@ -72,7 +72,7 @@ export function removeTeamBlocks(html: string): string {
 }
 
 const NAME_TITLE =
-  /\b(?:Dres?|Dras?|Doctor|Doctora|Odont[óo]log[oa])\.?\s+(?:de\s+|del\s+)?[A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+(?:de\s+|del\s+|la\s+)?[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,3}/gu;
+  /\b(?:Dr[ae]?s?|Doctor|Doctora|Odont[óo]log[oa])\.?\s+(?:de\s+|del\s+)?[A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+(?:de\s+|del\s+|la\s+)?[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,3}/gu;
 
 const AT_RE = /\s*[[({]\s*(?:at|arroba)\s*[\])}]\s*/gi;
 const DOT_RE = /\s*[[({]\s*(?:dot|punto)\s*[\])}]\s*/gi;
@@ -235,7 +235,7 @@ export function findContactLinks(html: string, base: URL): string[] {
   const out: string[] = [];
   for (const m of html.replace(DROP_BLOCKS, " ").matchAll(/<a\b[^>]*href\s*=\s*["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a\s*>/gi)) {
     const label = toText(m[2]!).toLowerCase();
-    if (!/contact/.test(m[1]!.toLowerCase()) && !/contact/.test(label)) continue;
+    if (!/cont[aá]ct/.test(m[1]!.toLowerCase()) && !/cont[aá]ct/.test(label)) continue;
     try {
       const u = new URL(decodeEntities(m[1]!), base);
       if ((u.protocol === "http:" || u.protocol === "https:") && u.hostname === base.hostname) {
