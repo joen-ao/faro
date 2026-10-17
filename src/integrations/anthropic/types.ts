@@ -34,7 +34,8 @@ export interface CompleteResult<T> {
   is_mock: boolean;
 }
 
-export class AiValidationError extends Error {
+/** Base for AI failures; always carries the (possibly billed) usage so cost is never lost. */
+export class AiError extends Error {
   constructor(
     message: string,
     public readonly usage: Usage,
@@ -42,13 +43,20 @@ export class AiValidationError extends Error {
     public readonly isMock: boolean,
   ) {
     super(message);
+    this.name = "AiError";
+  }
+}
+
+export class AiValidationError extends AiError {
+  constructor(message: string, usage: Usage, model: string, isMock: boolean) {
+    super(message, usage, model, isMock);
     this.name = "AiValidationError";
   }
 }
 
-export class AiCallError extends Error {
-  constructor(message: string) {
-    super(message);
+export class AiCallError extends AiError {
+  constructor(message: string, usage: Usage, model: string, isMock: boolean) {
+    super(message, usage, model, isMock);
     this.name = "AiCallError";
   }
 }

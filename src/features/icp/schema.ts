@@ -10,7 +10,10 @@ export const IcpCriteria = z.object({
   city: z.string().trim().min(1),
   country: z.string().trim().length(2).default("CO"),
   /** [south, west, north, east] */
-  bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]).optional(),
+  bbox: z
+    .tuple([z.number().min(-90).max(90), z.number().min(-180).max(180), z.number().min(-90).max(90), z.number().min(-180).max(180)])
+    .refine(([s, w, n, e]) => s < n && w < e, "bbox must satisfy south<north and west<east")
+    .optional(),
   size: z.string().trim().min(1).optional(),
   signals: strList,
   exclusions: strList,

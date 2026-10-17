@@ -59,7 +59,7 @@ export async function complete<T>(
       } catch (e) {
         status = 502;
         error = e instanceof Error ? e.message : String(e);
-        throw new AiCallError(`anthropic call failed: ${error}`);
+        throw new AiCallError(`anthropic call failed: ${error}`, total, adapter.model, adapter.isMock);
       }
       total.input_tokens += raw.usage.input_tokens;
       total.output_tokens += raw.usage.output_tokens;

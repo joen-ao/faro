@@ -30,7 +30,7 @@ export function mockResponse(prompt: string): string {
   if (task === "score_signals") {
     let parsed: { signals?: string[]; text?: string } = {};
     try {
-      parsed = JSON.parse(after(prompt, "PAYLOAD:"));
+      parsed = JSON.parse(after(prompt, "PAYLOAD:").split("\n")[0]);
     } catch {
       /* empty payload -> nothing found */
     }

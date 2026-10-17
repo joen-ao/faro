@@ -1,8 +1,8 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { companies, companySources, contactPoints, fitAssessments, icpProfiles, leads } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { IcpCriteria } from "@/features/icp/schema";
-import type { AnthropicAdapter } from "@/integrations/anthropic";
+import { AiError, type AnthropicAdapter } from "@/integrations/anthropic";
 import { dbCallRecorder, loadAiRates, recordAiCost } from "./cost";
 import { scoreFit, type FitResult, type ScoreSource } from "./fit";
 
@@ -52,49 +52,53 @@ export async function scoreLead(
   const websiteRaw = sources.find((s) => s.sourceChannel === "website")?.raw as Record<string, unknown> | undefined;
   const websiteText = typeof websiteRaw?.websiteText === "string" ? websiteRaw.websiteText : null;
 
-  const result = await scoreFit(
-    {
-      name: company.name,
-      city: company.city,
-      website: company.website,
-      nit: company.nit,
-      isLegalEntity: company.isLegalEntity,
-      contacts: contacts.map((c) => ({ type: c.type, value: c.value, isGeneric: c.isGeneric, evidenceUrl: c.evidenceUrl })),
-      sources: sources.map(sourceFromRow),
-      websiteText,
-    },
-    criteria.data,
-    { ai: deps.ai, threshold: icp.threshold, recorder: dbCallRecorder(db) },
-  );
-
-  const [row] = await db
-    .insert(fitAssessments)
-    .values({
-      companyId: company.id,
-      icpProfileId: icp.id,
-      score: result.score,
-      criteriaMet: result.criteria,
-      whyNow: result.why_now,
-      model: result.model ?? "rules",
-      inputTokens: result.usage.input_tokens,
-      outputTokens: result.usage.output_tokens,
-    })
-    .returning({ id: fitAssessments.id });
-
-  await db
-    .update(leads)
-    .set({ fitScore: result.score, ...(result.meetsThreshold && lead.status === "found" ? { status: "fit" as const } : {}) })
-    .where(and(eq(leads.id, lead.id)));
-
-  if (result.usage.input_tokens + result.usage.output_tokens > 0) {
-    await recordAiCost(db, {
-      leadId: lead.id,
-      huntId: lead.huntId,
-      usage: result.usage,
-      rates: await loadAiRates(db),
-      isMock: result.is_mock,
-      evidence: `scoring ${result.model ?? ""}`.trim(),
-    });
+  const rates = await loadAiRates(db);
+  let result: FitResult;
+  try {
+    result = await scoreFit(
+      {
+        name: company.name,
+        city: company.city,
+        website: company.website,
+        nit: company.nit,
+        isLegalEntity: company.isLegalEntity,
+        contacts: contacts.map((c) => ({ type: c.type, value: c.value, isGeneric: c.isGeneric, evidenceUrl: c.evidenceUrl })),
+        sources: sources.map(sourceFromRow),
+        websiteText,
+      },
+      criteria.data,
+      { ai: deps.ai, threshold: icp.threshold, recorder: dbCallRecorder(db) },
+    );
+  } catch (e) {
+    // Billed tokens are recorded even when the AI reply was unusable; the error then propagates (-> 502).
+    if (e instanceof AiError && e.usage.input_tokens + e.usage.output_tokens > 0) {
+      await recordAiCost(db, { leadId: lead.id, huntId: lead.huntId, usage: e.usage, rates, isMock: e.isMock, evidence: `scoring ${e.model} (failed)` });
+    }
+    throw e;
   }
-  return { ...result, assessmentId: row.id };
+
+  const assessmentId = await db.transaction(async (tx) => {
+    const t = tx as unknown as AppDb;
+    const [row] = await t
+      .insert(fitAssessments)
+      .values({
+        companyId: company.id,
+        icpProfileId: icp.id,
+        score: result.score,
+        criteriaMet: result.criteria,
+        whyNow: result.why_now,
+        model: result.model ?? "rules",
+        inputTokens: result.usage.input_tokens,
+        outputTokens: result.usage.output_tokens,
+      })
+      .returning({ id: fitAssessments.id });
+    // Natural persons are never promoted; unverified legal status may be fit but is flagged in why_now.
+    const promote = result.meetsThreshold && company.isLegalEntity && lead.status === "found";
+    await t.update(leads).set({ fitScore: result.score, ...(promote ? { status: "fit" as const } : {}) }).where(eq(leads.id, lead.id));
+    if (result.usage.input_tokens + result.usage.output_tokens > 0) {
+      await recordAiCost(t, { leadId: lead.id, huntId: lead.huntId, usage: result.usage, rates, isMock: result.is_mock, evidence: `scoring ${result.model ?? ""}`.trim() });
+    }
+    return row.id;
+  });
+  return { ...result, assessmentId };
 }
