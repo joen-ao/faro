@@ -1,3 +1,4 @@
+import "./load-env";
 /**
  * F02: coverage test. Calls the REAL OSM/Overpass and datos.gov.co APIs (no key needed) and writes
  * reports/coverage.md. Failed sources are reported as failed, never invented.

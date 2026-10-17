@@ -1,3 +1,4 @@
+import "./load-env";
 import { createDb } from "../src/db/client";
 import { migrate } from "../src/db/migrate";
 import { seed, seedDiagnosticDemo } from "../src/db/seed";
