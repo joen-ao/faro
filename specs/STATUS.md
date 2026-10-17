@@ -6,7 +6,7 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 |---|---|---|---|---|---|---|
 | F00 | Scaffold (Next.js, TS, Tailwind, shadcn, Drizzle+PGlite, Vitest, Playwright, check) | P0 | DONE | feat/F00-scaffold | 1 | Next 16 + Tailwind v4 + Drizzle/PGlite + Vitest + Playwright; check verde; 4 MINOR en review |
 | F01 | Modelo de datos + migraciones + seed demo | P0 | DONE | feat/F01-modelo-datos | 1 | 16 tablas Drizzle, migraciones PGlite, seed is_demo; 4 MINOR (ver specs/reviews/F01-r1.md) |
-| F02 | Prueba de cobertura (reports/coverage.md real) | P0 | TODO | | 0 | |
+| F02 | Prueba de cobertura (reports/coverage.md real) | P0 | DONE | squash | 3 | reports/coverage.md real: ICP recomendado dental Bogotá (70 jurídicas verificadas contactables vs 12 restaurantes Bogotá; Miami 336 por verificar) |
 | F03 | Adapter Overpass | P0 | TODO | | 0 | |
 | F04 | Adapter Socrata (RUES/REPS) | P0 | TODO | | 0 | |
 | F05 | Adapter Google Places | P1 | TODO | | 0 | |
