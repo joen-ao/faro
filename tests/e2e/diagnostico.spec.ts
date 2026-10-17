@@ -22,10 +22,19 @@ test("diagnostic page: findings, opt-out button, event registered, contact form,
   await expect
     .poll(async () => {
       const res = await page.request.get("/api/events?slug=demo-clinica");
-      const body = (await res.json()) as { events: { type: string; utm: Record<string, string> | null }[] };
-      return body.events.find((e) => e.type === "widget_open" && e.utm?.utm_campaign === "e2e-f12")?.utm ?? null;
+      const body = (await res.json()) as { events: { type: string; utm: Record<string, string> | null; payload: { kind?: string } }[] };
+      // No Dapta snippet in e2e: the open is a page_view (type click), never a widget_open.
+      expect(body.events.some((e) => e.type === "widget_open" && e.utm?.utm_campaign === "e2e-f12" && e.payload.kind === "page_view")).toBe(false);
+      return body.events.find((e) => e.type === "click" && e.payload.kind === "page_view" && e.utm?.utm_campaign === "e2e-f12")?.utm ?? null;
     })
     .toMatchObject({ c: "email", s: "osm", utm_source: "email" });
+
+  // Duplicate open within the window is not recorded again; response never echoes tracking.
+  const dup = await page.request.post("/api/events", { data: { slug: "demo-clinica", c: "email", s: "osm", utm: { utm_campaign: "e2e-f12" } } });
+  const dupBody = (await dup.json()) as Record<string, unknown>;
+  expect(dupBody.tracking).toBeUndefined();
+  const big = await page.request.post("/api/contact", { data: { slug: "demo-clinica", message: "x".repeat(20000) } });
+  expect(big.status()).toBe(413);
 
   await page.screenshot({ path: `artifacts/screens/F12-diagnostico-${width}.png`, fullPage: true });
 

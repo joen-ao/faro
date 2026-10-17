@@ -12,8 +12,8 @@ export const contactSchema = z.object({
     .email("Escribe un correo válido")
     .max(160)
     .refine(isGenericEmail, "Usa un correo de la empresa como info@, citas@ o contacto@"),
-  role: z.string().trim().max(80).optional(),
-  message: z.string().trim().min(5, "Cuéntanos brevemente qué necesitas").max(1000),
+  role: z.string().trim().max(60).optional(),
+  message: z.string().trim().min(5, "Cuéntanos brevemente qué necesitas").max(500, "Máximo 500 caracteres"),
   consent: z.literal(true, { error: "Debes aceptar el aviso de privacidad" }),
   c: z.string().max(20).optional(),
   s: z.string().max(20).optional(),

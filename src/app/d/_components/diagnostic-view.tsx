@@ -110,12 +110,12 @@ export function DiagnosticView({ slug, tracking, company, findings, icp, optOutH
                     <span className="font-display text-sm font-semibold text-faro-accent">0{i + 1}</span>
                     <p className="text-lg leading-snug">{f.text}</p>
                   </div>
-                  <p className="text-xs text-faro-text-3">
+                  <p className="text-sm text-faro-text-2">
                     Fuente:{" "}
                     <a href={f.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-faro-text-2 underline decoration-white/30 underline-offset-2 hover:text-white">
                       {f.sourceLabel}
                     </a>
-                    {f.isExample && <span className="ml-2 rounded-full bg-faro-surface-3 px-2 py-0.5 text-white">Ejemplo</span>}
+                    {f.isExample && <span className="ml-2 inline-block rounded-full bg-faro-surface-3 px-2 py-0.5 text-xs text-white">Ejemplo</span>}
                   </p>
                 </li>
               ))}
@@ -142,9 +142,15 @@ export function DiagnosticView({ slug, tracking, company, findings, icp, optOutH
         <div className="mx-auto grid w-full max-w-5xl gap-8 px-5 py-10 text-sm text-faro-text-2 sm:px-8 md:grid-cols-3">
           <div data-testid="sender" className="flex flex-col gap-1.5">
             <h2 className="text-base font-semibold text-white">Quién te escribe</h2>
-            <p>{product}, proyecto del 30X Hackathon.</p>
-            <p>{env.SENDER_LEGAL_NAME ?? "Razón social del remitente: por configurar"}</p>
-            <p>{env.SENDER_ADDRESS ?? "Dirección del remitente: por configurar"}</p>
+            <p>{product} — proyecto del 30X Hackathon.</p>
+            {env.SENDER_LEGAL_NAME && <p>{env.SENDER_LEGAL_NAME}</p>}
+            {env.SENDER_ADDRESS && <p>{env.SENDER_ADDRESS}</p>}
+            {env.EMAIL_REPLY_TO && (
+              <p>
+                Responde a:{" "}
+                <a href={`mailto:${env.EMAIL_REPLY_TO}`} data-testid="reply-to" className="text-white underline underline-offset-2">{env.EMAIL_REPLY_TO}</a>
+              </p>
+            )}
           </div>
           <div id="privacidad" className="flex flex-col gap-1.5 scroll-mt-6">
             <h2 className="text-base font-semibold text-white">Aviso de privacidad</h2>
@@ -152,21 +158,28 @@ export function DiagnosticView({ slug, tracking, company, findings, icp, optOutH
               Solo tratamos datos de empresas (nombre, correo genérico, mensaje) para responder tu solicitud. Los datos de esta página vienen de fuentes públicas. Responsable: {env.SENDER_LEGAL_NAME ?? product}. Conforme a la Ley 1581 de 2012 puedes conocer, corregir o pedir la supresión de tus datos en cualquier momento.
             </p>
           </div>
-          <div className="flex flex-col items-start gap-3">
-            <h2 className="text-base font-semibold text-white">¿No te interesa?</h2>
-            <p>No volveremos a escribirte. Es un clic.</p>
-            {optOutHref ? (
-              <a
-                href={optOutHref}
-                data-testid="optout-link-footer"
-                className="inline-flex h-12 items-center rounded-button border border-white/40 px-5 font-semibold text-white transition-colors hover:bg-white hover:text-black"
-              >
-                No me interesa / darme de baja
-              </a>
-            ) : (
-              <p>Para darte de baja, responde al mensaje original y lo procesamos de inmediato.</p>
-            )}
-          </div>
+          {isIcp ? (
+            <div className="flex flex-col gap-1.5">
+              <h2 className="text-base font-semibold text-white">Tus datos</h2>
+              <p>Esta página no guarda datos tuyos hasta que envías el formulario. No te escribiremos si no lo envías.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-start gap-3">
+              <h2 className="text-base font-semibold text-white">¿No te interesa?</h2>
+              <p>No volveremos a escribirte. Es un clic.</p>
+              {optOutHref ? (
+                <a
+                  href={optOutHref}
+                  data-testid="optout-link-footer"
+                  className="inline-flex h-12 items-center rounded-button border border-white/40 px-5 font-semibold text-white transition-colors hover:bg-white hover:text-black"
+                >
+                  No me interesa / darme de baja
+                </a>
+              ) : (
+                <p>Para darte de baja, responde al mensaje original y lo procesamos de inmediato.</p>
+              )}
+            </div>
+          )}
           <Attribution className="md:col-span-3" />
         </div>
       </footer>

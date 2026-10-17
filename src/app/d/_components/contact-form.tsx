@@ -80,24 +80,28 @@ export function ContactForm({
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="c-role" className="text-sm font-medium">Cargo o área <span className="font-normal text-faro-text-3">(opcional)</span></label>
-        <input id="c-role" name="role" maxLength={80} placeholder="Gerencia, recepción, administración" className={field} />
+        <input id="c-role" name="role" maxLength={60} placeholder="Gerencia, recepción, administración" className={field} />
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="c-message" className="text-sm font-medium">¿Qué necesitan?</label>
-        <textarea id="c-message" name="message" required rows={4} maxLength={1000} className={`${field} h-auto min-h-28 py-3`} aria-invalid={!!err("message")} aria-describedby={err("message") ? "e-message" : undefined} />
-        {err("message") && <p id="e-message" className="text-sm text-[var(--faro-danger)]">{err("message")}</p>}
+        <textarea id="c-message" name="message" required rows={4} maxLength={500} className={`${field} h-auto min-h-28 py-3`} aria-invalid={!!err("message")} aria-describedby={err("message") ? "e-message" : "h-message"} />
+        {err("message") ? (
+          <p id="e-message" className="text-sm text-[var(--faro-danger)]">{err("message")}</p>
+        ) : (
+          <p id="h-message" className="text-xs text-faro-text-3">Máximo 500 caracteres. No incluyas nombres de personas.</p>
+        )}
       </div>
       {/* Honeypot: off-screen, not focusable, ignored by assistive tech. */}
       <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
         <label>No llenar<input name="hp" tabIndex={-1} autoComplete="off" /></label>
       </div>
       <div className="flex items-start gap-3">
-        <input id="c-consent" name="consent" type="checkbox" required className="mt-1 size-5 shrink-0 accent-[var(--faro-accent)]" aria-invalid={!!err("consent")} />
+        <input id="c-consent" name="consent" type="checkbox" required className="mt-1 size-5 shrink-0 accent-[var(--faro-accent)]" aria-invalid={!!err("consent")} aria-describedby={err("consent") ? "e-consent" : undefined} />
         <label htmlFor="c-consent" className="text-sm leading-relaxed text-faro-text-2">
           Acepto el <a href={privacyHref} className="text-white underline underline-offset-2">aviso de privacidad</a> y que usen estos datos de la empresa para responderme.
         </label>
       </div>
-      {err("consent") && <p className="text-sm text-[var(--faro-danger)]">{err("consent")}</p>}
+      {err("consent") && <p id="e-consent" className="text-sm text-[var(--faro-danger)]">{err("consent")}</p>}
       {status === "error" && !Object.keys(errors).length && (
         <p role="alert" className="text-sm text-[var(--faro-danger)]">No pudimos enviar el mensaje. Inténtalo de nuevo en unos minutos.</p>
       )}
