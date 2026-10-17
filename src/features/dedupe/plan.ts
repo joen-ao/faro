@@ -8,6 +8,8 @@ export interface MergedPair {
   mergedName: string;
   mergedChannel: string;
   mergedExternalId: string;
+  /** The merged record came from mock/demo data: never counted as a real duplicate. */
+  isMock?: boolean;
   reason: MatchReason;
   /** Trigram similarity of the normalised names, 0..1 (3 decimals). */
   similarity: number;
@@ -110,6 +112,7 @@ export function planDedupe(existing: readonly Entity[], incoming: readonly Dedup
       mergedName: c.name,
       mergedChannel: c.sourceChannel,
       mergedExternalId: c.externalId,
+      isMock: c.isMock,
       reason: match.reason,
       similarity: round3(match.similarity),
       ...(match.distanceMeters !== undefined ? { distanceMeters: Math.round(match.distanceMeters) } : {}),

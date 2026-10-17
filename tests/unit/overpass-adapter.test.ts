@@ -254,8 +254,8 @@ describe("persistOverpassResults", () => {
   it("stores companies + sources with license and URL, idempotently, and flags mock rows", async () => {
     const real = toSourceCompanies([{ id: "node/123", name: "Clínica Uno S.A.S.", lat: 4.6, lng: -74.1, phone: "3101234567", tags: {} }], { city: "Bogotá" });
     const first = await persistOverpassResults(conn.db, huntId, real);
-    expect(first).toEqual({ found: 1, inserted: 1, skipped: 0 });
-    expect(await persistOverpassResults(conn.db, huntId, real)).toEqual({ found: 1, inserted: 0, skipped: 1 });
+    expect(first).toEqual({ found: 1, inserted: 1, skipped: 0, excluded_personal: 0 });
+    expect(await persistOverpassResults(conn.db, huntId, real)).toEqual({ found: 1, inserted: 0, skipped: 1, excluded_personal: 0 });
 
     const [src] = await conn.db.select().from(s.companySources).where(eq(s.companySources.externalId, "osm:node/123"));
     expect(src).toMatchObject({ sourceChannel: "osm", license: "ODbL 1.0 © OpenStreetMap contributors", sourceUrl: "https://www.openstreetmap.org/node/123", isMock: false });
