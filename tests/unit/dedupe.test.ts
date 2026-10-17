@@ -205,7 +205,7 @@ describe("matching rules (planDedupe)", () => {
 
 describe("real fixtures", () => {
   it("OSM + REPS + RUES fixtures dedupe without losing any source", async () => {
-    const osm = (await createMockOverpass().search()).companies;
+    const osm = (await createMockOverpass().search({ tags: [] })).companies;
     const socrata = createSocrataSource(createMockSocrata());
     const rues = (await socrata.searchRues({ ciiu: ["8622"], camara: "BOGOTA" })).companies;
     const reps = (await socrata.searchReps({ municipio: "BOGOTA", service: "dental" })).companies;

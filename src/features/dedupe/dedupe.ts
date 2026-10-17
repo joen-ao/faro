@@ -2,8 +2,7 @@ import { eq } from "drizzle-orm";
 import { companies, companySources, contactPoints, hunts } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { isGenericEmail } from "@/features/coverage/metrics";
-import type { SourceCompany } from "@/integrations/types";
-import { priorityOf, type Entity } from "./match";
+import { priorityOf, type DedupeInput, type Entity } from "./match";
 import { domainOf, normalizeName, normalizePhoneE164 } from "./normalize";
 import { planDedupe, type MergedPair } from "./plan";
 
@@ -77,7 +76,7 @@ async function loadExisting(db: AppDb) {
  * new companies, ALL company_sources (never drops a source), filled-in fields on kept companies and deduplicated contact_points.
  * Idempotent per `(source_channel, external_id)`. Pairs are stored in `hunts.progress.dedupe` (accumulated).
  */
-export async function dedupeAndPersist(db: AppDb, huntId: string, incoming: readonly SourceCompany[]): Promise<DedupeResult> {
+export async function dedupeAndPersist(db: AppDb, huntId: string, incoming: readonly DedupeInput[]): Promise<DedupeResult> {
   return db.transaction(async (tx) => {
     const { entities, skip } = await loadExisting(tx as unknown as AppDb);
     const plan = planDedupe(entities, incoming, skip);

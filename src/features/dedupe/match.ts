@@ -1,4 +1,9 @@
 import type { SourceCompany } from "@/integrations/types";
+
+/** Accepts the shared `SourceCompany` and the narrower Overpass one (no NIT / legal-entity flags). */
+export type DedupeInput = Omit<SourceCompany, "isLegalEntity" | "possibleNaturalPerson" | "raw" | "nit"> &
+  Partial<Pick<SourceCompany, "isLegalEntity" | "possibleNaturalPerson" | "nit">> & { raw: Record<string, unknown> };
+
 import { domainOf, haversineMeters, normalizeName, normalizePhoneE164, trigramSimilarity } from "./normalize";
 
 export const NAME_SIMILARITY_THRESHOLD = 0.6;
@@ -43,14 +48,14 @@ export function normalizeNit(nit: string | undefined): string | undefined {
 }
 
 export interface Probe {
-  company: SourceCompany;
+  company: DedupeInput;
   normalizedName: string;
   nit?: string;
   domain?: string;
   phone?: string;
 }
 
-export function probeOf(company: SourceCompany, generic?: readonly string[]): Probe {
+export function probeOf(company: DedupeInput, generic?: readonly string[]): Probe {
   return {
     company,
     normalizedName: normalizeName(company.name, generic),

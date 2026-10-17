@@ -1,5 +1,4 @@
-import type { SourceCompany } from "@/integrations/types";
-import { GridIndex, compareByName, priorityOf, probeOf, type Entity, type Match, type MatchReason, type Probe } from "./match";
+import { GridIndex, type DedupeInput, compareByName, priorityOf, probeOf, type Entity, type Match, type MatchReason, type Probe } from "./match";
 import { trigramSimilarity } from "./normalize";
 
 /** One fused duplicate, as shown in the UI "N duplicados fusionados" detail. */
@@ -16,7 +15,7 @@ export interface MergedPair {
 }
 
 export interface Assignment {
-  company: SourceCompany;
+  company: DedupeInput;
   entityId: string;
   probe: Probe;
 }
@@ -57,7 +56,7 @@ const round3 = (n: number) => Math.round(n * 1000) / 1000;
  * Complexity ~ O(n * k): NIT/domain/phone via hash maps, distance via a ~100 m grid (no O(n^2) scan).
  * `skip` holds `channel:externalId` keys already stored (idempotency).
  */
-export function planDedupe(existing: readonly Entity[], incoming: readonly SourceCompany[], skip: ReadonlySet<string> = new Set(), generic?: readonly string[]): Plan {
+export function planDedupe(existing: readonly Entity[], incoming: readonly DedupeInput[], skip: ReadonlySet<string> = new Set(), generic?: readonly string[]): Plan {
   const indexes = new Map<boolean, Index>();
   const indexFor = (demo: boolean) => {
     let ix = indexes.get(demo);
@@ -92,7 +91,7 @@ export function planDedupe(existing: readonly Entity[], incoming: readonly Sourc
         lat: c.lat,
         lng: c.lng,
         website: c.website,
-        isLegalEntity: c.isLegalEntity,
+        isLegalEntity: c.isLegalEntity ?? true,
         priority: priorityOf(c.sourceChannel),
         domains: new Set(probe.domain ? [probe.domain] : []),
         phones: new Set(probe.phone ? [probe.phone] : []),
@@ -151,7 +150,7 @@ function mergeInto(ix: Index, e: Entity, p: Probe) {
     e.normalizedName = p.normalizedName || e.normalizedName;
     if (c.address) e.address = c.address;
     if (c.city) e.city = c.city;
-    e.isLegalEntity = c.isLegalEntity;
+    e.isLegalEntity = c.isLegalEntity ?? e.isLegalEntity;
     e.priority = pr;
   } else {
     e.address ??= c.address;
