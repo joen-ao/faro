@@ -19,7 +19,9 @@ export function createLimiter(max: number, windowMs: number) {
 export const MAX_BODY_BYTES = 16 * 1024;
 
 export function clientIp(req: Request): string {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "local";
+  // The first X-Forwarded-For entry is client-controlled; trust x-real-ip (set by the proxy) or the LAST entry (appended by the nearest proxy).
+  const parts = req.headers.get("x-forwarded-for")?.split(",").map((x) => x.trim()).filter(Boolean);
+  return req.headers.get("x-real-ip") || parts?.[parts.length - 1] || "local";
 }
 
 /** Reads a JSON body capped at 16 KB. Returns "too_large" or "bad_json" on failure. */

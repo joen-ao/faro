@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, gt, sql } from "drizzle-orm";
+import type { AppDb } from "@/db/types";
 import { companies, companySources, contactPoints, events, leads } from "@/db/schema";
 import { seedDiagnosticDemo } from "@/db/seed";
+import { isLegalEntity } from "@/features/compliance/email";
 import { SHARED_DOMAINS } from "@/features/compliance/optout";
 import { ready as readyConn } from "@/features/compliance/handle";
 import { demoToolsEnabled } from "./limits";
@@ -96,8 +98,8 @@ export async function recordOpen(slug: string, tracking: Tracking, widgetConfigu
  * (free text, length-capped; the form asks not to include person names).
  * ICP (paid) inbound: reuses an existing meta_ads lead with the same normalized company name or generic-mailbox domain.
  */
-export async function recordContact(input: ContactInput, tracking: Tracking, icpSlug?: string): Promise<boolean> {
-  const { db } = await conn();
+export async function recordContact(input: ContactInput, tracking: Tracking, icpSlug?: string, injected?: AppDb): Promise<boolean> {
+  const db = injected ?? (await conn()).db;
   const payload = { company: input.company, email: input.email, role: input.role ?? null, message: input.message, consent: true };
   if (!icpSlug) {
     const d = await getDiagnostic(input.slug);
@@ -130,8 +132,8 @@ export async function recordContact(input: ContactInput, tracking: Tracking, icp
       leadId = byDomain[0]?.id;
     }
     if (!leadId) {
-      // Unverified inbound: legal-entity status is unknown, so it is stored as false until someone verifies it.
-      const [company] = await tx.insert(companies).values({ name: input.company, normalizedName: norm, isLegalEntity: false }).returning();
+      // Unverified inbound: assumed legal entity ("por verificar") unless the name looks like a natural person.
+      const [company] = await tx.insert(companies).values({ name: input.company, normalizedName: norm, isLegalEntity: isLegalEntity(input.company).legal }).returning();
       await tx.insert(contactPoints).values({ companyId: company.id, type: "email", value: input.email, isGeneric: true, sourceChannel: "meta_ads" });
       const [lead] = await tx
         .insert(leads)
