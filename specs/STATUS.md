@@ -18,7 +18,7 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F11 | Registro de respuestas | P0 | TODO | | 0 | |
 | F12 | Página de diagnóstico /d/[slug] | P0 | DONE | feat/F12-diagnostico | 3 | /d/[slug] y /d/icp/[icpSlug], widget Dapta aislado o placeholder, opt-out, eventos con dedupe/rate limit, formulario con honeypot; 3 MINOR (F12-r3) |
 | F13 | Motor de costos y Recibo | P0 | DONE | feat/F13-costos-recibo | 2 | Prorrateo exacto, recibo, métricas por canal con Beta 90%, migración automática, demo/mock separados; 7 MINOR (F13-r2). Endpoints sin control de acceso |
-| F14 | Tablero | P0/P1 | IN_REVIEW | | 0 | |
+| F14 | Tablero | P0/P1 | DONE | feat/F14-tablero | 2 | Tablero: KPIs con IC 90%, matriz fuente×canal trazable a recibos, embudo, pauta vs gratis, recomendación honesta, cumplimiento, toggle demo; 3 MINOR (F14-r2) |
 | F15 | Integración Dapta | P1 | DONE | feat/F15-dapta | 2 | Webhook con secreto, http_push con SSRF y SEND_ENABLED, csv_export anti-fórmulas, créditos; requireAppAccess (APP_ACCESS_KEY). 7 MINOR (F15-r2) |
 | F16 | Meta Ads | P1 | IN_PROGRESS | | 0 | |
 | F17 | WhatsApp vía Dapta | P2 | TODO | | 0 | |
