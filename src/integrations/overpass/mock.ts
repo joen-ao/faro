@@ -1,14 +1,22 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { parseOverpass } from "./real";
-import type { OverpassAdapter, OverpassResult } from "./types";
+import { parseOverpass, toSourceCompanies } from "./real";
+import type { OverpassAdapter, OverpassQuery, OverpassResult } from "./types";
 
-/** Mock adapter: returns the small real sample stored in fixtures/, flagged `isMock`. */
+/** Mock adapter: returns the small real sample stored in fixtures/, flagged `isMock` (never counted as real). */
 export function createMockOverpass(fixture = path.join(process.cwd(), "fixtures", "overpass-dental-bogota.json")): OverpassAdapter {
   return {
-    async search(): Promise<OverpassResult> {
+    async search(query?: OverpassQuery): Promise<OverpassResult> {
       const json = JSON.parse(readFileSync(fixture, "utf8")) as { elements?: never[] };
-      return { places: parseOverpass(json), latencyMs: 0, endpoint: "mock", fromCache: false, isMock: true };
+      const places = parseOverpass(json);
+      return {
+        places,
+        companies: toSourceCompanies(places, { city: query?.city ?? "Bogotá", country: query?.country, isMock: true }),
+        latencyMs: 0,
+        endpoint: "mock",
+        fromCache: false,
+        isMock: true,
+      };
     },
   };
 }
