@@ -43,13 +43,13 @@ export function KpiRow({ bucket }: { bucket: MetricsBucket }) {
   );
 }
 
-export function RecommendationCard({ rec }: { rec: Recommendation }) {
+export function RecommendationCard({ rec, demo = false }: { rec: Recommendation; demo?: boolean }) {
   const good = rec.kind === "winner";
   return (
     <aside aria-label="Recomendación" className={cn("rounded-card border p-5 sm:p-6", good ? "border-faro-accent bg-faro-surface-2" : "border-border bg-card")}>
-      <p className="text-xs uppercase tracking-[0.14em] text-faro-text-3">Recomendación</p>
+      <p className="text-xs uppercase tracking-[0.14em] text-faro-text-3">{demo ? "Ejemplo con datos DEMO · no es una recomendación real" : "Recomendación"}</p>
       <p className={cn("mt-2 font-display text-xl font-semibold leading-snug sm:text-2xl", good ? "text-white" : "text-faro-text-2")}>{rec.text}</p>
-      {good && <p className="mt-2 text-xs text-faro-text-3">Calculado solo con datos reales, con muestra mínima por fuente.</p>}
+      {good && !demo && <p className="mt-2 text-xs text-faro-text-3">Calculado solo con datos reales, con muestra mínima por fuente.</p>}
     </aside>
   );
 }

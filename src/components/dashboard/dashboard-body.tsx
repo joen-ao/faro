@@ -18,7 +18,7 @@ export function DashboardBody({ bucket, demo = false }: { bucket: MetricsBucket;
         </p>
       )}
       <KpiRow bucket={bucket} />
-      <RecommendationCard rec={rec} />
+      <RecommendationCard rec={rec} demo={demo} />
       <Panel id={`${p}-matrix`} title="Matriz fuente × canal" hint="Toca una celda para ver sus leads y abrir el recibo de cada uno.">
         <MatrixPanel bucket={bucket} demo={demo} />
       </Panel>
