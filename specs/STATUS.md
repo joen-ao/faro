@@ -25,4 +25,4 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F18 | Landing + video HyperFrames | P1 | DONE | feat/F18-landing | 1 | Landing estilo Dapta + video HyperFrames local (1,2 MB, rotulado demostración); Lighthouse móvil 94–96/100, desktop 100/100; MINOR aplicados |
 | F19 | Búsqueda en vivo con mapa | P1 | IN_REVIEW | | 0 | |
 | F20 | Recomendación + bandit | P2 | DONE | feat/F20-bandit | 2 | Thompson sampling por fuente con P(mejor), datos insuficientes honestos, simulación siempre etiquetada; 2 MINOR (F20-r2) |
-| F21 | README + HANDOFF | P0 | TODO | | 0 | |
+| F21 | README + HANDOFF | P0 | IN_PROGRESS | | 0 | |
