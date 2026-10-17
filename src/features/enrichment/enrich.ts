@@ -1,9 +1,9 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { apiCalls, companies, companySources, contactPoints, leads } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { isGenericEmail } from "@/features/compliance/email";
-import { prorateSharedCost, recordCost } from "@/features/metrics/costs";
-import { BlockedUrlError, type ApifyAdapter } from "@/integrations/apify";
+import { prorateSharedCost, recordCost, splitEvenly } from "@/features/metrics/costs";
+import { ApifyError, BlockedUrlError, createMockApify, type ApifyAdapter } from "@/integrations/apify";
 import { normalizePhone } from "@/integrations/overpass/phone";
 import { WEBSITE_LICENSE, type ExtractedContact, type SiteFetchResult, type WebsiteFetchAdapter } from "@/integrations/website-fetch";
 import { createMockWebsiteFetch } from "@/integrations/website-fetch/mock";
@@ -70,6 +70,26 @@ function apifyContacts(items: Array<{ url: string; emails: string[]; phones: str
   return { contacts, discarded };
 }
 
+/** Spreads an Apify run cost over the company's leads, grouped by hunt; unattached when it has no lead. */
+async function recordApifyCost(db: AppDb, companyId: string, totalUsd: number, evidence: string, flags: { isMock: boolean; isDemo: boolean }) {
+  const companyLeads = await db.select({ id: leads.id, huntId: leads.huntId }).from(leads).where(eq(leads.companyId, companyId));
+  if (!companyLeads.length) {
+    await recordCost(db, { sourceChannel: "website", category: "scraping", quantity: 1, unit: "run", rate: totalUsd, evidence, ...flags });
+    return;
+  }
+  const shares = splitEvenly(totalUsd, companyLeads.length);
+  const groups = new Map<string | null, { ids: string[]; usd: number }>();
+  companyLeads.forEach((l, i) => {
+    const g = groups.get(l.huntId) ?? { ids: [], usd: 0 };
+    g.ids.push(l.id);
+    g.usd += shares[i]!;
+    groups.set(l.huntId, g);
+  });
+  for (const [huntId, g] of groups) {
+    await prorateSharedCost(db, { huntId, sourceChannel: "website", category: "scraping", totalUsd: Math.round(g.usd * 1e6) / 1e6, leadIds: g.ids, evidence, ...flags });
+  }
+}
+
 /**
  * Enriches one company from its public website (direct fetch, robots-aware) and optionally Apify.
  * Saves the `website` company_source, deduplicated contact_points and api_calls.
@@ -114,12 +134,14 @@ export async function enrichCompany(db: AppDb, companyId: string, deps: EnrichDe
 
   let apifyMeta: Record<string, unknown> | undefined;
   if (deps.useApify && deps.apify) {
+    // Demo companies have fictional domains: never run a real (paid) actor on them.
+    const apify = company.isDemo ? createMockApify() : deps.apify;
     try {
-      const allowed = company.isDemo || (await fetcher.allows(company.website));
+      const allowed = company.isDemo || apify.isMock === true || (await fetcher.allows(company.website));
       if (!allowed) {
         summary.apify = { used: false, costUsd: 0, isMock: false, note: "robots.txt no permite el rastreo" };
       } else {
-        const run = await deps.apify.scrapeContacts([company.website]);
+        const run = await apify.scrapeContacts([company.website]);
         const a = apifyContacts(run.items, country, company.website);
         // Fictional Apify output only reaches contact_points of demo companies.
         if (!run.isMock || company.isDemo) contacts = [...contacts, ...a.contacts];
@@ -133,27 +155,17 @@ export async function enrichCompany(db: AppDb, companyId: string, deps: EnrichDe
           costUsd: 0, // the cost lives in cost_entries (SPEC §7)
           isMock: run.isMock,
         });
-        const companyLeads = await db.select({ id: leads.id, huntId: leads.huntId }).from(leads).where(eq(leads.companyId, companyId));
-        const flags = { isMock: run.isMock, isDemo: run.isMock || company.isDemo };
         const evidence = `Apify ${run.runId ?? "run"} · usageTotalUsd ${run.usageTotalUsd.toFixed(6)}`;
-        if (companyLeads.length) {
-          await prorateSharedCost(db, {
-            huntId: companyLeads[0]!.huntId,
-            sourceChannel: "website",
-            category: "scraping",
-            totalUsd: run.usageTotalUsd,
-            leadIds: companyLeads.map((l) => l.id),
-            evidence,
-            ...flags,
-          });
-        } else {
-          await recordCost(db, { sourceChannel: "website", category: "scraping", quantity: 1, unit: "run", rate: run.usageTotalUsd, evidence, ...flags });
-        }
+        await recordApifyCost(db, companyId, run.usageTotalUsd, evidence, { isMock: run.isMock, isDemo: run.isMock || company.isDemo });
         apifyMeta = { runId: run.runId, items: run.items.length, usageTotalUsd: run.usageTotalUsd };
         summary.apify = { used: true, costUsd: run.usageTotalUsd, isMock: run.isMock };
       }
     } catch (e) {
       const blocked = e instanceof BlockedUrlError;
+      if (e instanceof ApifyError && e.usageTotalUsd) {
+        // A failed or aborted run is still billed.
+        await recordApifyCost(db, companyId, e.usageTotalUsd, `Apify ${e.runId ?? "run"} fallida · usageTotalUsd ${e.usageTotalUsd.toFixed(6)}`, { isMock: false, isDemo: company.isDemo });
+      }
       summary.apify = { used: false, costUsd: 0, isMock: false, note: blocked ? e.message : "Apify falló; se conserva el resultado del fetch directo" };
       await db.insert(apiCalls).values({ service: "apify", endpoint: "contact-actor", status: null, latencyMs: 0, error: e instanceof Error ? e.message : "error", costUsd: 0, isMock: false });
     }
@@ -169,7 +181,8 @@ export async function enrichCompany(db: AppDb, companyId: string, deps: EnrichDe
     fetchedPages: result.pages.length,
     ...(apifyMeta ? { apify: apifyMeta } : {}),
   };
-  await db
+  const [prev] = await db.select({ id: companySources.id }).from(companySources).where(and(eq(companySources.companyId, companyId), eq(companySources.sourceChannel, "website")));
+  if (!(prev && result.pages.length === 0)) await db
     .insert(companySources)
     .values({ companyId, sourceChannel: "website", externalId: `website:${companyId}`, raw, sourceUrl, license: WEBSITE_LICENSE, isMock })
     .onConflictDoUpdate({

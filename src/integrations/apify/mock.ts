@@ -4,6 +4,7 @@ import type { ApifyAdapter, ApifyRunResult } from "./types";
 /** Mock run: fictional contacts and a fixed fake `usageTotalUsd` (0.002 per URL), always `isMock`. */
 export function createMockApify(): ApifyAdapter {
   return {
+    isMock: true,
     async scrapeContacts(rawUrls: string[]): Promise<ApifyRunResult> {
       const urls = rawUrls.map(assertScrapableUrl);
       return {

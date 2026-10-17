@@ -1,3 +1,4 @@
+import { isBlockedHost } from "@/lib/scrape-guard";
 import { assertSafeFetchUrl, UnsafeUrlError, type Resolver } from "@/lib/ssrf";
 import { extractPage, findContactLinks, mergeExtractions, type ExtractOptions, type PageExtraction } from "./extract";
 import { ALLOW_ALL, DISALLOW_ALL, isPathAllowed, parseRobots, type RobotsRules } from "./robots";
@@ -21,6 +22,13 @@ export interface RealWebsiteFetchDeps extends ExtractOptions {
   minIntervalMs?: number;
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
+  /** Total budget for one fetchSite call. */
+  deadlineMs?: number;
+}
+
+function emptyExtraction(): SiteFetchResult["extraction"] {
+  const e = mergeExtractions([]);
+  return { ...e, signals: { ...e.signals, noAppointmentForm: false } };
 }
 
 export class FetchSkip extends Error {
@@ -69,6 +77,7 @@ export function createRealWebsiteFetch(deps: RealWebsiteFetchDeps = {}): Website
   const robotsCache = new Map<string, Promise<RobotsRules>>();
   const lastRequest = new Map<string, number>();
   let requests = 0;
+  let deadline: number | undefined;
 
   async function throttle(host: string, rules?: RobotsRules): Promise<void> {
     const gap = Math.max(minInterval, Math.min(rules?.crawlDelay ?? 0, 10) * 1000);
@@ -84,7 +93,7 @@ export function createRealWebsiteFetch(deps: RealWebsiteFetchDeps = {}): Website
         try {
           const r = await get(`${origin}/robots.txt`, false);
           if (r.status >= 200 && r.status < 300) return parseRobots(r.body, "faro");
-          return r.status >= 500 ? DISALLOW_ALL : ALLOW_ALL;
+          return r.status >= 500 || r.status === 429 ? DISALLOW_ALL : ALLOW_ALL;
         } catch (e) {
           if (e instanceof UnsafeUrlError) throw e;
           return DISALLOW_ALL; // robots.txt unreachable: do not crawl
@@ -98,6 +107,8 @@ export function createRealWebsiteFetch(deps: RealWebsiteFetchDeps = {}): Website
   async function get(startUrl: string, checkRobots: boolean): Promise<GetResult> {
     let current = startUrl;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      if (isBlockedHost(current)) throw new FetchSkip("blocked_social_or_maps");
+      if (deadline !== undefined && now() > deadline) throw new FetchSkip("deadline");
       const u = await assertSafeFetchUrl(current, deps.resolve);
       let rules: RobotsRules | undefined;
       if (checkRobots) {
@@ -157,6 +168,7 @@ export function createRealWebsiteFetch(deps: RealWebsiteFetchDeps = {}): Website
   return {
     async allows(rawUrl: string): Promise<boolean> {
       try {
+        if (isBlockedHost(rawUrl)) return false;
         const u = await assertSafeFetchUrl(/^[a-z][a-z0-9+.-]*:/i.test(rawUrl) ? rawUrl : `https://${rawUrl}`, deps.resolve);
         return isPathAllowed(await rulesFor(u.origin), u.pathname + u.search);
       } catch {
@@ -165,17 +177,17 @@ export function createRealWebsiteFetch(deps: RealWebsiteFetchDeps = {}): Website
     },
     async fetchSite(rawUrl: string): Promise<SiteFetchResult> {
       const started = now();
+      deadline = started + (deps.deadlineMs ?? 45_000);
       const startRequests = requests;
       const out: SiteFetchResult = {
         url: rawUrl,
         pages: [],
         skipped: [],
-        extraction: mergeExtractions([]),
+        extraction: emptyExtraction(),
         requests: 0,
         latencyMs: 0,
         isMock: false,
       };
-      out.extraction.signals.noAppointmentForm = false;
       const finish = (): SiteFetchResult => ({ ...out, requests: requests - startRequests, latencyMs: Math.max(0, now() - started) });
       const reasonOf = (e: unknown): string => (e instanceof FetchSkip ? e.reason : e instanceof UnsafeUrlError ? `unsafe_url: ${e.message}` : "network_error");
 

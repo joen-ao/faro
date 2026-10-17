@@ -18,6 +18,8 @@ export interface ApifyRunResult {
 }
 
 export interface ApifyAdapter {
+  /** True for fictional output: no network, no robots check needed. */
+  readonly isMock?: boolean;
   scrapeContacts(urls: string[]): Promise<ApifyRunResult>;
 }
 
@@ -25,16 +27,16 @@ export class ApifyError extends Error {
   constructor(
     message: string,
     readonly status?: number,
+    /** Cost of a run that did not succeed: still billed, so callers must record it. */
+    readonly usageTotalUsd?: number,
+    readonly runId?: string,
   ) {
     super(message);
     this.name = "ApifyError";
   }
 }
 
-/** Thrown for URLs Faro must never scrape: Google Maps (Places API only) and social networks. */
-export class BlockedUrlError extends ApifyError {
-  constructor(message: string) {
-    super(message);
-    this.name = "BlockedUrlError";
-  }
-}
+import { BlockedUrlError as Blocked } from "@/lib/scrape-guard";
+
+export const BlockedUrlError = Blocked;
+export type BlockedUrlError = Blocked;

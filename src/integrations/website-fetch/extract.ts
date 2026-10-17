@@ -71,8 +71,17 @@ export function removeTeamBlocks(html: string): string {
   return out;
 }
 
-const NAME_TITLE =
-  /\b(?:Dr[ae]?s?|Doctor|Doctora|Odont[óo]log[oa])\.?\s+(?:de\s+|del\s+)?[A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+(?:de\s+|del\s+|la\s+)?[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,3}/gu;
+const CAP = "[A-ZÁÉÍÓÚÑ][\\p{L}'-]+";
+const CAP_NT = `(?!(?:Dr[ae]?s?|Doctor[a]?|Odont|Od|Lic|Esp|Ing|Mg|Msc|Psic|Enf|Prof)\\b)${CAP}`;
+const NAME_TITLE = new RegExp(
+  `\\b(?:Dr[ae]?s?|Doctor[a]?|Odont[óo]log[oa]|Odont|Od|Lic|Esp|Ing|Mg|Msc|Psic|Enf|Prof)\\.?[ \\t]+(?:de[ \\t]+|del[ \\t]+)?${CAP}(?:[ \\t]+(?:de[ \\t]+|del[ \\t]+|la[ \\t]+)?${CAP_NT}){0,3}`,
+  "gu",
+);
+/** "Fundada por X Y", "gerente X Y", "director(a) X Y": two or more capitalised words. When in doubt, over-redact. */
+const NAME_ROLE = new RegExp(
+  `\\b(?:[Ff]undad[oa]s?[ \\t]+por|[Dd]irigid[oa][ \\t]+por|[Ff]undador[a]?|[Dd]irector[a]?(?:[ \\t]+[Gg]eneral|[ \\t]+[Mm][eé]dic[oa])?|[Gg]erente(?:[ \\t]+[Gg]eneral)?|[Pp]ropietari[oa]|[Dd]ue[ñn][oa]|[Rr]epresentante[ \\t]+legal)[ \\t]*:?[ \\t]+(?:el[ \\t]+|la[ \\t]+|de[ \\t]+|del[ \\t]+)?${CAP}(?:[ \\t]+(?:de[ \\t]+|del[ \\t]+|la[ \\t]+)?${CAP}){1,3}`,
+  "gu",
+);
 
 const AT_RE = /\s*[[({]\s*(?:at|arroba)\s*[\])}]\s*/gi;
 const DOT_RE = /\s*[[({]\s*(?:dot|punto)\s*[\])}]\s*/gi;
@@ -184,11 +193,11 @@ export function extractPage(rawHtml: string, pageUrl: string, opts: ExtractOptio
   }
 
   // Sanitised text: no team blocks, no "Dr. Nombre", no personal emails.
-  const body = removeTeamBlocks(html);
+  const body = removeTeamBlocks(html.replace(/<head\b[\s\S]*?<\/head\s*>/i, " "));
   const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "";
   const desc = metaContent(html, "description");
   let text = [decodeEntities(title).trim(), decodeEntities(desc).trim(), toText(body)].filter(Boolean).join("\n");
-  text = text.replace(NAME_TITLE, "[profesional]").replace(EMAIL_RE, (e) => (isGenericEmail(e) ? e : "[correo]"));
+  text = text.replace(NAME_ROLE, "[persona]").replace(NAME_TITLE, "[profesional]").replace(EMAIL_RE, (e) => (isGenericEmail(e) ? e : "[correo]"));
 
   return {
     contacts,

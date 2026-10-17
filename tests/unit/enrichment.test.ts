@@ -52,7 +52,7 @@ describe("apify real adapter (fake REST)", () => {
     const r = await createRealApify({ token: "tok", actorId: "vdrmota/contact-info-scraper", fetchImpl: f }).scrapeContacts(["https://clinica.co"]);
     expect(r).toMatchObject({ runId: "run1", usageTotalUsd: 0.0123, isMock: false });
     expect(r.items[0]).toMatchObject({ emails: ["info@clinica.co"], phones: ["+57 601 555 0101", "3105550102"] });
-    expect(calls[0]!.url).toContain("/acts/vdrmota%2Fcontact-info-scraper/runs?waitForFinish=60");
+    expect(calls[0]!.url).toContain("/acts/vdrmota%2Fcontact-info-scraper/runs?waitForFinish=45");
     expect((calls[0]!.init!.headers as Record<string, string>).Authorization).toBe("Bearer tok");
     expect(JSON.parse(calls[0]!.init!.body as string)).toMatchObject({ startUrls: [{ url: "https://clinica.co/" }], sameDomain: true });
   });
