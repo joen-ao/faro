@@ -20,13 +20,14 @@ describe("ICP presets", () => {
     expect(mockIcpCriteria("ferreterias").sector).toBe("general");
   });
 
-  it("enrichCriteria fills only empty mapping fields", () => {
+  it("enrichCriteria fills empty fields and uses verified CIIU for known sectors", () => {
     const base = IcpCriteria.parse({ sector: "dental", city: "Bogota" });
     const e = enrichCriteria(base, "clinicas dentales en Bogota");
     expect(e.ciiu).toEqual(["8622"]);
     expect(e.bbox).toBeDefined();
-    const kept = enrichCriteria({ ...base, ciiu: ["1111"] }, "dental");
-    expect(kept.ciiu).toEqual(["1111"]);
+    expect(enrichCriteria({ ...base, ciiu: ["1111"] }, "dental").ciiu).toEqual(["8622"]);
+    const unknown = IcpCriteria.parse({ sector: "ferreterias", city: "Bogota" });
+    expect(enrichCriteria({ ...unknown, ciiu: ["4752"] }, "ferreterias").ciiu).toEqual(["4752"]);
   });
 });
 
@@ -62,5 +63,16 @@ describe("parseIcp / POST /api/icp/parse handler (mock)", () => {
     expect((await handleIcpParse({ prompt: "dentistas en Bogota" }, { ai })).status).toBe(502);
     const down: AnthropicAdapter = { model: "x", isMock: false, completeRaw: async () => Promise.reject(new Error("down")) };
     expect((await handleIcpParse({ prompt: "dentistas en Bogota" }, { ai: down })).status).toBe(502);
+  });
+});
+
+describe("verified CIIU for known sectors", () => {
+  it("replaces the model's CIIU guess with the RUES-verified code", async () => {
+    const { enrichCriteria } = await import("@/features/icp");
+    const c = enrichCriteria(
+      { sector: "Clínicas dentales", ciiu: ["8623"], osmTags: ["amenity=dentist"], placesTypes: ["dentist"], city: "Bogotá", country: "CO", signals: [], exclusions: [], language: "es" } as never,
+      "Clínicas odontológicas en Bogotá",
+    );
+    expect(c.ciiu).toEqual(["8622"]);
   });
 });

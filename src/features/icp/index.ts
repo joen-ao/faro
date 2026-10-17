@@ -30,7 +30,8 @@ export function enrichCriteria(c: IcpCriteria, source: string): IcpCriteria {
   const city = findCity(`${c.city} ${source}`);
   return {
     ...c,
-    ciiu: c.ciiu.length ? c.ciiu : (sector?.ciiu ?? []),
+    // Known sectors use the CIIU codes verified against RUES (F02), never the model's guess (it said 8623 for dental).
+    ciiu: sector?.ciiu.length ? sector.ciiu : c.ciiu,
     osmTags: c.osmTags.length ? c.osmTags : (sector?.osmTags ?? []),
     placesTypes: c.placesTypes.length ? c.placesTypes : (sector?.placesTypes ?? []),
     bbox: c.bbox ?? city?.bbox,
