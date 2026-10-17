@@ -77,3 +77,31 @@ export async function seed(db: AppDb): Promise<{ skippedDemo: boolean }> {
 
   return { skippedDemo: false };
 }
+
+/** Well-known demo lead for the public diagnostic page (/d/demo-clinica), screenshots and e2e. Idempotent, all is_demo/is_mock. */
+export const DEMO_DIAGNOSTIC_SLUG = "demo-clinica";
+
+export async function seedDiagnosticDemo(db: AppDb): Promise<{ created: boolean }> {
+  const found = await db.select({ id: s.leads.id }).from(s.leads).where(eq(s.leads.slug, DEMO_DIAGNOSTIC_SLUG));
+  if (found.length > 0) return { created: false };
+  const [company] = await db
+    .insert(s.companies)
+    .values({
+      name: "Clinica Dental Sonrisa Norte SAS",
+      normalizedName: "clinica dental sonrisa norte",
+      address: "Calle 127 # 15-20, Bogota",
+      city: "Bogota",
+      lat: 4.7,
+      lng: -74.04,
+      website: "https://sonrisa-norte.example",
+      isDemo: true,
+    })
+    .returning();
+  await db.insert(s.companySources).values([
+    { companyId: company.id, sourceChannel: "reps", externalId: "demo-diag-reps", raw: { demo: true }, sourceUrl: "https://www.datos.gov.co/", license: "CC BY-SA 4.0", isMock: true },
+    { companyId: company.id, sourceChannel: "website", externalId: "demo-diag-web", raw: { demo: true, hasBookingForm: false }, sourceUrl: "https://sonrisa-norte.example", isMock: true },
+    { companyId: company.id, sourceChannel: "osm", externalId: "demo-diag-osm", raw: { demo: true }, sourceUrl: "https://www.openstreetmap.org/copyright", license: "ODbL", isMock: true },
+  ]);
+  await db.insert(s.leads).values({ companyId: company.id, status: "contacted", primarySource: "sample", fitScore: 78, slug: DEMO_DIAGNOSTIC_SLUG, isDemo: true });
+  return { created: true };
+}
