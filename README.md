@@ -16,7 +16,7 @@ Dapta ayuda a las pymes a convertir leads, pero 3 de cada 5 leads que llegan a D
 | ≥ 2 fuentes públicas y gratuitas | F03 OpenStreetMap/Overpass, F04 datos.gov.co (RUES, REPS); extra: F05 Google Places (API oficial), F06 enriquecimiento web | Hecho (F05 en modo mock sin llave) |
 | Un solo lugar y sin duplicados | F01 modelo de datos, F07 dedupe multi-fuente (NIT, nombre trigram + 80 m, dominio, teléfono) | Hecho |
 | Filtrar por cliente ideal (ICP) | F08 ICP en lenguaje natural + score 0–100 con evidencia | Hecho (IA en modo mock sin llave) |
-| Primer mensaje y registrar la respuesta | F10 outreach (correo + formulario asistido), F12 página de diagnóstico `/d/[slug]`, F11 registro de respuestas | F10 y F12 hechos; F11 (webhook de correo + marcado manual auditado) se integra en paralelo |
+| Primer mensaje y registrar la respuesta | F10 outreach (correo + formulario asistido), F12 página de diagnóstico `/d/[slug]`, F11 registro de respuestas | Hecho (F10, F11, F12) |
 | Tablero con leads y CPL por canal | F13 costos y recibo, F14 tablero | Hecho |
 | Solo datos públicos de empresas, términos y ley | F09 cumplimiento (solo persona jurídica, correos genéricos, opt-out, ventanas) | Hecho |
 | Enviar a Dapta para calificar | F15 (`widget_only`, `http_push`, `csv_export`, webhook con secreto) | Hecho |
@@ -25,12 +25,17 @@ Dapta ayuda a las pymes a convertir leads, pero 3 de cada 5 leads que llegan a D
 | WhatsApp (opcional) | F17 export CSV de secuencias para Dapta + webhook; detrás de `WHATSAPP_ENABLED` | Hecho, apagado por defecto |
 | Experiencia de demo | F18 landing + video; F19 búsqueda en vivo con mapa; F20 recomendación + bandit | F18 y F20 hechos; F19 en integración (ver abajo) |
 
-### Funcionalidades en integración
+### Registro de respuestas (F11)
 
-- **F11, registro de respuestas:** webhook inbound de correo (`POST /api/webhooks/email`) y marcado manual auditado ("Marcar respondió" con nota). Un evento `reply` actualiza el estado del lead y las métricas.
-- **F19, búsqueda en vivo con mapa:** pantalla `/app/hunts/[id]` con mapa MapLibre oscuro a pantalla completa, puntos que aparecen al llegar de cada fuente (gris encontrado, lima del perfil, blanco contactado, lima con pulso calificado), clusters, panel lateral con contadores por fuente y "N duplicados fusionados", y drawer de lead con su recibo.
+- `POST /api/webhooks/email` (Resend): verifica la firma Svix (`RESEND_WEBHOOK_SECRET`, HMAC-SHA256, tolerancia ±5 min); sin secreto configurado responde 401 siempre. Es idempotente por `svix-id`.
+- Eventos: `email.delivered` marca el mensaje como entregado, `email.clicked` registra un clic, un rebote duro suprime al destinatario y una queja suprime y da de baja al lead.
+- Una respuesta inbound (`email.received` o formato genérico) se empareja por `email_id`, luego por `In-Reply-To`/`References` y luego por remitente; registra el evento `reply` y pasa el lead a `responded`. El estado solo avanza: nunca retrocede `qualified`, `disqualified` ni `opted_out`.
+- Un texto de baja ("darme de baja", "no me interesa"…) suprime al contacto y no cuenta como respuesta comercial.
+- Marcado manual auditado: `POST /api/leads/[id]/reply` (con clave de la app) exige una nota de 3 a 280 caracteres; el botón "Marcar respondió" está en `/app/hunts/[id]/outreach`. Sin nombres de personas en notas ni payloads.
 
-Hasta que lleguen a `main`, las secciones descritas arriba no están en el árbol de este repo.
+### En integración
+
+- **F19, búsqueda en vivo con mapa:** pantalla `/app/hunts/[id]` con mapa MapLibre oscuro a pantalla completa, puntos que aparecen al llegar de cada fuente (gris encontrado, lima del perfil, blanco contactado, lima con pulso calificado), clusters, panel lateral con contadores por fuente y "N duplicados fusionados", y drawer de lead con su recibo. Hasta que llegue a `main`, no está en el árbol de este repo.
 
 ## Capturas
 
@@ -153,13 +158,15 @@ Reglas:
 
 ```bash
 npm ci
-cp .env.example .env.local
+cp .env.example .env.local   # ver aviso sobre APP_ACCESS_KEY y OPTOUT_SECRET abajo
 npm run db:migrate     # crea la base PGlite local en ./.pglite
 npm run db:seed        # datos demo, todos marcados is_demo=true
 npm run dev            # http://localhost:3000
 ```
 
-Rutas para probar con los datos demo: `/` (landing), `/app/dashboard` (tablero), `/app/hunts/demo/outreach` (outreach), `/d/demo-clinica` (diagnóstico), `/d/icp/clinicas-dentales-bogota` (página genérica de pauta), `/app/settings/ads` (gasto de pauta), `/app/dev/receipt?demo=1` (recibo demo), `/api/health`.
+> **Aviso:** en local (`NODE_ENV` distinto de `production`) puedes dejar `APP_ACCESS_KEY` y `OPTOUT_SECRET` vacías: `/app` queda abierto y la baja usa un secreto de desarrollo. En producción ambas son **obligatorias**: sin `APP_ACCESS_KEY` `/app` y las APIs internas responden 401, y sin `OPTOUT_SECRET` no se generan tokens de baja. Genera valores largos y aleatorios (p. ej. `openssl rand -hex 32`) y nunca los subas al repo.
+
+Rutas para probar con los datos demo: `/` (landing), `/app/dashboard` (tablero), `/app/hunts/demo/outreach` (outreach), `/d/demo-clinica` (diagnóstico), `/d/icp/clinicas-dentales-bogota` (página genérica de pauta), `/app/settings/ads` (gasto de pauta), `/app/dev/receipt?demo=1` (recibo demo; `?lead=<uuid>` exige `APP_ACCESS_KEY`), `/api/health`.
 
 | Comando | Para qué |
 |---|---|
@@ -233,6 +240,10 @@ Con un **loop de ingeniería** definido en [`LOOP.md`](LOOP.md): `SPEC.md` es la
 - **Google Places:** SKU y reglas de caché de Google pueden cambiar el costo real; se muestra el valor de lista.
 - **Autenticación:** solo una clave simple (`APP_ACCESS_KEY`); no hay multiusuario. Cerrar la venta, CRM y seguimientos automáticos están fuera de alcance.
 - **Datos de ejemplo:** todo lo marcado demo o mock (incluido el video de la landing, "Demostración con datos de ejemplo") no representa resultados reales.
+
+## Licencia
+
+Licencia: por definir por el equipo (ver HANDOFF).
 
 ## Atribuciones
 

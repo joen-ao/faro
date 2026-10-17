@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { LeadReceipt } from "@/components/lead-receipt";
 import { getReadyDb } from "@/db/client";
 import { buildDemoReceipt, getLeadReceipt } from "@/features/metrics";
+import { requireAppAccess } from "@/lib/app-access";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Recibo de lead (interno)", robots: { index: false } };
@@ -11,6 +13,18 @@ export const metadata: Metadata = { title: "Recibo de lead (interno)", robots: {
 export default async function ReceiptDevPage({ searchParams }: { searchParams: Promise<{ demo?: string; lead?: string }> }) {
   const sp = await searchParams;
   const leadId = z.string().uuid().safeParse(sp.lead);
+  // A real lead receipt exposes company costs: it needs the app access key (the DEMO receipt stays open).
+  if (sp.demo !== "1" && leadId.success) {
+    const denied = requireAppAccess(new Request("http://internal/app/dev/receipt", { headers: await headers() }));
+    if (denied) {
+      return (
+        <main className="mx-auto max-w-md px-4 py-24 text-center">
+          <h1 className="text-2xl font-bold">Acceso restringido</h1>
+          <p className="mt-2 text-sm text-faro-text-2">Esta sección requiere la clave de acceso de la app (APP_ACCESS_KEY).</p>
+        </main>
+      );
+    }
+  }
   const receipt = sp.demo === "1" ? await buildDemoReceipt() : leadId.success ? await getLeadReceipt(await getReadyDb(), leadId.data) : null;
 
   return (
