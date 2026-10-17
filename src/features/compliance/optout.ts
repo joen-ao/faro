@@ -63,7 +63,7 @@ export function verifyOptOutToken(token: string, secretOverride?: string): OptOu
 export type OptOutResult = { ok: true; leadFound: boolean; suppressed: number } | { ok: false; reason: "invalid_token" };
 
 /** Verifies the token and suppresses the lead's contact points (+ website domain). Idempotent. */
-export async function applyOptOut(db: AppDb, token: string, secretOverride?: string): Promise<OptOutResult> {
+export async function applyOptOut(db: AppDb, token: string, secretOverride?: string, via = "one_click"): Promise<OptOutResult> {
   const p = verifyOptOutToken(token, secretOverride);
   if (!p) return { ok: false, reason: "invalid_token" };
   const reason = "opt-out de un clic";
@@ -90,7 +90,7 @@ export async function applyOptOut(db: AppDb, token: string, secretOverride?: str
   }
   if (lead.status !== "opted_out") {
     await db.update(leads).set({ status: "opted_out" }).where(eq(leads.id, lead.id));
-    await db.insert(events).values({ leadId: lead.id, type: "opt_out", payload: { via: "one_click" }, isDemo: lead.isDemo });
+    await db.insert(events).values({ leadId: lead.id, type: "opt_out", payload: { via }, isDemo: lead.isDemo });
   }
   return { ok: true, leadFound: true, suppressed: count };
 }

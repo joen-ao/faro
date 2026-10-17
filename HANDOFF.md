@@ -30,3 +30,4 @@
 - 2026-10-17 04:49 · F20 → DONE: Thompson sampling por fuente con P(mejor), datos insuficientes honestos, simulación siempre etiquetada; 2 MINOR (F20-r2)
 - 2026-10-17 04:53 · F17 → DONE: WhatsApp vía Dapta: CSV de secuencias tras WHATSAPP_ENABLED, solo teléfonos de empresa CO, webhook con secreto, STOP suprime; 3 MINOR
 - 2026-10-17 04:54 · F16 → DONE: UTM builder, fbclid→meta_ads, carga de gasto manual/CSV con clave demo separada, CPL meta_ads real; 1 MINOR
+- 2026-10-17 04:56 · F11 → DONE: Webhook Resend (Svix) con idempotencia, reply→responded sin retroceder, baja por texto suprime siempre, marcado manual auditado; 3 NIT
