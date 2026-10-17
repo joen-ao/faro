@@ -10,6 +10,9 @@ Fuente gratuita #1 del "Encontrar" (SPEC §4/§14): dado un ICP (`criteria.tags[
 - `mock.ts`: fixture real enmascarada, `isMock=true`. `index.ts`: selección con `resolveMode("overpass")`.
 - `persistOverpassResults(db, huntId, companies)`: inserta `companies` + `company_sources` (canal `osm`, sin dedupe, idempotente por `(canal, external_id)`; mock → `is_mock` e `is_demo`).
 
+## Por verificar
+OSM no tiene heurística de persona natural (`is_legal_entity` queda en el valor por defecto): por verificar en F07 con RUES/REPS.
+
 ## No-alcance
 Dedupe (F07), `contact_points`, fit con IA, geocodificación, UI.
 

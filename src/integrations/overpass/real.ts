@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { isGenericEmail } from "@/features/coverage/metrics";
 import { cacheKey, HttpError, requestJson, USER_AGENT } from "@/lib/http";
 import { normalizePhone } from "./phone";
 import {
@@ -54,7 +55,11 @@ export function queryFromCriteria(c: OverpassCriteria, timeoutSec?: number): Ove
 }
 
 function resolveBBox(q: OverpassQuery): BBox | undefined {
-  return q.bbox ?? (q.city ? CITY_BBOX[slug(q.city)] : undefined);
+  const box = q.bbox ?? (q.city ? CITY_BBOX[slug(q.city)] : undefined);
+  if (box && ![box.south, box.west, box.north, box.east].every((n) => typeof n === "number" && Number.isFinite(n))) {
+    throw new Error("Overpass bbox must be four finite numbers");
+  }
+  return box;
 }
 
 /** Builds Overpass QL: union of node+way per tag filter inside the bbox (or named area), `out center tags`. */
@@ -83,8 +88,9 @@ interface RawElement {
 
 const first = (...v: Array<string | undefined>) => v.find((x) => x && x.trim())?.trim();
 
-/** Tags that may hold a person's name; never stored in `raw`. */
-const PERSONAL_TAGS = new Set(["operator", "owner", "contact:person", "contact:name", "contact:owner"]);
+/** Only these tags are kept in `raw` (allow-list): free text, `name:*`, `operator`, personal contacts stay out. */
+const RAW_TAG_ALLOW = new Set(["amenity", "healthcare", "shop", "cuisine", "website", "contact:website", "opening_hours", "brand", "name"]);
+const rawTagAllowed = (k: string) => RAW_TAG_ALLOW.has(k) || k.startsWith("addr:");
 
 export function parseOverpass(json: { elements?: RawElement[] }): OsmPlace[] {
   const seen = new Set<string>();
@@ -117,7 +123,8 @@ export function toSourceCompanies(places: readonly OsmPlace[], opts: { city?: st
   const out: SourceCompany[] = [];
   for (const p of places) {
     if (!p.name) continue;
-    const safeTags = Object.fromEntries(Object.entries(p.tags).filter(([k]) => !PERSONAL_TAGS.has(k)));
+    const safeTags = Object.fromEntries(Object.entries(p.tags).filter(([k]) => rawTagAllowed(k)));
+    const email = p.email && isGenericEmail(p.email) ? p.email.toLowerCase() : undefined;
     out.push({
       name: p.name,
       address: p.address,
@@ -126,7 +133,7 @@ export function toSourceCompanies(places: readonly OsmPlace[], opts: { city?: st
       city: first(p.tags["addr:city"], opts.city),
       website: p.website,
       phone: normalizePhone(p.phone, opts.country),
-      email: p.email?.toLowerCase(),
+      email,
       externalId: `osm:${p.id}`,
       sourceUrl: `https://www.openstreetmap.org/${p.id}`,
       license: OSM_LICENSE,
@@ -202,6 +209,14 @@ export function createRealOverpass(opts: RealOverpassOptions = {}): OverpassAdap
           fetchImpl: opts.fetchImpl,
           sleep,
         });
+        // HTTP 200 can still carry a server-side error (timeout/out of memory): treat as endpoint failure.
+        const remark = (res.data as { remark?: unknown } | null)?.remark;
+        if (!Array.isArray(res.data?.elements)) {
+          throw new Error(`Overpass returned no elements array${typeof remark === "string" ? `: ${remark.slice(0, 160)}` : ""}`);
+        }
+        if (typeof remark === "string" && /error|timed out|out of memory/i.test(remark)) {
+          throw new Error(`Overpass remark: ${remark.slice(0, 160)}`);
+        }
         await log({ service: "overpass", endpoint, status: 200, latencyMs: res.latencyMs, error: null, costUsd: 0, isMock: false });
         return { at: now(), latencyMs: res.latencyMs, endpoint, data: res.data };
       } catch (err) {

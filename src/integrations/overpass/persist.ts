@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { normalizeName } from "@/features/coverage/metrics";
 import { companies, companySources, hunts } from "@/db/schema";
 import type { AppDb } from "@/db/types";
@@ -16,40 +16,48 @@ export interface PersistSummary {
  * Records `{found, inserted, skipped}` in `hunts.progress.osm`. Cost is 0 (Overpass is free); license/URL are kept per source.
  */
 export async function persistOverpassResults(db: AppDb, huntId: string, items: readonly SourceCompany[]): Promise<PersistSummary> {
-  let inserted = 0;
-  for (const c of items) {
-    const existing = await db
-      .select({ id: companySources.id })
-      .from(companySources)
-      .where(eq(companySources.externalId, c.externalId))
-      .limit(1);
-    if (existing.length > 0) continue;
-    const [company] = await db
-      .insert(companies)
-      .values({
-        name: c.name,
-        normalizedName: normalizeName(c.name),
-        address: c.address,
-        lat: c.lat,
-        lng: c.lng,
-        city: c.city,
-        website: c.website,
-        isDemo: c.isMock,
-      })
-      .returning({ id: companies.id });
-    await db.insert(companySources).values({
-      companyId: company.id,
-      sourceChannel: c.sourceChannel,
-      externalId: c.externalId,
-      raw: { ...c.raw, phone_e164: c.phone ?? null, email: c.email ?? null },
-      sourceUrl: c.sourceUrl,
-      license: c.license,
-      isMock: c.isMock,
+  return db.transaction(async (tx) => {
+    const ids = items.map((c) => c.externalId);
+    const existing = ids.length
+      ? new Set((await tx.select({ id: companySources.externalId }).from(companySources).where(inArray(companySources.externalId, ids))).map((r) => r.id))
+      : new Set<string>();
+    const seen = new Set<string>();
+    const fresh = items.filter((c) => {
+      if (existing.has(c.externalId) || seen.has(c.externalId)) return false;
+      seen.add(c.externalId);
+      return true;
     });
-    inserted++;
-  }
-  const summary = { found: items.length, inserted, skipped: items.length - inserted };
-  const [hunt] = await db.select({ progress: hunts.progress }).from(hunts).where(eq(hunts.id, huntId)).limit(1);
-  if (hunt) await db.update(hunts).set({ progress: { ...hunt.progress, osm: summary } }).where(eq(hunts.id, huntId));
-  return summary;
+    if (fresh.length > 0) {
+      const rows = await tx
+        .insert(companies)
+        .values(
+          fresh.map((c) => ({
+            name: c.name,
+            normalizedName: normalizeName(c.name),
+            address: c.address,
+            lat: c.lat,
+            lng: c.lng,
+            city: c.city,
+            website: c.website,
+            isDemo: c.isMock,
+          })),
+        )
+        .returning({ id: companies.id });
+      await tx.insert(companySources).values(
+        fresh.map((c, i) => ({
+          companyId: rows[i].id,
+          sourceChannel: c.sourceChannel,
+          externalId: c.externalId,
+          raw: { ...c.raw, phone_e164: c.phone ?? null, email: c.email ?? null },
+          sourceUrl: c.sourceUrl,
+          license: c.license,
+          isMock: c.isMock,
+        })),
+      );
+    }
+    const summary = { found: items.length, inserted: fresh.length, skipped: items.length - fresh.length };
+    const [hunt] = await tx.select({ progress: hunts.progress }).from(hunts).where(eq(hunts.id, huntId)).limit(1);
+    if (hunt) await tx.update(hunts).set({ progress: { ...hunt.progress, osm: summary } }).where(eq(hunts.id, huntId));
+    return summary;
+  });
 }

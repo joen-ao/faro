@@ -200,6 +200,45 @@ describe("real adapter", () => {
   });
 });
 
+describe("response validation and raw allow-list", () => {
+  it("treats HTTP 200 with a remark / no elements array as failure: not cached, logged, mirror used", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "ovp-"));
+    try {
+      const calls: ApiCallRecord[] = [];
+      const fetchImpl = (async (url: string) =>
+        url.includes("overpass-api.de")
+          ? new Response(JSON.stringify({ elements: [], remark: "runtime error: Query timed out in query" }), { status: 200 })
+          : ok()) as unknown as typeof fetch;
+      const adapter = createRealOverpass({ fetchImpl, sleep: noSleep, minIntervalMs: 0, cacheDir: dir, onApiCall: (c) => void calls.push(c) });
+      const r = await adapter.search(query);
+      expect(r.endpoint).toContain("kumi");
+      expect(calls[0].error).toMatch(/timed out/);
+      const bad = (async () => new Response(JSON.stringify({ elements: "x" }), { status: 200 })) as unknown as typeof fetch;
+      await expect(createRealOverpass({ fetchImpl: bad, sleep: noSleep, minIntervalMs: 0 }).search(query)).rejects.toThrow(/no elements array/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps only allow-listed tags and generic emails in raw", () => {
+    const [c] = toSourceCompanies([
+      {
+        id: "node/1",
+        name: "Clinica",
+        email: "juan.perez@gmail.com",
+        tags: { name: "Clinica", amenity: "dentist", "addr:street": "Calle 1", description: "Dr. Juan", note: "x", "name:en": "Y", "contact:person": "Z", phone: "3101234567", email: "juan.perez@gmail.com" },
+      },
+    ]);
+    expect(Object.keys((c.raw as { tags: object }).tags).sort()).toEqual(["addr:street", "amenity", "name"]);
+    expect(c.email).toBeUndefined();
+    expect(toSourceCompanies([{ id: "node/2", name: "A", email: "info@a.co", tags: {} }])[0].email).toBe("info@a.co");
+  });
+
+  it("rejects non-numeric bbox", () => {
+    expect(() => buildOverpassQuery({ tags: [{ shop: "*" }], bbox: { south: "0);x" as unknown as number, west: 0, north: 1, east: 1 } })).toThrow(/finite/);
+  });
+});
+
 describe("persistOverpassResults", () => {
   let conn: Awaited<ReturnType<typeof createTestDb>>;
   let huntId: string;
