@@ -33,3 +33,4 @@
 - 2026-10-17 04:56 · F11 → DONE: Webhook Resend (Svix) con idempotencia, reply→responded sin retroceder, baja por texto suprime siempre, marcado manual auditado; 3 NIT
 - 2026-10-17 05:05 · F21 → DONE: README completo (arquitectura, fuentes/licencias, costos, cómo correr verificado desde cero); requireAppAccess en receipt/matrix; F19 pendiente de actualizar en README
 - 2026-10-17 05:09 · F19 → DONE: Mapa MapLibre con capa GeoJSON y clusters (2k pts), lotes reanudables con advisory lock, panel, lista virtualizada, drawer con LeadReceipt; nombres de persona OSM excluidos por lista blanca. MAJOR abierto (recall: descarta 74% restaurantes) → F19b
+- 2026-10-17 05:38 · F19b → DONE: Filtro de nombres por categoría: restaurantes 97% y dental 94% conservados, 0 personas; enmascarados sin datos personales; fixtures sintéticos; README F19 actualizado
