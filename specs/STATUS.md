@@ -17,7 +17,7 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F10 | Outreach | P0 | TODO | | 0 | |
 | F11 | Registro de respuestas | P0 | TODO | | 0 | |
 | F12 | Página de diagnóstico /d/[slug] | P0 | IN_PROGRESS | | 0 | |
-| F13 | Motor de costos y Recibo | P0 | IN_PROGRESS | | 0 | |
+| F13 | Motor de costos y Recibo | P0 | DONE | feat/F13-costos-recibo | 2 | Prorrateo exacto, recibo, métricas por canal con Beta 90%, migración automática, demo/mock separados; 7 MINOR (F13-r2). Endpoints sin control de acceso |
 | F14 | Tablero | P0/P1 | TODO | | 0 | |
 | F15 | Integración Dapta | P1 | IN_PROGRESS | | 0 | |
 | F16 | Meta Ads | P1 | TODO | | 0 | |
