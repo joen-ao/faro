@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 
 const RULES = [
-  ["Solo empresas", "Personas jurídicas. Nunca personas naturales ni nombres de personas."],
+  ["Solo empresas", "Excluimos personas naturales y no guardamos nombres de personas. Las empresas de OSM y Places se marcan «por verificar»."],
   ["Correos genéricos", "info@, contacto@, ventas@. Descartamos los que parecen nombre propio."],
   ["Baja de un clic", "Todo mensaje trae su enlace. Quien se da de baja no vuelve a ser contactado."],
   ["Ventanas horarias", "L–V 7:00–19:00, sábado 8:00–15:00. Nunca domingos ni festivos (Ley 2300)."],
@@ -18,7 +18,7 @@ export function Compliance() {
             Prospectar sin cruzar la línea
           </h2>
           <p className="mt-4 max-w-sm text-faro-text-2">
-            Cumplimos la Ley 1581 (habeas data) y adoptamos voluntariamente la Ley 2300. Un máximo de un mensaje por empresa, sin seguimientos automáticos.
+            Diseñado para cumplir la Ley 1581 (habeas data) y con la Ley 2300 adoptada de forma voluntaria. Un máximo de un mensaje por empresa, sin seguimientos automáticos.
           </p>
         </div>
         <ul className="grid gap-x-10 gap-y-6 sm:grid-cols-2">

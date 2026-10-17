@@ -9,7 +9,8 @@ export function DemoVideo() {
           Una frase describe a tu cliente, aparecen empresas reales en el mapa, se contactan con reglas claras y el tablero compara el costo por fuente.
         </p>
       </div>
-      <figure className="relative">
+      <figure>
+        <div className="relative">
         <div aria-hidden className="absolute -inset-px rounded-[20px] opacity-60" style={{ background: "linear-gradient(135deg, #cbe850 0%, rgba(203,232,80,0) 35%, rgba(124,58,237,0.5) 100%)" }} />
         <video
           className="relative aspect-video w-full rounded-card bg-faro-surface-1"
@@ -25,6 +26,7 @@ export function DemoVideo() {
           <source src="/demo/faro-demo.mp4" type="video/mp4" />
           Tu navegador no reproduce video. Descarga la demostración en /demo/faro-demo.mp4.
         </video>
+        </div>
         <figcaption id="demo-caption" className="mt-4 text-sm text-faro-text-3">
           Demostración con datos de ejemplo: las cifras del video son ilustrativas. Los números reales del evento están más abajo.
         </figcaption>

@@ -1,4 +1,4 @@
-import { formatCount, formatUsd, type LandingSide, type LandingStats } from "@/features/metrics/landing";
+import { describeComparison, formatCount, formatUsd, type LandingSide, type LandingStats } from "@/features/metrics/landing";
 
 function Side({ label, note, side, accent, widthPct }: { label: string; note: string; side: LandingSide; accent: boolean; widthPct: number }) {
   return (
@@ -50,9 +50,7 @@ export function PaidVsFree({ stats }: { stats: LandingStats }) {
             })()}
           </div>
           <p className="mt-6 text-lg text-faro-text-2">
-            {stats.freeVsPaidRatio !== null
-              ? `Hoy, cada lead de fuentes gratuitas cuesta ${stats.freeVsPaidRatio >= 1 ? `${stats.freeVsPaidRatio.toFixed(1)} veces menos` : `${(1 / stats.freeVsPaidRatio).toFixed(1)} veces más`} que uno de pauta.`
-              : "Aún no hay datos suficientes de ambos lados para comparar: el CPL aparece cuando hay leads y gasto en cada canal."}
+            {describeComparison(stats)}
           </p>
           <dl className="mt-10 grid grid-cols-2 gap-6 border-t border-faro-border pt-8 sm:grid-cols-4">
             {[
@@ -61,9 +59,9 @@ export function PaidVsFree({ stats }: { stats: LandingStats }) {
               ["Contactadas", stats.contacted],
               ["Calificadas por Dapta", stats.qualified],
             ].map(([k, v]) => (
-              <div key={k as string}>
-                <dd className="font-display text-3xl font-bold">{formatCount(v as number)}</dd>
+              <div key={k as string} className="flex flex-col-reverse">
                 <dt className="text-sm text-faro-text-3">{k}</dt>
+                <dd className="font-display text-3xl font-bold">{formatCount(v as number)}</dd>
               </div>
             ))}
           </dl>

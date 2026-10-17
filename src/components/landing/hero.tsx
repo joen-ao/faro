@@ -56,7 +56,7 @@ export function Hero() {
           <a href="#como-funciona" className="hidden hover:text-white sm:inline">Cómo funciona</a>
           <a href="#pauta" className="hidden hover:text-white sm:inline">Pauta vs. gratis</a>
           <a href="#cumplimiento" className="hidden hover:text-white sm:inline">Cumplimiento</a>
-          <Link href="/app/new" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>Empezar</Link>
+          <Link href="/app/new" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>Buscar mis clientes</Link>
         </div>
       </nav>
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-10 lg:grid-cols-[1.15fr_0.85fr] lg:pb-28 lg:pt-16">
@@ -68,7 +68,7 @@ export function Hero() {
             ¿Dónde están tus próximos clientes y <span className="text-faro-accent">cuánto te cuestan?</span>
           </h1>
           <p className="max-w-xl text-lg leading-relaxed text-faro-text-2">
-            Describes a tu cliente ideal, Faro lo busca en fuentes gratuitas, lo contacta, se lo pasa a Dapta para calificarlo y te dice cuánto te costó cada lead según dónde lo encontró, comparado con la pauta.
+            Describe a tu cliente ideal. Faro lo busca en fuentes gratuitas, lo contacta y se lo pasa a Dapta para calificarlo. Tú ves cuánto te costó cada lead según dónde lo encontró, frente a la pauta.
           </p>
           <div className="flex flex-wrap items-center gap-4">
             <Link href="/app/new" className={cn(buttonVariants({ size: "lg" }), "group h-14 px-8 text-base font-semibold")}>
