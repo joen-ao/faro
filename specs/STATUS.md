@@ -13,7 +13,7 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F06 | Enriquecimiento web (robots.txt + Apify) | P1 | TODO | | 0 | |
 | F07 | Dedupe y merge multi-fuente | P0 | IN_PROGRESS | | 0 | |
 | F08 | ICP NL + scoring con evidencia | P0 | TODO | | 0 | |
-| F09 | Cumplimiento | P0 | IN_PROGRESS | | 0 | |
+| F09 | Cumplimiento | P0 | DONE | feat/F09-cumplimiento | 2 | Ventanas CO+festivos 2026, supresión, opt-out HMAC con POST, gate correo genérico, /baja; 2 MINOR (F09-r2). Requiere OPTOUT_SECRET en prod |
 | F10 | Outreach | P0 | TODO | | 0 | |
 | F11 | Registro de respuestas | P0 | TODO | | 0 | |
 | F12 | Página de diagnóstico /d/[slug] | P0 | TODO | | 0 | |
