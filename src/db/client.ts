@@ -13,7 +13,7 @@ export const PGLITE_DIR = "./.pglite";
  */
 export function createDb(databaseUrl: string | undefined = process.env.DATABASE_URL, pgliteDir: string = PGLITE_DIR) {
   if (databaseUrl) {
-    const client = postgres(databaseUrl, { max: 5 });
+    const client = postgres(databaseUrl, { max: 5, prepare: false }) // prepare:false: Supabase transaction pooler (6543) rejects prepared statements;
     return { kind: "postgres" as const, db: drizzlePg(client, { schema }), close: () => client.end() };
   }
   const client = new PGlite(pgliteDir);
