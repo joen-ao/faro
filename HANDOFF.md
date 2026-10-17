@@ -24,3 +24,4 @@
 - 2026-10-17 04:09 · F05 → DONE: Places API (New) Text Search, field mask mínimo, mock sin llave, costo de lista. MINOR: recordPlacesCost no cableado al hunt; riesgos SKU/caché Google
 - 2026-10-17 04:13 · F12 → DONE: /d/[slug] y /d/icp/[icpSlug], widget Dapta aislado o placeholder, opt-out, eventos con dedupe/rate limit, formulario con honeypot; 3 MINOR (F12-r3)
 - 2026-10-17 04:22 · F14 → DONE: Tablero: KPIs con IC 90%, matriz fuente×canal trazable a recibos, embudo, pauta vs gratis, recomendación honesta, cumplimiento, toggle demo; 3 MINOR (F14-r2)
+- 2026-10-17 04:29 · F10 → DONE: Mensajes IA con remitente/baja/dirección, canal email>form asistido, cola atómica con idempotency key, ventanas, SEND_ENABLED=false→simulated; 4 MINOR (F10-r2)
