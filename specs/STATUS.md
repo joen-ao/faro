@@ -12,14 +12,14 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F05 | Adapter Google Places | P1 | TODO | | 0 | |
 | F06 | Enriquecimiento web (robots.txt + Apify) | P1 | TODO | | 0 | |
 | F07 | Dedupe y merge multi-fuente | P0 | IN_PROGRESS | | 0 | |
-| F08 | ICP NL + scoring con evidencia | P0 | TODO | | 0 | |
+| F08 | ICP NL + scoring con evidencia | P0 | IN_REVIEW | | 0 | |
 | F09 | Cumplimiento | P0 | DONE | feat/F09-cumplimiento | 2 | Ventanas CO+festivos 2026, supresión, opt-out HMAC con POST, gate correo genérico, /baja; 2 MINOR (F09-r2). Requiere OPTOUT_SECRET en prod |
 | F10 | Outreach | P0 | TODO | | 0 | |
 | F11 | Registro de respuestas | P0 | TODO | | 0 | |
-| F12 | Página de diagnóstico /d/[slug] | P0 | TODO | | 0 | |
-| F13 | Motor de costos y Recibo | P0 | TODO | | 0 | |
+| F12 | Página de diagnóstico /d/[slug] | P0 | IN_PROGRESS | | 0 | |
+| F13 | Motor de costos y Recibo | P0 | IN_PROGRESS | | 0 | |
 | F14 | Tablero | P0/P1 | TODO | | 0 | |
-| F15 | Integración Dapta | P1 | TODO | | 0 | |
+| F15 | Integración Dapta | P1 | IN_PROGRESS | | 0 | |
 | F16 | Meta Ads | P1 | TODO | | 0 | |
 | F17 | WhatsApp vía Dapta | P2 | TODO | | 0 | |
 | F18 | Landing + video HyperFrames | P1 | TODO | | 0 | |
