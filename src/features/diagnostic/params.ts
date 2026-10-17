@@ -29,6 +29,8 @@ export function parseTracking(query: RawQuery): Tracking {
     const v = utmValue.safeParse(first(query[k]));
     if (v.success) utm[k] = v.data;
   }
+  // Meta appends `fbclid` to ad clicks: treat it as utm_source=meta (the raw click id is never stored).
+  if (!utm.utm_source && first(query.fbclid)?.trim()) utm.utm_source = "meta";
   if (Object.keys(utm).length) out.utm = utm;
   return out;
 }

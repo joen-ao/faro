@@ -15,3 +15,6 @@
 2026-10-17 04:29 | 14 | F10 | →DONE | Mensajes IA con remitente/baja/dirección, canal email>form asistido, cola atómica con idempotency key, ventanas, SEND_ENABLED=false→simulated; 4 MINOR (F10-r2) | F11
 2026-10-17 04:37 | 15 | F06 | →DONE | Fetch directo con robots/SSRF/guard Maps-redes, correos genéricos estrictos, redacción de nombres, Apify mock con prorrateo; 2 MINOR (sufijos con apellido en isGenericEmail) | F16/F18/F19/F20
 2026-10-17 04:39 | 16 | F18 | →DONE | Landing estilo Dapta + video HyperFrames local (1,2 MB, rotulado demostración); Lighthouse móvil 94–96/100, desktop 100/100; MINOR aplicados | F16/F19/F20/F11/F17
+2026-10-17 04:49 | 17 | F20 | →DONE | Thompson sampling por fuente con P(mejor), datos insuficientes honestos, simulación siempre etiquetada; 2 MINOR (F20-r2) | F11/F16/F17/F19
+2026-10-17 04:53 | 18 | F17 | →DONE | WhatsApp vía Dapta: CSV de secuencias tras WHATSAPP_ENABLED, solo teléfonos de empresa CO, webhook con secreto, STOP suprime; 3 MINOR | F16
+2026-10-17 04:54 | 19 | F16 | →DONE | UTM builder, fbclid→meta_ads, carga de gasto manual/CSV con clave demo separada, CPL meta_ads real; 1 MINOR | F11 r2, F19 r2, F21

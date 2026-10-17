@@ -4,12 +4,13 @@ const PORT = Number(process.env.E2E_PORT ?? 3100);
 process.env.APP_ACCESS_KEY ??= "e2e-app-key"; // /app and /api/outreach are closed in production without a key
 process.env.FARO_ALLOW_DEMO ??= "1"; // the production build serves the seeded demo hunt (F10)
 process.env.OPTOUT_SECRET ??= "e2e-only-secret"; // inherited by the web server and the test workers
-process.env.APP_ACCESS_KEY ??= "e2e-key"; // /app pages are gated by requireAppAccess
 process.env.FARO_SEED_DEMO = "1"; // seeds demo-clinica (F12) and enables the demo-only events read
+process.env.META_ADS_CAMPAIGN_ID ??= "faro-demo"; // shows the UTM link on /app/settings/ads
 process.env.FARO_E2E = "1"; // lets those demo tools run under `next start` (NODE_ENV=production)
 
 export default defineConfig({
   testDir: "tests/e2e",
+  workers: 1, // all specs share one PGlite directory behind one next start
   use: { baseURL: `http://localhost:${PORT}` },
   projects: [
     { name: "desktop-1440", use: { viewport: { width: 1440, height: 900 } } },

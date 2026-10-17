@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.beforeEach(async ({ context }) => {
-  await context.addCookies([{ name: "faro_key", value: process.env.APP_ACCESS_KEY ?? "", url: "http://localhost:3100" }]);
+  await context.addCookies([{ name: "faro_key", value: process.env.APP_ACCESS_KEY ?? "e2e-app-key", domain: "localhost", path: "/" }]);
 });
 
 test("dashboard: empty real state, then demo toggle shows separated DEMO data", async ({ page }, info) => {

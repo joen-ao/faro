@@ -1,6 +1,8 @@
 import { buildDemoExample, buildRecommendation } from "@/features/dashboard/recommendation";
 import { fmtUsd } from "@/features/dashboard/format";
 import type { MetricsBucket } from "@/features/metrics/channels";
+import { recommendNextBudget, simulateBandit } from "@/features/bandit";
+import { BanditCard } from "./bandit-card";
 import { MatrixPanel } from "./matrix-panel";
 import { CplBars, EmptyState, Funnel, KpiRow, PaidVsFree, Panel, RecommendationCard } from "./panels";
 
@@ -14,6 +16,7 @@ export function DashboardBody({ bucket, demo = false, demoBucket = null }: { buc
     return (
       <div className="space-y-4">
         {only.kind === "demo_only" && <RecommendationCard rec={only} />}
+        <BanditCard real={recommendNextBudget({ real: bucket }, 100)} simulation={simulateBandit()} />
         <EmptyState />
       </div>
     );
@@ -28,6 +31,7 @@ export function DashboardBody({ bucket, demo = false, demoBucket = null }: { buc
       )}
       <KpiRow bucket={bucket} />
       <RecommendationCard rec={rec} demo={demo} />
+      {!demo && <BanditCard real={recommendNextBudget({ real: bucket }, 100)} simulation={simulateBandit()} />}
       <Panel id={`${p}-matrix`} title="Matriz fuente × canal" hint="Toca una celda para ver sus leads y abrir el recibo de cada uno.">
         <MatrixPanel bucket={bucket} demo={demo} />
       </Panel>

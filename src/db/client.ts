@@ -21,12 +21,13 @@ export function createDb(databaseUrl: string | undefined = process.env.DATABASE_
 }
 
 // Shared through globalThis: Next bundles each route separately, and two PGlite instances on one dir diverge.
-const g = globalThis as unknown as { __faroDb?: ReturnType<typeof createDb> };
+const g = globalThis as unknown as { __faroDb?: ReturnType<typeof createDb>; __faroReady?: WeakMap<object, Promise<void>> };
 export function getDb() {
   return (g.__faroDb ??= createDb());
 }
 
-const ready = new WeakMap<object, Promise<void>>();
+// Also global: each bundle would otherwise migrate the same instance concurrently on a cold start.
+const ready = (g.__faroReady ??= new WeakMap<object, Promise<void>>());
 
 /** Applies migrations once per connection (memoized; idempotent on PGlite and Postgres). A failure is not cached. */
 export function ensureMigrated(conn: ReturnType<typeof createDb>): Promise<void> {
