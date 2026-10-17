@@ -15,3 +15,4 @@
 - 2026-10-17 03:27 · F01 → DONE: 16 tablas Drizzle, migraciones PGlite, seed is_demo; 4 MINOR (ver specs/reviews/F01-r1.md)
 - 2026-10-17 03:44 · F02 → DONE: reports/coverage.md real: ICP recomendado dental Bogotá (70 jurídicas verificadas contactables vs 12 restaurantes Bogotá; Miami 336 por verificar)
 - 2026-10-17 03:51 · F04 → DONE: RUES por CIIU+cámara, REPS dental, SoQL seguro, filtro jurídico; 4 MINOR (F04-r1)
+- 2026-10-17 03:52 · F03 → DONE: Overpass endurecido: caché, rate limit, mirror, raw con lista blanca, email genérico; 4 MINOR (F03-r2)
