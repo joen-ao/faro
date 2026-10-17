@@ -42,6 +42,10 @@ export const messageStatusEnum = pgEnum("message_status", [
   "delivered",
   "failed",
   "blocked",
+  /** SEND_ENABLED=false: the pipeline ran but nothing left (or an assisted send done as practice). */
+  "simulated",
+  /** Claimed by a worker (atomic queued -> sending). Stays here if the process dies after calling the provider: manual review. */
+  "sending",
 ]);
 export const eventTypeEnum = pgEnum("event_type", [
   "sent",
@@ -210,6 +214,8 @@ export const messages = pgTable(
     body: text("body").notNull(),
     status: messageStatusEnum("status").notNull().default("draft"),
     providerId: text("provider_id"),
+    /** Address / form URL the message goes to (resolved at enqueue time). */
+    recipient: text("recipient"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     blockedByRule: text("blocked_by_rule"),
     isMock: boolean("is_mock").notNull().default(false),
