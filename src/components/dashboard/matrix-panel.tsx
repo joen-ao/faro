@@ -27,7 +27,7 @@ const STEPS = [
 function value(r: MetricsRow, m: Metric): number | null {
   if (m === "cpl") return r.cpl;
   if (m === "cplc") return r.cplc;
-  return r.fit > 0 ? r.qualified / r.fit : null;
+  return r.qualifiedRate.n > 0 ? r.qualifiedRate.k / r.qualifiedRate.n : null;
 }
 
 interface Sel {
@@ -86,7 +86,7 @@ export function MatrixPanel({ bucket, demo }: { bucket: MetricsBucket; demo: boo
         ))}
       </div>
 
-      <div className="overflow-x-auto" tabIndex={0} aria-label="Matriz fuente por canal de contacto">
+      <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="Matriz fuente por canal de contacto">
         <table className="w-full min-w-[560px] border-separate border-spacing-1.5 text-sm">
           <thead>
             <tr>
@@ -132,7 +132,7 @@ export function MatrixPanel({ bucket, demo }: { bucket: MetricsBucket; demo: boo
                         style={st ? { background: st.bg, color: st.fg } : undefined}
                       >
                         <span className="font-semibold tabular-nums">{text}</span>
-                        <span className="text-[11px] opacity-80">{c.fit} del perfil</span>
+                        <span className="text-xs">{c.fit} del perfil</span>
                       </button>
                     </td>
                   );
@@ -143,7 +143,8 @@ export function MatrixPanel({ bucket, demo }: { bucket: MetricsBucket; demo: boo
         </table>
       </div>
 
-      <div className="mt-3 flex items-center gap-2 text-xs text-faro-text-3" aria-hidden>
+      <p className="mt-3 text-xs text-faro-text-2">La matriz solo incluye leads ya contactados por algún canal; los KPIs de arriba cuentan todos los del perfil.</p>
+      <div className="mt-2 flex items-center gap-2 text-xs text-faro-text-3" aria-hidden>
         <span>menor</span>
         {STEPS.map((s, i) => (
           <span key={i} className="h-3 w-7 rounded-sm" style={{ background: s.bg }} />
@@ -183,6 +184,11 @@ export function MatrixPanel({ bucket, demo }: { bucket: MetricsBucket; demo: boo
                       <span className="flex shrink-0 items-center gap-2 text-xs text-faro-text-2">
                         {l.qualified && <span className="rounded-full bg-faro-accent px-2 py-0.5 font-semibold text-[#1a1a1c]">calificado</span>}
                         {!l.fit && <span>fuera del perfil</span>}
+                        {l.excludedUsd > 0 && (
+                          <span className="rounded border border-destructive px-1 text-[10px] font-bold tracking-wider text-destructive" title="Costo mock/demo excluido de la celda">
+                            MOCK {fmtUsd(l.excludedUsd)}
+                          </span>
+                        )}
                         <span className="tabular-nums text-white">{fmtUsd(l.costUsd)}</span>
                       </span>
                     </button>

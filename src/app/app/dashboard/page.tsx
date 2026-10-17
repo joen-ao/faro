@@ -40,7 +40,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
         <div className="mt-8 space-y-10">
           <section aria-label="Datos reales">
-            <DashboardBody bucket={data.real} />
+            <DashboardBody bucket={data.real} demoBucket={data.demo} />
           </section>
 
           {data.demo && (

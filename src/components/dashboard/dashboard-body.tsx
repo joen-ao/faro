@@ -1,15 +1,24 @@
-import { buildRecommendation } from "@/features/dashboard/recommendation";
+import { buildDemoExample, buildRecommendation } from "@/features/dashboard/recommendation";
 import { fmtUsd } from "@/features/dashboard/format";
 import type { MetricsBucket } from "@/features/metrics/channels";
 import { MatrixPanel } from "./matrix-panel";
 import { CplBars, EmptyState, Funnel, KpiRow, PaidVsFree, Panel, RecommendationCard } from "./panels";
 
 /** All charts for one world. `demo` buckets are labelled DEMO and never summed into the real ones. */
-export function DashboardBody({ bucket, demo = false }: { bucket: MetricsBucket; demo?: boolean }) {
+export function DashboardBody({ bucket, demo = false, demoBucket = null }: { bucket: MetricsBucket; demo?: boolean; demoBucket?: MetricsBucket | null }) {
   const p = demo ? "d" : "r";
   const empty = bucket.totals.found === 0 && bucket.totals.costUsd === 0;
-  if (empty) return demo ? null : <EmptyState />;
-  const rec = buildRecommendation({ real: bucket });
+  if (empty) {
+    if (demo) return null;
+    const only = buildRecommendation({ real: bucket, demo: demoBucket });
+    return (
+      <div className="space-y-4">
+        {only.kind === "demo_only" && <RecommendationCard rec={only} />}
+        <EmptyState />
+      </div>
+    );
+  }
+  const rec = demo ? buildDemoExample(bucket) : buildRecommendation({ real: bucket });
   return (
     <div className="space-y-4">
       {!demo && (bucket.excludedMockUsd > 0 || bucket.excludedDemoUsd > 0) && (

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCellLeads, resolveDemoDb } from "@/features/dashboard/data";
-import { getChannelMetrics } from "@/features/metrics/channels";
+import { getCellLeads } from "@/features/dashboard/data";
+import { getDemoDb } from "@/features/dashboard/demo-db";
 import { requireAppAccess } from "@/lib/app-access";
 import { withDb } from "@/lib/with-db";
 
@@ -21,11 +21,7 @@ export async function GET(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Parámetros inválidos" }, { status: 400 });
   const { source, contact, demo } = parsed.data;
   return withDb(async (db) => {
-    let target = db;
-    if (demo === "1") {
-      const persistent = (await getChannelMetrics(db, { includeDemo: true })).demo;
-      target = await resolveDemoDb(db, persistent);
-    }
+    const target = demo === "1" ? await getDemoDb() : db;
     return NextResponse.json(await getCellLeads(target, { source, contact: contact ?? null, demo: demo === "1" }));
   });
 }

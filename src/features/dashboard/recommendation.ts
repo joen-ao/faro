@@ -1,13 +1,13 @@
 import type { ChannelMetrics, MetricsBucket, MetricsRow } from "@/features/metrics/channels";
-import { fmtInt, fmtPct, fmtUsd, sourceLabel } from "./format";
+import { fmtInt, fmtInterval, fmtPct, fmtUsd, sourceLabel } from "./format";
 
 /** Minimum sample per source to be comparable: profile leads and qualified leads. */
 export const MIN_FIT = 5;
-export const MIN_QUALIFIED = 1;
+export const MIN_QUALIFIED = 3;
 /** CPLC gap (relative to the best) under which two sources are a technical tie. */
 export const TIE_GAP = 0.1;
 
-export type RecommendationKind = "winner" | "tie" | "insufficient" | "demo_only";
+export type RecommendationKind = "winner" | "tie" | "insufficient" | "demo_only" | "demo_example";
 
 export interface Recommendation {
   kind: RecommendationKind;
@@ -48,7 +48,7 @@ export function buildRecommendation(metrics: Pick<ChannelMetrics, "real"> & { de
   const bestC = best.cplc as number;
   const secondC = second.cplc as number;
   const gap = (secondC - bestC) / secondC; // how much cheaper the best is vs the runner-up
-  const rate = (r: MetricsRow) => `${r.qualified} de ${r.fit} (${fmtPct(r.qualified / r.fit)})`;
+  const rate = (r: MetricsRow) => `${r.qualifiedRate.k} de ${r.qualifiedRate.n} (${fmtPct(r.qualifiedRate.k / r.qualifiedRate.n)}, ${fmtInterval(r.qualifiedRate)})`;
 
   if ((secondC - bestC) / bestC < TIE_GAP) {
     return {
@@ -78,4 +78,10 @@ export function splitPaidVsFree(bySource: MetricsRow[]): PaidVsFree {
   const qualified = rest.reduce((a, r) => a + r.qualified, 0);
   const costUsd = rest.reduce((a, r) => a + r.costUsd, 0);
   return { paid, free: { fit, qualified, costUsd, cpl: fit > 0 ? costUsd / fit : null, cplc: qualified > 0 ? costUsd / qualified : null } };
+}
+
+/** DEMO section sentence: explicitly an example, never in the format of a real recommendation. */
+export function buildDemoExample(demo: MetricsBucket): Recommendation {
+  const r = buildRecommendation({ real: demo });
+  return { kind: "demo_example", sources: [], text: `Ejemplo con datos de prueba (no es una recomendación): ${r.text}` };
 }

@@ -27,7 +27,8 @@ function Kpi({ label, value, note, empty }: { label: string; value: string; note
 
 export function KpiRow({ bucket }: { bucket: MetricsBucket }) {
   const t = bucket.totals;
-  const rate = t.fit > 0 ? t.qualified / t.fit : null;
+  const q = t.qualifiedRate;
+  const rate = q.n > 0 ? q.k / q.n : null;
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <Kpi label="Leads del perfil" value={fmtInt(t.fit)} note={`de ${fmtInt(t.found)} encontrados`} />
@@ -36,7 +37,7 @@ export function KpiRow({ bucket }: { bucket: MetricsBucket }) {
         label="% calificado"
         value={rate === null ? INSUFFICIENT : fmtPct(rate)}
         empty={rate === null}
-        note={t.fit > 0 ? `${t.qualified} de ${t.fit} · ${fmtInterval(t.qualifiedRate)}` : "aún sin leads del perfil"}
+        note={q.n > 0 ? `${q.k} de ${q.n} · ${fmtInterval(q)}` : "aún sin leads del perfil"}
       />
       <Kpi label="CPLC" value={t.cplc === null ? INSUFFICIENT : fmtUsd(t.cplc)} empty={t.cplc === null} note={t.cplc === null ? "ningún lead calificado todavía" : `costo ÷ ${t.qualified} calificados`} />
     </div>

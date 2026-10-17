@@ -20,7 +20,7 @@ test("dashboard: empty real state, then demo toggle shows separated DEMO data", 
   await page.getByRole("switch", { name: /Incluir datos de prueba/ }).click();
   await page.waitForURL(/demo=1/);
   await expect(page.getByRole("region", { name: /Datos de prueba/ })).toBeVisible();
-  await expect(page.getByRole("complementary", { name: "Recomendación" })).toContainText("Conviene buscar en");
+  await expect(page.getByRole("region", { name: /Datos de prueba/ }).getByRole("complementary", { name: "Recomendación" })).toContainText("Ejemplo con datos de prueba");
   await expect(page.getByText("Pauta vs. fuentes gratuitas")).toBeVisible();
 
   // heatmap cell -> leads -> receipt

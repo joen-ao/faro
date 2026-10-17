@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import * as s from "@/db/schema";
 import type { AppDb, CostCategory } from "@/db/types";
 import { round6 } from "./costs";
@@ -55,15 +55,27 @@ export interface LeadReceipt {
 
 /** Itemized cost of one lead. `totalUsd` equals the sum of the lead's `cost_entries`. Null if the lead does not exist. */
 export async function getLeadReceipt(db: AppDb, leadId: string): Promise<LeadReceipt | null> {
-  const [lead] = await db
+  return (await getLeadReceipts(db, [leadId])).get(leadId) ?? null;
+}
+
+/** Receipts for many leads in two queries (no per-lead round trips). */
+export async function getLeadReceipts(db: AppDb, leadIds: string[]): Promise<Map<string, LeadReceipt>> {
+  const out = new Map<string, LeadReceipt>();
+  if (leadIds.length === 0) return out;
+  const leadRows = await db
     .select({ id: s.leads.id, slug: s.leads.slug, source: s.leads.primarySource, isDemo: s.leads.isDemo, name: s.companies.name })
     .from(s.leads)
     .innerJoin(s.companies, eq(s.companies.id, s.leads.companyId))
-    .where(eq(s.leads.id, leadId));
-  if (!lead) return null;
+    .where(inArray(s.leads.id, leadIds));
+  const entries = await db.select().from(s.costEntries).where(inArray(s.costEntries.leadId, leadIds)).orderBy(asc(s.costEntries.at), asc(s.costEntries.id));
+  for (const lead of leadRows) out.set(lead.id, buildReceipt(lead, entries.filter((e) => e.leadId === lead.id)));
+  return out;
+}
 
-  const rows = await db.select().from(s.costEntries).where(eq(s.costEntries.leadId, leadId)).orderBy(asc(s.costEntries.at), asc(s.costEntries.id));
-
+function buildReceipt(
+  lead: { id: string; slug: string; source: string; isDemo: boolean; name: string },
+  rows: (typeof s.costEntries.$inferSelect)[],
+): LeadReceipt {
   const byCat = new Map<CostCategory, ReceiptLine[]>();
   for (const r of rows) {
     const listUsd = round6(r.quantity * r.rate);
