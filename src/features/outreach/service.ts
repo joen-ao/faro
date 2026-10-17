@@ -223,12 +223,14 @@ function resolveChannel(ctx: LeadContext, env: Env, wanted?: ContactChannel): { 
 /** Builds the (editable) message and the live compliance verdict. `generate:false` only evaluates. */
 export async function previewOutreach(
   db: AppDb,
-  input: { leadId: string; channel?: ContactChannel; generate?: boolean },
+  input: { leadId: string; channel?: ContactChannel; generate?: boolean; asOf?: string },
   deps: OutreachDeps,
-  now: Date = new Date(),
+  nowArg: Date = new Date(),
 ): Promise<PreviewResult> {
+  let now = nowArg;
   const env = deps.env ?? getEnv();
   const ctx = await loadLeadContext(db, input.leadId);
+  if (input.asOf && ctx.lead.isDemo && ctx.company.isDemo) now = new Date(input.asOf);
   const { channel, option } = resolveChannel(ctx, env, input.channel);
   const options = channelOptions(ctx.contacts, channelOpts(ctx, env));
   const recipient = option?.value ?? null;

@@ -7,7 +7,10 @@ import { enqueue, OutreachError, previewOutreach, processQueue, recordAssistedSe
 const Channel = z.enum(["email", "web_form", "whatsapp", "dapta_widget"]);
 const LeadId = z.uuid("leadId debe ser un UUID");
 
-export const PreviewBody = z.object({ leadId: LeadId, channel: Channel.optional(), generate: z.boolean().optional() });
+export const PreviewBody = z.object({ leadId: LeadId, channel: Channel.optional(), generate: z.boolean().optional(),
+  /** Demo leads only (screenshots): evaluate the window as of this instant. Ignored for real leads. */
+  asOf: z.iso.datetime().optional(),
+});
 export const SendBody = z.object({
   items: z
     .array(
