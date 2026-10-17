@@ -17,6 +17,16 @@ test("dashboard: empty real state, then demo toggle shows separated DEMO data", 
   expect(await noHScroll()).toBe(true);
   if (width === 1440) await page.screenshot({ path: "artifacts/screens/F14-dashboard-empty-1440.png", fullPage: true });
 
+  const bandit = page.getByRole("region", { name: "Dónde invertir el próximo dólar" });
+  await expect(bandit.getByTestId("bandit-real")).toContainText("Datos insuficientes");
+  await expect(bandit.getByText("SIMULACIÓN", { exact: true })).toHaveCount(0);
+  await bandit.getByRole("switch", { name: "Ver simulación" }).click();
+  await expect(bandit.getByText("SIMULACIÓN", { exact: true })).toBeVisible();
+  await expect(bandit.getByTestId("bandit-real")).toHaveCount(0);
+  expect(await noHScroll()).toBe(true);
+  await bandit.screenshot({ path: `artifacts/screens/F20-bandit-${width}.png` });
+  await bandit.getByRole("switch", { name: "Ver simulación" }).click();
+
   await page.getByRole("switch", { name: /Incluir datos de prueba/ }).click();
   await page.waitForURL(/demo=1/);
   await expect(page.getByRole("region", { name: /Datos de prueba/ })).toBeVisible();
