@@ -60,8 +60,8 @@ describe("socrata", () => {
       return new Response(JSON.stringify(rows), { status: 200 });
     }) as unknown as typeof fetch;
     const s = createRealSocrata({ fetchImpl, sleep: async () => {}, minIntervalMs: 0 });
-    expect((await s.count("x", "a=1")).count).toBe(3);
-    expect((await s.queryAll("x", {}, { pageSize: 2 })).rows).toHaveLength(3);
+    expect((await s.count("abcd-1234", "a=1")).count).toBe(3);
+    expect((await s.queryAll("abcd-1234", {}, { pageSize: 2 })).rows).toHaveLength(3);
   });
 
   it("mock mode serves flagged fixtures", async () => {

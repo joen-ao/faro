@@ -29,3 +29,4 @@ Persistir en DB (F07/F08), geocodificación (RUES/REPS no traen lat/lng), munici
 
 ## Resultado live
 (se completa tras ejecutar `RUN_LIVE=1`)
+Ejecutado una vez (2026-10-17, `RUN_LIVE=1`, sin token): RUES CIIU 8622 + cámara BOGOTA → 1.445 filas, 1.417 conservadas, 28 descartadas por parecer nombre propio (E.U.). REPS dental (Bogotá, por palabras en nombre) → 241 filas, 150 sedes únicas por `codigoprestador` conservadas (el resto son duplicados de código).
