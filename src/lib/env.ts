@@ -37,6 +37,7 @@ export const envSchema = z.object({
   EMAIL_REPLY_TO: optStr,
   EMAIL_MODE: mode("mock"),
   SEND_ENABLED: bool(false),
+  OPTOUT_SECRET: optStr,
   DAPTA_MODE: z.preprocess(
     (v) => (v === "" ? undefined : v),
     z.enum(["widget_only", "http_push", "csv_export"]).default("widget_only"),

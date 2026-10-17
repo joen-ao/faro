@@ -77,15 +77,4 @@ export function uniqueNames(names: readonly string[]): number {
   return new Set(names.map(normalizeName).filter(Boolean)).size;
 }
 
-const GENERIC_LOCAL = [
-  "info", "contact", "citas", "cita", "hola", "ventas", "servicio", "atencion", "recepcion", "gerencia", "admin", "comercial",
-  "facturacion", "clinica", "odont", "dental", "secretaria", "pqrs", "soporte", "agenda", "cartera", "calidad", "mercadeo",
-  "gestion", "juridica", "talento", "reservas", "ayuda", "hello", "sales", "support", "office", "contabilidad", "compras",
-];
-
-/** True for role mailboxes (info@, contacto@, citas@...); false for personal-looking addresses. */
-export function isGenericEmail(email: string | undefined | null): boolean {
-  if (!email) return false;
-  const local = email.split("@")[0]?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
-  return !!local && GENERIC_LOCAL.some((g) => local.startsWith(g));
-}
+export { isGenericEmail } from "@/features/compliance/email";
