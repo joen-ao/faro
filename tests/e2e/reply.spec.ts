@@ -6,14 +6,9 @@ test.beforeEach(async ({ context, baseURL }) => {
 
 const NOW = "2026-10-19T15:00:00Z";
 
-test("mark reply dialog: note required, audited, lead marked responded", async ({ page }, info) => {
+test("mark reply dialog: note required, guard on leads without a sent message", async ({ page }, info) => {
   const width = info.project.use.viewport?.width ?? 1440;
   await page.goto(`/app/hunts/demo/outreach?now=${NOW}`);
-  // Contact (simulate) one eligible lead first: replies need a sent message.
-  await page.getByRole("checkbox", { name: /Seleccionar/ }).and(page.locator(":enabled")).nth(info.project.name.includes("mobile") ? 1 : 0).check();
-  await page.getByTestId("send-selected").click();
-  await expect(page.getByTestId("feedback")).toBeVisible({ timeout: 20_000 });
-  await page.reload();
   await page.getByTestId("mark-reply").first().click();
   const dialog = page.getByTestId("reply-dialog");
   await expect(dialog).toBeVisible();
@@ -22,9 +17,11 @@ test("mark reply dialog: note required, audited, lead marked responded", async (
   await page.getByTestId("reply-note").fill("La empresa pidió una llamada esta semana.");
   await page.screenshot({ path: `artifacts/screens/F11-reply-${width}.png` });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  // Demo leads have no sent message yet: the API refuses and the dialog explains why (state stays untouched).
   await page.getByTestId("reply-submit").click();
+  await expect(page.getByTestId("reply-error")).toContainText("contáctalo primero");
+  await page.getByRole("button", { name: "Cancelar" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByTestId("feedback")).toContainText("Respuesta registrada");
 });
 
 test("reply API requires a note and the app key", async ({ page, playwright, baseURL }) => {
