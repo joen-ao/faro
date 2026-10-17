@@ -25,6 +25,8 @@ export interface PlacesResult {
   calls: number;
   latencyMs: number;
   isMock: boolean;
+  /** Set when a later page failed: `companies` and `calls` keep what pages before it returned. */
+  error?: string;
 }
 
 export interface PlacesApiCall {
@@ -74,7 +76,6 @@ export const PLACES_FIELD_MASK = [
   "places.formattedAddress",
   "places.location",
   "places.websiteUri",
-  "places.nationalPhoneNumber",
   "places.internationalPhoneNumber",
   "places.types",
   "places.businessStatus",

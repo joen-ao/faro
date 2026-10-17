@@ -19,3 +19,8 @@ Dedupe (F07), persistencia de empresas, Place Details, fotos, reseñas, UI.
 4. 403 y 429 lanzan `PlacesError` y se registran en `onApiCall` con error.
 5. `recordPlacesCost`: quantity=llamadas, rate=0.032, usd=0, categoría `data`.
 6. Cobertura de `src/integrations/google-places` ≥ 70 %; `npm run check` verde sin red ni llave.
+
+## Riesgos abiertos (para HANDOFF)
+- Términos de Google Maps Platform limitan el almacenamiento/caché de contenido de Places (solo `place_id` sin límite); F05 normaliza nombre/dirección/teléfono/web para guardarlos. Decisión de producto: mostrar atribución de Google donde se muestren estos datos.
+- SKU: pedir `websiteUri` y teléfonos en Text Search cae en el SKU Enterprise, con lista mayor que el 0,032 USD de `places_per_call`; el valor de lista mostrado puede subestimar. Verificar y ajustar `cost_rates`.
+- `isLegalEntity=true` pero sin verificar ("por verificar"); fallo en página 2 devuelve resultado parcial con `error`.

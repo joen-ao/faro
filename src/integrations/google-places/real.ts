@@ -42,7 +42,8 @@ export function toSourceCompany(p: RawPlace, opts: { city?: string; isMock?: boo
     sourceChannel: "google_places",
     sourceUrl: placeUrl(p.id),
     license: PLACES_LICENSE,
-    isLegalEntity: false,
+    // Unverified, like OSM: scoring shows "por verificar"; never flagged as a natural person here.
+    isLegalEntity: true,
     possibleNaturalPerson: false,
     raw: { place_id: p.id, types: (p.types ?? []).join(","), business_status: p.businessStatus ?? "" },
     isMock: opts.isMock ?? false,
@@ -66,6 +67,7 @@ export function createRealPlaces(opts: RealPlacesOptions): PlacesAdapter {
       let token: string | undefined;
       let calls = 0;
       let latencyMs = 0;
+      let partialError: string | undefined;
       for (let page = 0; page < maxPages; page++) {
         const body = JSON.stringify(buildRequestBody(criteria, token));
         const t0 = Date.now();
@@ -96,7 +98,9 @@ export function createRealPlaces(opts: RealPlacesOptions): PlacesAdapter {
           token = json.nextPageToken;
         } catch (e) {
           error = e instanceof Error ? e.message : String(e);
-          throw e instanceof PlacesError ? e : new PlacesError(error, status ?? undefined);
+          if (calls === 0) throw e instanceof PlacesError ? e : new PlacesError(error, status ?? undefined);
+          partialError = error;
+          token = undefined;
         } finally {
           const ms = Date.now() - t0;
           latencyMs += ms;
@@ -104,7 +108,7 @@ export function createRealPlaces(opts: RealPlacesOptions): PlacesAdapter {
         }
         if (!token) break;
       }
-      return { companies, calls, latencyMs, isMock: false };
+      return { companies, calls, latencyMs, isMock: false, ...(partialError ? { error: partialError } : {}) };
     },
   };
 }

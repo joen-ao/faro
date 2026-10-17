@@ -49,6 +49,7 @@ describe("google places real", () => {
     expect(h["X-Goog-Api-Key"]).toBe("K");
     expect(h["X-Goog-FieldMask"]).toBe(PLACES_FIELD_MASK);
     expect(h["X-Goog-FieldMask"]).not.toContain("reviews");
+    expect(h["X-Goog-FieldMask"]).not.toContain("nationalPhoneNumber");
     expect(JSON.parse(init.body as string)).toEqual({
       textQuery: "clínica dental Bogotá",
       pageSize: 5,
@@ -62,6 +63,8 @@ describe("google places real", () => {
       sourceChannel: "google_places",
       sourceUrl: "https://www.google.com/maps/place/?q=place_id:ABC",
       phone: "+576015550101",
+      isLegalEntity: true,
+      possibleNaturalPerson: false,
       website: "https://x.example.com",
       lat: 4.6,
       isMock: false,
@@ -80,6 +83,14 @@ describe("google places real", () => {
     expect(r.calls).toBe(2);
     expect(r.companies.map((c) => c.externalId)).toEqual(["places:ABC", "places:DEF"]);
     expect(r.companies[1].phone).toBeUndefined();
+  });
+
+  it("keeps page 1 results and call count when page 2 fails", async () => {
+    const f = vi.fn().mockResolvedValueOnce(json(page1)).mockResolvedValueOnce(json({ error: { message: "quota" } }, 429));
+    const r = await createRealPlaces({ apiKey: "K", fetchImpl: f as unknown as typeof fetch }).search({ businessType: "x" });
+    expect(r.calls).toBe(1);
+    expect(r.companies).toHaveLength(1);
+    expect(r.error).toContain("429");
   });
 
   it("stops when there is no next page token", async () => {
