@@ -16,3 +16,4 @@
 - 2026-10-17 · F02: Overpass con bbox (Bogotá 4.45,-74.25,4.84,-73.99; Miami 25.70,-80.32,25.86,-80.12) en vez de area; `node`+`way` con `out center tags`. Mirror kumi.systems como respaldo. User-Agent `Faro-30XHackathon/0.1` sin correo personal. Caché a disco `.cache/` (ignorado por git), muestras reales con contactos enmascarados en `fixtures/`.
 - 2026-10-17 · F02: `.gitignore` ignoraba `coverage` en cualquier ruta (tapaba `src/features/coverage`); se anchó a `/coverage`.
 - 2026-10-17 03:44 · F02 se integró con `merge --squash` (no --no-ff) y se borró la rama local: commits intermedios tenían razones sociales con nombres de personas en fixtures; así no llegan al historial de main sin reescribir historia.
+- 2026-10-17 03:44 · Para cumplir la hora límite, features independientes se implementan en paralelo (hasta 3) en git worktrees, cada una con su review propio; DECISIONS.md usa merge=union.
