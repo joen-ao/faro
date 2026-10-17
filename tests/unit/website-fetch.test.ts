@@ -236,7 +236,7 @@ describe("real website fetch", () => {
   });
 
   it("rate limits requests to the same domain", async () => {
-    const sleep = vi.fn(async () => undefined);
+    const sleep = vi.fn<(ms: number) => Promise<void>>(async () => undefined);
     let t = 0;
     const { adapter } = make({ ...base, "https://clinica.test/": { body: "<p>x</p>" } }, { minIntervalMs: 1000, sleep, now: () => t });
     await adapter.fetchSite("https://clinica.test/");

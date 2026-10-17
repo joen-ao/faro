@@ -16,4 +16,8 @@ Redes sociales, Google Maps, JS rendering, envío, UI.
 1. Disallow de robots respetado (no se pide la página). 2. `camila.perez@`, `drgomez@` descartados; `info@`, `citas@` conservados. 3. Formulario detectado. 4. SSRF: `127.0.0.1`, `169.254.169.254`, redirect a IP privada bloqueados. 5. Tamaño máx. y timeout. 6. Apify rechaza Google Maps; prorrateo exacto. 7. Cobertura ≥ 70 % en ambas carpetas; `npm run check` verde sin red.
 
 ## Verificación en vivo
-(se completa tras la prueba)
+2026-10-17, `npx tsx scripts/f06-live.ts <urls>` contra 3 sitios con tag `website` de OSM (dentistas Bogotá), robots respetado, solo conteos (sin guardar nombres):
+- odontoven.com: dominio no resuelve (sitio caído) -> `unsafe_url: host does not resolve`, 0 páginas.
+- malodental.com.co: 1 página (+2 candidatos 404), 7 requests (redirects incluidos), 3 teléfonos E.164, 1 WhatsApp, 0 correos genéricos, sin formulario, redes: facebook/instagram/youtube, © 2026, texto 7,9 KB.
+- dentismai.com: 2 páginas, 5 requests, 3 teléfonos, 1 `web_form` detectado, agenda online sí, 1 correo personal descartado (no se guarda), © 2021, texto 8 KB.
+Ningún sitio bloqueó por robots.txt; tiempos 4-5 s por sitio (rate limit 1 s por dominio).
