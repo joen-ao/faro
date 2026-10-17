@@ -24,7 +24,7 @@ Dedupe (F07), `contact_points`, fit con IA, geocodificación, UI.
 8. Cobertura de `src/integrations/overpass` ≥ 70 % líneas; `npm run check` verde sin red.
 
 ## Plan de tests
-`tests/unit/overpass.test.ts` (query, parseo, mirror, modo), `overpass-adapter.test.ts` (teléfono, normalización, caché/TTL, reintentos, cola, api_calls, persistencia en PGlite memoria). Test vivo `tests/live/overpass.live.test.ts` con `RUN_LIVE=1` (skip por defecto).
+`tests/unit/overpass.test.ts` (query, parseo, mirror, modo), `overpass-adapter.test.ts` (teléfono, normalización, caché/TTL, reintentos, cola, api_calls, persistencia en PGlite memoria). Test vivo `tests/unit/overpass.live.test.ts` con `RUN_LIVE=1` (skip por defecto).
 
 ## Verificación en vivo
-(pendiente)
+2026-10-17, `RUN_LIVE=1 npx vitest run tests/unit/overpass.live.test.ts` (dentistas Bogotá, `amenity=dentist` ∪ `healthcare=dentist`, overpass-api.de, ~17 s): 408 empresas con nombre (436 elementos), 11 con teléfono E.164 válido (15 elementos traen teléfono; el resto son números de 7 dígitos sin indicativo, que no se adivinan), 3 con web. OSM aporta nombre/ubicación; el contacto saldrá de otras fuentes (F04/F05/F06).

@@ -26,6 +26,7 @@ export function normalizePhone(raw: string | undefined, country = "CO"): string 
   if (digits.startsWith("57")) {
     const national = digits.slice(2);
     if (/^1\d{7}$/.test(national)) digits = "5760" + national;
+    else if (/^57[1-8]\d{7}$/.test(national)) digits = "5760" + national.slice(2); // legacy "571 xxxxxxx"
     else if (!CO_NATIONAL.test(national)) return undefined;
   } else if (digits.startsWith("1") && !/^1[2-9]\d{9}$/.test(digits)) return undefined;
   if (digits.length < 8 || digits.length > 15 || digits.startsWith("0")) return undefined;
