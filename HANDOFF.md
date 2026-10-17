@@ -62,6 +62,8 @@ El detalle de cada uno está en `specs/reviews/Fxx-rN.md` (última ronda de cada
 - **PGlite local.** Con varios procesos sobre el mismo `.pglite` puede abortar. Si pasa, `rm -rf .pglite`. En producción usa Supabase. Playwright corre con 1 worker por esa razón.
 - **Festivos.** Solo cubren 2026 (`src/config/holidays-co-2026.ts`).
 
+- **Pendiente: rotar secretos expuestos en capturas.** (1) `DAPTA_WEBHOOK_SECRET`: genera uno nuevo, actualízalo en `.env.local` y en Vercel (Redeploy) y en la URL del nodo action_0 del "Call Analysis Flow" de Dapta. (2) La API key del flujo de Dapta (`CxnMj-…`), si Dapta permite regenerarla.
+
 **MINOR destacados no corregidos**
 - `isGenericEmail` deja pasar sufijos con apellido (`clinica.perez@`).
 - Mensajes que quedan en `sending` tras un fallo ambiguo de Resend bloquean a la empresa y no tienen pantalla de revisión manual.
