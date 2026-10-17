@@ -1,6 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
-const PORT = 3100;
+const PORT = Number(process.env.E2E_PORT ?? 3100);
 process.env.OPTOUT_SECRET ??= "e2e-only-secret"; // inherited by the web server and the test workers
 process.env.APP_ACCESS_KEY ??= "e2e-key"; // /app pages are gated by requireAppAccess
 process.env.FARO_SEED_DEMO = "1"; // seeds demo-clinica (F12) and enables the demo-only events read

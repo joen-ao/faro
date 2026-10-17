@@ -216,7 +216,7 @@ export async function attributeAdSpend(db: AppDb, p: { campaign: string; huntId?
       const [spend] = await tx
         .select({ total: sql<number>`coalesce(sum(${s.adSpend.usd}), 0)::float8` })
         .from(s.adSpend)
-        .where(and(eq(s.adSpend.campaign, p.campaign), eq(s.adSpend.isDemo, demo)));
+        .where(and(eq(s.adSpend.platform, "meta"), eq(s.adSpend.campaign, p.campaign), eq(s.adSpend.isDemo, demo)));
       const attributed = await tx
         .selectDistinct({ leadId: s.events.leadId })
         .from(s.events)

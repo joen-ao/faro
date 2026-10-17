@@ -202,8 +202,24 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
         {rows.length === 0 ? (
           <p className="mt-3 text-sm text-faro-text-2">Aún no hay gasto. Carga la primera fila o un CSV para ver el CPL de meta_ads.</p>
         ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-left text-sm">
+          <><ul className="mt-3 space-y-2 sm:hidden">
+            {rows.map((r) => (
+              <li key={r.id} className="rounded-button border border-border bg-faro-surface-2 p-3 text-sm">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="break-all font-medium">{r.campaign}</span>
+                  <span className="tabular-nums text-faro-accent">USD {r.usd.toFixed(2)}</span>
+                </div>
+                <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-faro-text-2">
+                  <span className="tabular-nums">{r.date}</span>
+                  <span>{r.impressions.toLocaleString("es-CO")} impr.</span>
+                  <span>{r.clicks.toLocaleString("es-CO")} clics</span>
+                  {r.isDemo && <span className="text-faro-text-3">DEMO</span>}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 hidden overflow-x-auto sm:block">
+            <table className="w-full text-left text-sm">
               <thead className="text-xs text-faro-text-3">
                 <tr>
                   <th className="py-2 pr-3 font-normal">Fecha</th>
@@ -227,7 +243,7 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
                 ))}
               </tbody>
             </table>
-          </div>
+          </div></>
         )}
       </section>
     </div>

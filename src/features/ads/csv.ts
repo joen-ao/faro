@@ -26,7 +26,10 @@ const count = z.preprocess(asString, z.string().trim().regex(/^\d{1,9}$/, "enter
 
 export const spendRowSchema = z.object({
   platform: text(40).default("meta"),
-  campaign: z.string().trim().regex(/^[A-Za-z0-9_.-][A-Za-z0-9_. -]{0,79}$/, "campaña: letras, números, _ . - y espacios"),
+  campaign: z
+    .string()
+    .transform((v) => v.trim().replace(/\s+/g, " "))
+    .pipe(z.string().regex(/^[A-Za-z0-9_.][A-Za-z0-9_. -]{0,79}$/, "campaña: letras, números, _ . - y espacios; no puede empezar con -")),
   date: isoDate,
   usd: z.preprocess(asString, z.string().trim().regex(/^\d{1,9}(\.\d{1,6})?$/, "USD >= 0 con hasta 6 decimales").transform(Number)),
   impressions: count.default(0),

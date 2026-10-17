@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { getReadyDb } from "@/db/client";
 import type { AppDb } from "@/db/types";
 import { ICP_PAGES } from "@/config/icp-pages";
-import { buildAdLink, listAdSpend } from "@/features/ads";
+import { buildAdLink, listAdSpend, unattributedSpend } from "@/features/ads";
 import { getChannelMetrics } from "@/features/metrics";
 import { getEnv } from "@/lib/env";
 import { requireAppAccess } from "@/lib/app-access";
@@ -27,7 +27,8 @@ export default async function AdsSettingsPage() {
   }
 
   const db = (await getReadyDb()) as unknown as AppDb;
-  const [rows, metrics] = await Promise.all([listAdSpend(db), getChannelMetrics(db)]);
+  const [rows, metrics, orphan] = await Promise.all([listAdSpend(db), getChannelMetrics(db), unattributedSpend(db)]);
+  const orphanTotal = orphan.reduce((a, o) => a + o.usd, 0);
   const meta = metrics.real.bySource.find((r) => r.source === "meta_ads");
   const campaign = getEnv().META_ADS_CAMPAIGN_ID ?? "";
   const links = Object.keys(ICP_PAGES).map((slug) => ({
@@ -51,6 +52,12 @@ export default async function AdsSettingsPage() {
           <Stat label="Gasto cargado" value={fmt(rows.filter((r) => !r.isDemo).reduce((a, r) => a + r.usd, 0))} hint="Sin filas de prueba" />
           <Stat label="Filas de prueba" value={String(rows.filter((r) => r.isDemo).length)} hint="Marcadas DEMO, fuera de los totales reales" />
         </section>
+
+        {orphanTotal > 0 && (
+          <p role="note" className="mt-4 rounded-card border border-border bg-card p-4 text-sm text-faro-text-2">
+            Gasto sin leads atribuidos aún: <strong className="text-foreground">{fmt(orphanTotal)}</strong> ({orphan.map((o) => o.campaign).join(", ")}). No entra al CPL hasta que lleguen leads con ese <code className="text-faro-accent">utm_campaign</code>; revisa que el nombre coincida.
+          </p>
+        )}
 
         <AdsPanel
           links={links}
