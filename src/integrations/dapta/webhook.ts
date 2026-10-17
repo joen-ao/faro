@@ -94,7 +94,8 @@ export async function processDaptaWebhook(
 
   const qualified = payload.qualified ?? (payload.score ?? 0) >= 60;
   const replies = payload.ai_replies ?? 0;
-  const credits = payload.ai_replies !== undefined ? replies * env.DAPTA_CREDITS_PER_AI_REPLY : (payload.credits_used ?? 0);
+  const usesReplies = replies > 0;
+  const credits = usesReplies ? replies * env.DAPTA_CREDITS_PER_AI_REPLY : (payload.credits_used ?? 0);
   const costUsd = Math.round(credits * env.DAPTA_CREDIT_USD * 1e6) / 1e6;
   const bant = { ...(payload.bant ?? {}) } as Record<string, unknown>;
   for (const k of ["budget", "authority", "need", "timeline"] as const) if (payload[k] !== undefined && bant[k] === undefined) bant[k] = payload[k];
@@ -130,7 +131,7 @@ export async function processDaptaWebhook(
         isDemo: lead.isDemo,
       },
     ]);
-    if (lead.status !== "opted_out") {
+    if (["found", "fit", "contacted", "responded"].includes(lead.status)) {
       await tx.update(leads).set({ status: qualified ? "qualified" : "disqualified" }).where(eq(leads.id, lead.id));
     }
     if (credits > 0) {
@@ -140,9 +141,9 @@ export async function processDaptaWebhook(
         sourceChannel: lead.primarySource,
         contactChannel: "dapta_widget",
         category: "dapta",
-        quantity: payload.ai_replies !== undefined ? replies : credits,
-        unit: payload.ai_replies !== undefined ? "ai_reply" : "credit",
-        rate: payload.ai_replies !== undefined ? env.DAPTA_CREDITS_PER_AI_REPLY * env.DAPTA_CREDIT_USD : env.DAPTA_CREDIT_USD,
+        quantity: usesReplies ? replies : credits,
+        unit: usesReplies ? "ai_reply" : "credit",
+        rate: usesReplies ? env.DAPTA_CREDITS_PER_AI_REPLY * env.DAPTA_CREDIT_USD : env.DAPTA_CREDIT_USD,
         usd: costUsd,
         evidence: `dapta conversation ${payload.conversation_id}`,
         isDemo: lead.isDemo,

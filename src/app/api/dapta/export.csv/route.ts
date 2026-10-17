@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { getDb } from "@/db/client";
 import { getDaptaAdapter } from "@/integrations/dapta";
 import { selectLeadsForDapta } from "@/integrations/dapta/leads";
@@ -12,6 +13,9 @@ export async function GET(req: Request) {
   if (denied) return denied;
   const env = getEnv();
   const huntId = new URL(req.url).searchParams.get("hunt_id") ?? undefined;
+  if (huntId !== undefined && !z.string().uuid().safeParse(huntId).success) {
+    return Response.json({ ok: false, error: "invalid_hunt_id" }, { status: 400 });
+  }
   const records = await selectLeadsForDapta(getDb().db, { huntId, appUrl: env.NEXT_PUBLIC_APP_URL });
   const out = getDaptaAdapter(env).exportCsv(records);
   return new Response(out.csv, {

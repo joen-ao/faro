@@ -9,6 +9,10 @@ export function csvCell(value: string): string {
   return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
+const PURE_PHONE = /^\+?[\d\s().-]+$/;
+/** A pure phone number (E.164 etc.) is not a formula: keep the leading "+" so it can be dialled. */
+export const phoneCell = (v: string) => (PURE_PHONE.test(v) ? v : csvCell(v));
+
 const row = (cells: readonly string[]) => cells.map(csvCell).join(",");
 
 /** Builds the Dapta-sequences CSV. Drops trailing rows rather than exceeding `maxBytes`. */
@@ -18,7 +22,7 @@ export function buildCsv(leads: DaptaLeadRecord[], maxBytes: number = MAX_CSV_BY
   let rows = 0;
   let truncated = false;
   for (const l of leads) {
-    const line = row([l.company, l.phone, l.email, l.city, l.source, l.slug, l.diagnosticUrl, l.notes]);
+    const line = [csvCell(l.company), phoneCell(l.phone), ...[l.email, l.city, l.source, l.slug, l.diagnosticUrl, l.notes].map(csvCell)].join(",");
     const size = Buffer.byteLength(line) + 2;
     if (bytes + size > maxBytes) {
       truncated = true;

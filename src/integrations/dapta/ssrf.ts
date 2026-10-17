@@ -32,7 +32,7 @@ export function isPrivateIp(ip: string): boolean {
     const mapped = l.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
     if (mapped) return ipv4Private(mapped[1]!);
     // hex form of IPv4-mapped (::ffff:7f00:1) and any other ::ffff: -> treat as private
-    if (l.startsWith("::ffff:")) return true;
+    if (l.startsWith("::ffff:") || l.startsWith("64:ff9b:") || l.startsWith("2002:") || /^::\d/.test(l)) return true;
     return l === "::" || l === "::1" || /^f[cd]/.test(l) || /^fe[89ab]/.test(l) || l.startsWith("ff");
   }
   return false;

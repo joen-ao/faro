@@ -42,7 +42,7 @@ describe("webhook processing", () => {
     conn = await createTestDb();
     const [c] = await conn.db.insert(companies).values({ name: "Clinica Uno", normalizedName: "clinica uno", city: "Bogota", website: "https://uno.co" }).returning();
     await conn.db.insert(contactPoints).values([
-      { companyId: c!.id, type: "phone", value: "+573001112233" },
+      { companyId: c!.id, type: "phone", value: "+573001112233", sourceChannel: "osm" },
       { companyId: c!.id, type: "email", value: "info@uno.co", isGeneric: true },
     ]);
     const [l] = await conn.db.insert(leads).values({ companyId: c!.id, primarySource: "osm", slug: "clinica-uno-1a2b", fitScore: 80 }).returning();
@@ -87,6 +87,10 @@ describe("webhook processing", () => {
     expect(daptaWebhookSchema.safeParse({ conversation_id: "c6", slug: "a" }).success).toBe(false);
   });
 
+  it("uses credits_used when ai_replies is 0", async () => {
+    const r = await processDaptaWebhook(conn.db, daptaWebhookSchema.parse({ conversation_id: "c8", slug: "clinica-uno-1a2b", qualified: true, ai_replies: 0, credits_used: 50 }), env);
+    expect(r).toMatchObject({ costUsd: 0.05, credits: 50 });
+  });
   it("does not resurrect an opted-out lead", async () => {
     await conn.db.update(leads).set({ status: "opted_out" }).where(eq(leads.id, leadId));
     await processDaptaWebhook(conn.db, daptaWebhookSchema.parse({ conversation_id: "c7", slug: "clinica-uno-1a2b", qualified: true }), env);
@@ -108,6 +112,7 @@ describe("webhook processing", () => {
     await conn.db.update(leads).set({ status: "found" }).where(eq(leads.id, leadId));
     const list = await selectLeadsForDapta(conn.db, { appUrl: "https://faro.test/" });
     expect(list).toHaveLength(1);
+    expect(list[0]!.phone).toBe("+573001112233");
     expect(list[0]).toMatchObject({ slug: "clinica-uno-1a2b", email: "info@uno.co", diagnosticUrl: "https://faro.test/d/clinica-uno-1a2b" });
     await conn.db.insert(suppression).values({ kind: "domain", value: "uno.co", reason: "optout" });
     expect(await selectLeadsForDapta(conn.db, { appUrl: "https://faro.test" })).toHaveLength(0);
@@ -126,6 +131,11 @@ describe("csv", () => {
     expect(out.csv).toContain("'@SUM(1)");
     expect(out.csv).not.toMatch(/(^|,)=cmd/m);
   });
+  it("keeps E.164 phones dialable in the telefono column", () => {
+    const out = buildCsv([rec({ phone: "+573001112233" }), rec({ phone: "=1+1" })]);
+    expect(out.csv).toContain("Clinica Uno,+573001112233,");
+    expect(out.csv).toContain("'=1+1");
+  });
   it("caps size at 5 MB", () => {
     const big = Array.from({ length: 30000 }, (_, i) => rec({ leadId: `${i}`, notes: "x".repeat(300) }));
     const out = buildCsv(big);
@@ -140,7 +150,7 @@ describe("SSRF", () => {
   it.each([
     "http://127.0.0.1/x", "http://10.0.0.1/x", "http://169.254.169.254/latest", "https://127.0.0.1/", "https://localhost/",
     "https://192.168.1.5/", "https://172.16.0.1/", "https://[::1]/", "https://[::ffff:127.0.0.1]/", "https://[fd00::1]/",
-    "https://svc.internal/", "https://intranet/", "https://u:p@example.com/", "https://2130706433/", "ftp://example.com/", "not a url",
+    "https://svc.internal/", "https://intranet/", "https://u:p@example.com/", "https://2130706433/", "https://[64:ff9b::7f00:1]/", "https://[2002:7f00:1::]/", "ftp://example.com/", "not a url",
   ])("blocks %s", (u) => {
     expect(() => assertSafePushUrl(u)).toThrow();
   });
@@ -222,6 +232,7 @@ describe("requireAppAccess", () => {
     expect(requireAppAccess(r({ "x-app-key": "abc" }), env)).toBeNull();
     expect(requireAppAccess(r({ cookie: "a=1; faro_key=abc" }), env)).toBeNull();
     expect(requireAppAccess(r({ "x-app-key": "bad" }), env)?.status).toBe(401);
+    expect(requireAppAccess(r({ cookie: "faro_key=%E0%A4%A" }), env)?.status).toBe(401);
     expect(requireAppAccess(r(), env)?.status).toBe(401);
     expect(requireAppAccess(r(), {})).toBeNull();
     expect(requireAppAccess(r(), { NODE_ENV: "production" })?.status).toBe(401);

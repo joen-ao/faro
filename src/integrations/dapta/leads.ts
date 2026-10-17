@@ -35,7 +35,8 @@ export async function selectLeadsForDapta(
     if (lead.isDemo && !opts.includeDemo) continue;
     const cps = byCompany.get(company.id) ?? [];
     const email = cps.find((c) => c.type === "email" && c.isGeneric)?.value ?? "";
-    const phone = cps.find((c) => c.type === "phone" || c.type === "whatsapp")?.value ?? "";
+    const phone = // Only company phones: flagged generic or coming from a company source (SPEC §8).
+    cps.find((c) => (c.type === "phone" || c.type === "whatsapp") && (c.isGeneric || c.sourceChannel !== null))?.value ?? "";
     const domain = company.website?.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]?.toLowerCase();
     const isBlocked =
       (email && (suppressed.has(email.toLowerCase()) || suppressed.has(email.split("@")[1]?.toLowerCase() ?? "-"))) ||
