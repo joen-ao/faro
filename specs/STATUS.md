@@ -21,7 +21,7 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F14 | Tablero | P0/P1 | DONE | feat/F14-tablero | 2 | Tablero: KPIs con IC 90%, matriz fuente×canal trazable a recibos, embudo, pauta vs gratis, recomendación honesta, cumplimiento, toggle demo; 3 MINOR (F14-r2) |
 | F15 | Integración Dapta | P1 | DONE | feat/F15-dapta | 2 | Webhook con secreto, http_push con SSRF y SEND_ENABLED, csv_export anti-fórmulas, créditos; requireAppAccess (APP_ACCESS_KEY). 7 MINOR (F15-r2) |
 | F16 | Meta Ads | P1 | IN_REVIEW | | 0 | |
-| F17 | WhatsApp vía Dapta | P2 | IN_PROGRESS | | 0 | |
+| F17 | WhatsApp vía Dapta | P2 | DONE | feat/F17-whatsapp | 2 | WhatsApp vía Dapta: CSV de secuencias tras WHATSAPP_ENABLED, solo teléfonos de empresa CO, webhook con secreto, STOP suprime; 3 MINOR |
 | F18 | Landing + video HyperFrames | P1 | DONE | feat/F18-landing | 1 | Landing estilo Dapta + video HyperFrames local (1,2 MB, rotulado demostración); Lighthouse móvil 94–96/100, desktop 100/100; MINOR aplicados |
 | F19 | Búsqueda en vivo con mapa | P1 | IN_REVIEW | | 0 | |
 | F20 | Recomendación + bandit | P2 | DONE | feat/F20-bandit | 2 | Thompson sampling por fuente con P(mejor), datos insuficientes honestos, simulación siempre etiquetada; 2 MINOR (F20-r2) |

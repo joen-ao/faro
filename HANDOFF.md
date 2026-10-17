@@ -28,3 +28,4 @@
 - 2026-10-17 04:37 · F06 → DONE: Fetch directo con robots/SSRF/guard Maps-redes, correos genéricos estrictos, redacción de nombres, Apify mock con prorrateo; 2 MINOR (sufijos con apellido en isGenericEmail)
 - 2026-10-17 04:39 · F18 → DONE: Landing estilo Dapta + video HyperFrames local (1,2 MB, rotulado demostración); Lighthouse móvil 94–96/100, desktop 100/100; MINOR aplicados
 - 2026-10-17 04:49 · F20 → DONE: Thompson sampling por fuente con P(mejor), datos insuficientes honestos, simulación siempre etiquetada; 2 MINOR (F20-r2)
+- 2026-10-17 04:53 · F17 → DONE: WhatsApp vía Dapta: CSV de secuencias tras WHATSAPP_ENABLED, solo teléfonos de empresa CO, webhook con secreto, STOP suprime; 3 MINOR
