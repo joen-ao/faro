@@ -49,6 +49,7 @@ export const envSchema = z.object({
   DAPTA_CREDIT_USD: num(0.001),
   DAPTA_CREDITS_PER_AI_REPLY: num(40),
   WHATSAPP_ENABLED: bool(false),
+  WHATSAPP_WEBHOOK_SECRET: optStr,
   META_ADS_CAMPAIGN_ID: optStr,
   NEXT_PUBLIC_MAP_STYLE_URL: optStr,
   SENDER_LEGAL_NAME: optStr,
