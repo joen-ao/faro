@@ -1,0 +1,40 @@
+/* Faro design tokens (Dapta-style, SPEC §10). Dark by default. */
+:root {
+  --faro-bg: #000000;
+  --faro-surface-1: #0f0f0f;
+  --faro-surface-2: #1a1a1c;
+  --faro-surface-3: #343437;
+  --faro-accent: #cbe850;
+  --faro-accent-ink: #1a1a1c;
+  --faro-text: #ffffff;
+  --faro-text-2: rgba(255, 255, 255, 0.6);
+  --faro-text-3: #9b9999;
+  --faro-border: rgba(255, 255, 255, 0.14);
+  --faro-border-active: #cbe850;
+  --faro-danger: #ff6b6b;
+  --faro-gradient-brand: linear-gradient(90deg, #cbe850 0%, #000000 100%);
+  --faro-glow-violet: radial-gradient(60% 60% at 50% 0%, rgba(124, 58, 237, 0.35) 0%, rgba(0, 0, 0, 0) 70%);
+  --faro-radius-button: 10px;
+  --faro-radius-card: 16px;
+
+  /* shadcn semantic tokens mapped to Faro */
+  --background: var(--faro-bg);
+  --foreground: var(--faro-text);
+  --card: var(--faro-surface-1);
+  --card-foreground: var(--faro-text);
+  --popover: var(--faro-surface-2);
+  --popover-foreground: var(--faro-text);
+  --primary: var(--faro-accent);
+  --primary-foreground: var(--faro-accent-ink);
+  --secondary: var(--faro-surface-2);
+  --secondary-foreground: var(--faro-text);
+  --muted: var(--faro-surface-2);
+  --muted-foreground: var(--faro-text-3);
+  --accent: var(--faro-surface-3);
+  --accent-foreground: var(--faro-text);
+  --destructive: var(--faro-danger);
+  --border: var(--faro-border);
+  --input: var(--faro-border);
+  --ring: var(--faro-accent);
+  --radius: var(--faro-radius-button);
+}
