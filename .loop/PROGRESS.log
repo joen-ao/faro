@@ -22,3 +22,4 @@
 2026-10-17 05:05 | 21 | F21 | →DONE | README completo (arquitectura, fuentes/licencias, costos, cómo correr verificado desde cero); requireAppAccess en receipt/matrix; F19 pendiente de actualizar en README | F19 r3
 2026-10-17 05:09 | 22 | F19 | →DONE | Mapa MapLibre con capa GeoJSON y clusters (2k pts), lotes reanudables con advisory lock, panel, lista virtualizada, drawer con LeadReceipt; nombres de persona OSM excluidos por lista blanca. MAJOR abierto (recall: descarta 74% restaurantes) → F19b | F19b
 2026-10-17 05:38 | 23 | F19b | →DONE | Filtro de nombres por categoría: restaurantes 97% y dental 94% conservados, 0 personas; enmascarados sin datos personales; fixtures sintéticos; README F19 actualizado | cierre
+2026-10-17 05:40 | 24 | cierre | →DONE | 22/22 features DONE + F19b; check y e2e (34) verdes en main; HANDOFF §7 completo | Joen: credenciales, deploy, ICP, publicar repo con historia limpia
