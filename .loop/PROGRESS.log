@@ -13,3 +13,5 @@
 2026-10-17 04:13 | 12 | F12 | →DONE | /d/[slug] y /d/icp/[icpSlug], widget Dapta aislado o placeholder, opt-out, eventos con dedupe/rate limit, formulario con honeypot; 3 MINOR (F12-r3) | F16
 2026-10-17 04:22 | 13 | F14 | →DONE | Tablero: KPIs con IC 90%, matriz fuente×canal trazable a recibos, embudo, pauta vs gratis, recomendación honesta, cumplimiento, toggle demo; 3 MINOR (F14-r2) | F10/F06
 2026-10-17 04:29 | 14 | F10 | →DONE | Mensajes IA con remitente/baja/dirección, canal email>form asistido, cola atómica con idempotency key, ventanas, SEND_ENABLED=false→simulated; 4 MINOR (F10-r2) | F11
+2026-10-17 04:37 | 15 | F06 | →DONE | Fetch directo con robots/SSRF/guard Maps-redes, correos genéricos estrictos, redacción de nombres, Apify mock con prorrateo; 2 MINOR (sufijos con apellido en isGenericEmail) | F16/F18/F19/F20
+2026-10-17 04:39 | 16 | F18 | →DONE | Landing estilo Dapta + video HyperFrames local (1,2 MB, rotulado demostración); Lighthouse móvil 94–96/100, desktop 100/100; MINOR aplicados | F16/F19/F20/F11/F17
