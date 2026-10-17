@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { ReplyDialog } from "./reply-dialog";
 
 type Channel = "email" | "web_form" | "whatsapp" | "dapta_widget";
 interface Block {
@@ -138,6 +139,7 @@ export function OutreachClient(props: {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [replyFor, setReplyFor] = useState<RowView | null>(null);
 
   const active = rows.find((r) => r.leadId === activeId) ?? null;
   const channelOf = (r: RowView): Channel | null => override[r.leadId] ?? r.suggested;
@@ -393,6 +395,20 @@ export function OutreachClient(props: {
                       <button type="button" onClick={() => open(r)} className="h-8 rounded-button border border-border px-3 text-xs hover:border-faro-accent hover:text-faro-accent">
                         {ch === "web_form" ? "Modo asistido" : "Vista previa"}
                       </button>
+                      {r.status === "responded" ? (
+                        <Chip tone="ok">Respondió</Chip>
+                      ) : (
+                        r.status !== "opted_out" && (
+                          <button
+                            type="button"
+                            data-testid="mark-reply"
+                            onClick={() => setReplyFor(r)}
+                            className="h-8 rounded-button border border-border px-3 text-xs hover:border-faro-accent hover:text-faro-accent"
+                          >
+                            Marcar respondió
+                          </button>
+                        )
+                      )}
                     </div>
                   </li>
                 );
@@ -554,6 +570,19 @@ export function OutreachClient(props: {
           </section>
         </div>
       </div>
+    {replyFor && (
+        <ReplyDialog
+          leadId={replyFor.leadId}
+          companyName={replyFor.name}
+          initialChannel={(channelOf(replyFor) ?? "email") as Channel}
+          onClose={() => setReplyFor(null)}
+          onDone={(text) => {
+            setReplyFor(null);
+            setFeedback({ tone: "ok", text });
+            router.refresh();
+          }}
+        />
+      )}
     </main>
   );
 }
