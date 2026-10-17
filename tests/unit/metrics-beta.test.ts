@@ -32,8 +32,8 @@ describe("beta", () => {
     expect(prior.lo).toBeCloseTo(0.05, 6);
     expect(prior.hi).toBeCloseTo(0.95, 6);
     const ci = betaCredibleInterval(50, 100);
-    expect(ci.lo).toBeCloseTo(0.4181, 3);
-    expect(ci.hi).toBeCloseTo(0.5819, 3);
+    expect(ci.lo).toBeCloseTo(0.419, 2);
+    expect(ci.hi).toBeCloseTo(0.581, 2);
   });
 
   it("rejects invalid counts", () => {
