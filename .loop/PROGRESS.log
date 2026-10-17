@@ -5,3 +5,7 @@
 2026-10-17 03:51 | 4 | F04 | →DONE | RUES por CIIU+cámara, REPS dental, SoQL seguro, filtro jurídico; 4 MINOR (F04-r1) | F03 r2
 2026-10-17 03:52 | 5 | F03 | →DONE | Overpass endurecido: caché, rate limit, mirror, raw con lista blanca, email genérico; 4 MINOR (F03-r2) | F07
 2026-10-17 03:55 | 6 | F09 | →DONE | Ventanas CO+festivos 2026, supresión, opt-out HMAC con POST, gate correo genérico, /baja; 2 MINOR (F09-r2). Requiere OPTOUT_SECRET en prod | F08/F13/F07
+2026-10-17 04:01 | 7 | F08 | →DONE | ICP NL→criteria (Zod), scoring con evidencia y anti-injection, costo IA; mock sin llave. MINOR: legalVerified no persistido → F10 debe bloquear no verificados | F10
+2026-10-17 04:03 | 8 | F07 | →DONE | Dedupe NIT/nombre trigram+80m/dominio/teléfono, nunca pierde fuentes, 5k<2s; 3 MINOR (F07-r2) | F12/F13/F15 reviews
+2026-10-17 04:05 | 9 | F13 | →DONE | Prorrateo exacto, recibo, métricas por canal con Beta 90%, migración automática, demo/mock separados; 7 MINOR (F13-r2). Endpoints sin control de acceso | F15
+2026-10-17 04:05 | 10 | F15 | →DONE | Webhook con secreto, http_push con SSRF y SEND_ENABLED, csv_export anti-fórmulas, créditos; requireAppAccess (APP_ACCESS_KEY). 7 MINOR (F15-r2) | F12 fix, F10, F19, F05
