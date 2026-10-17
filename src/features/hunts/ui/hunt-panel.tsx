@@ -36,6 +36,8 @@ export interface PanelProps {
   tab: PanelTab;
   onTab: (t: PanelTab) => void;
   loading: boolean;
+  /** Phone layout: sources collapse to one row of pills so the list keeps room. */
+  compact?: boolean;
 }
 
 function Big({ value, label, accent, loading }: { value: number; label: string; accent?: boolean; loading: boolean }) {
@@ -45,7 +47,7 @@ function Big({ value, label, accent, loading }: { value: number; label: string; 
       {loading ? (
         <div className="faro-skeleton h-8 w-16" />
       ) : (
-        <div className={cn("text-[30px] leading-none font-semibold tabular-nums", accent ? "text-faro-accent" : "text-white")} style={{ fontFamily: "var(--font-poppins)", letterSpacing: "-0.03em" }}>
+        <div className={cn("text-[25px] leading-none font-semibold tabular-nums md:text-[30px]", accent ? "text-faro-accent" : "text-white")} style={{ fontFamily: "var(--font-poppins)", letterSpacing: "-0.03em" }}>
           {fmtInt(n)}
         </div>
       )}
@@ -76,7 +78,7 @@ function SourceRow({ id, p, counts, active, error, pressed, onToggle }: { id: Hu
       aria-pressed={pressed}
       aria-label={`Filtrar por ${SOURCE_LABEL[id]}`}
       className={cn(
-        "group block w-full rounded-[10px] border px-3 py-2.5 text-left transition-colors disabled:cursor-default",
+        "group block w-full rounded-[10px] border px-3 py-2 text-left md:py-2.5 transition-colors disabled:cursor-default",
         pressed ? "border-faro-accent bg-faro-surface-2" : "border-white/[0.08] bg-faro-surface-1 enabled:hover:border-white/25",
         skipped && "opacity-55",
       )}
@@ -98,16 +100,37 @@ function SourceRow({ id, p, counts, active, error, pressed, onToggle }: { id: Hu
         </span>
       </div>
       {!skipped && (
-        <div className="mt-2 h-[3px] overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={`Progreso de ${SOURCE_LABEL[id]}`}>
+        <div className="mt-1.5 h-[3px] overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={`Progreso de ${SOURCE_LABEL[id]}`}>
           <div className={cn("h-full rounded-full bg-faro-accent transition-[width] duration-700 ease-out", st.tone === "run" && "faro-beam")} style={{ width: `${pct}%` }} />
         </div>
       )}
-      <div className={cn("mt-1.5 flex items-center gap-1.5 text-[11.5px]", st.tone === "warn" ? "text-[var(--faro-danger)]" : st.tone === "ok" ? "text-faro-text-2" : "text-faro-text-3")}>
+      <div className={cn("mt-1.5 items-center gap-1.5 text-[11.5px]", st.tone === "warn" ? "flex" : "hidden md:flex", st.tone === "warn" ? "text-[var(--faro-danger)]" : st.tone === "ok" ? "text-faro-text-2" : "text-faro-text-3")}>
         {st.tone === "ok" && <Check className="size-3 text-faro-accent" aria-hidden />}
         {st.tone === "warn" && <AlertTriangle className="size-3" aria-hidden />}
         {st.tone === "run" && <span className="faro-live-dot !size-1.5" aria-hidden />}
         <span className="truncate">{st.text}</span>
       </div>
+    </button>
+  );
+}
+
+function SourcePill({ id, p, counts, active, pressed, error, onToggle }: { id: HuntSource; p: SourceProgress; counts?: Counters["total"]; active: boolean; pressed: boolean; error?: string; onToggle: () => void }) {
+  const skipped = p.state === "skipped";
+  const running = active || p.state === "running";
+  const pct = p.state === "done" ? 100 : p.total ? Math.min(100, (p.fetched / p.total) * 100) : 0;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={skipped}
+      aria-pressed={pressed}
+      aria-label={`Filtrar por ${SOURCE_LABEL[id]}: ${counts?.found ?? 0} encontradas`}
+      className={cn("relative flex h-10 min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-[10px] border px-2.5 text-left", pressed ? "border-faro-accent bg-faro-surface-2" : "border-white/[0.1] bg-faro-surface-1", skipped && "opacity-50")}
+    >
+      {error || p.state === "error" ? <AlertTriangle className="size-3.5 shrink-0 text-[var(--faro-danger)]" aria-hidden /> : running ? <span className="faro-live-dot !size-1.5 shrink-0" aria-hidden /> : p.state === "done" ? <Check className="size-3.5 shrink-0 text-faro-accent" aria-hidden /> : null}
+      <span className="min-w-0 truncate text-[12.5px] font-semibold text-white">{SOURCE_SHORT[id]}</span>
+      <span className="ml-auto text-[12.5px] text-faro-text-2 tabular-nums">{skipped ? "—" : fmtInt(counts?.found ?? 0)}</span>
+      {!skipped && <span aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] bg-white/10"><span className="block h-full bg-faro-accent transition-[width] duration-700" style={{ width: `${pct}%` }} /></span>}
     </button>
   );
 }
@@ -215,20 +238,24 @@ export function HuntPanel(p: PanelProps) {
   ];
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="grid grid-cols-3 gap-3 px-5 pt-5 pb-4" aria-live="polite">
+      <div className="grid grid-cols-3 gap-3 px-5 pt-3 pb-3 md:pt-5 md:pb-4" aria-live="polite">
         <Big loading={loading} value={t?.found ?? 0} label="Empresas encontradas" />
         <Big loading={loading} value={t?.fit ?? 0} label="Del perfil" accent />
         <Big loading={loading} value={t?.duplicates ?? p.mergedDuplicates} label="Duplicados fusionados" />
       </div>
 
-      <div className="space-y-2 px-4 pb-3">
+      <div className={cn("px-4 pb-3", p.compact ? "flex gap-2" : "space-y-2")}>
         {loading
-          ? [0, 1, 2].map((i) => <div key={i} className="faro-skeleton h-[74px]" />)
-          : srcKeys.map((k) => (
+          ? [0, 1, 2].map((i) => <div key={i} className={cn("faro-skeleton", p.compact ? "h-10 flex-1" : "h-[74px]")} />)
+          : p.compact
+            ? srcKeys.map((k) => (
+                <SourcePill key={k} id={k} p={p.sources[k]!} counts={p.counters?.bySource[k]} active={p.runnerActive.has(k)} error={p.runnerErrors[k]} pressed={p.sourceFilter.has(k)} onToggle={() => p.onToggleSource(k)} />
+              ))
+            : srcKeys.map((k) => (
               <SourceRow key={k} id={k} p={p.sources[k]!} counts={p.counters?.bySource[k]} active={p.runnerActive.has(k)} error={p.runnerErrors[k]} pressed={p.sourceFilter.has(k)} onToggle={() => p.onToggleSource(k)} />
             ))}
         {Object.values(p.runnerErrors).some(Boolean) && (
-          <button type="button" onClick={p.onRetry} className="flex items-center gap-1.5 rounded-[10px] border border-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:border-faro-accent">
+          <button type="button" onClick={p.onRetry} className="flex shrink-0 items-center gap-1.5 rounded-[10px] border border-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:border-faro-accent">
             <RotateCw className="size-3.5" aria-hidden /> Reintentar fuentes con error
           </button>
         )}
@@ -271,7 +298,7 @@ export function HuntPanel(p: PanelProps) {
                   </button>
                 )}
               </label>
-              <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar por estado">
+              <div className="faro-scroll flex items-center gap-1.5 overflow-x-auto md:flex-wrap md:overflow-visible" role="group" aria-label="Filtrar por estado">
                 {POINT_STATUSES.map((s) => {
                   const on = p.statusFilter.has(s);
                   return (
@@ -280,7 +307,7 @@ export function HuntPanel(p: PanelProps) {
                       type="button"
                       aria-pressed={on}
                       onClick={() => p.onToggleStatus(s)}
-                      className={cn("inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-medium transition-colors", on ? "border-faro-accent bg-faro-surface-2 text-white" : "border-white/[0.14] text-faro-text-2 hover:border-white/30 hover:text-white")}
+                      className={cn("inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-medium transition-colors", on ? "border-faro-accent bg-faro-surface-2 text-white" : "border-white/[0.14] text-faro-text-2 hover:border-white/30 hover:text-white")}
                     >
                       <StatusDot status={s} className="!size-2" />
                       {STATUS_LABEL[s]}

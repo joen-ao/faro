@@ -13,7 +13,7 @@ import { HuntPanel, type PanelTab } from "./hunt-panel";
 import { LeadDrawer } from "./lead-drawer";
 import { StatusDot } from "./lead-list";
 import type { FlyRequest } from "./map-view";
-import { STATUS_LABEL } from "./format";
+import { STATUS_LABEL, prettyCity } from "./format";
 import { useHuntRunner, useHuntStream } from "./use-hunt-stream";
 
 const MapView = dynamic(() => import("./map-view"), { ssr: false, loading: () => <div className="faro-skeleton absolute inset-0 !rounded-none" aria-label="Cargando el mapa" /> });
@@ -33,7 +33,7 @@ function useMedia(query: string): boolean {
 }
 
 type Snap = "peek" | "half" | "full";
-const SNAP_CSS: Record<Snap, string> = { peek: "152px", half: "52dvh", full: "90dvh" };
+const SNAP_CSS: Record<Snap, string> = { peek: "152px", half: "56dvh", full: "90dvh" };
 const SNAP_ORDER: Snap[] = ["peek", "half", "full"];
 
 function StatusPill({ status, active, isDemo }: { status: string | null; active: boolean; isDemo: boolean }) {
@@ -89,7 +89,7 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
   const select = useCallback(
     (p: StreamPoint) => {
       setSelected({ id: p.id, name: p.name });
-      if (hasLocation(p)) setFly({ lng: p.lng, lat: p.lat, zoom: 15.2, nonce: ++flyNonce.current });
+      if (hasLocation(p)) setFly({ lng: p.lng, lat: p.lat, zoom: 14.6, nonce: ++flyNonce.current });
       if (mobile) setSnap("peek");
     },
     [mobile],
@@ -120,7 +120,7 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
     window.addEventListener("resize", on);
     return () => window.removeEventListener("resize", on);
   }, []);
-  const sheetPx = snap === "peek" ? 152 : snap === "half" ? vh * 0.52 : vh * 0.9;
+  const sheetPx = snap === "peek" ? 152 : snap === "half" ? vh * 0.56 : vh * 0.9;
   const padding = mobile ? { top: 84, right: 24, bottom: Math.min(sheetPx, vh * 0.55) + 24, left: 24 } : { top: 110, right: (selected ? 460 : 400) + 52, bottom: 60, left: 40 };
   const fitKey = `${[...srcFilter].sort()}|${[...statusFilter].sort()}`;
 
@@ -171,6 +171,7 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
       tab={tab}
       onTab={setTab}
       loading={stream.loading}
+      compact={mobile}
     />
   );
 
@@ -186,7 +187,7 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
           </Link>
           <div className="min-w-0">
             <h1 className="truncate text-[16px] leading-tight font-semibold md:text-[18px]" data-testid="hunt-title">
-              {stream.loading ? <span className="faro-skeleton inline-block h-5 w-44 align-middle" /> : `${title}${stream.city ? ` · ${stream.city}` : ""}`}
+              {stream.loading ? <span className="faro-skeleton inline-block h-5 w-44 align-middle" /> : `${title}${stream.city ? ` · ${prettyCity(stream.city)}` : ""}`}
             </h1>
             <div className="mt-1.5">
               <StatusPill status={stream.status} active={runnerActive.size > 0} isDemo={stream.isDemo} />

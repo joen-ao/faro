@@ -2,7 +2,7 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./hunts.css";
-import type { ExpressionSpecification, GeoJSONSource, StyleSpecification } from "maplibre-gl";
+import { setWorkerUrl, type ExpressionSpecification, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
 import { Crosshair } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MapGL, { AttributionControl, Layer, NavigationControl, Popup, Source, type LayerProps, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
@@ -10,6 +10,10 @@ import { boundsOf, hasLocation, toFeatureCollection } from "../geojson";
 import type { StreamPoint } from "../types";
 import { prefersReducedMotion } from "./use-count-up";
 import type { ArrivalBatch } from "./use-hunt-stream";
+
+// Turbopack rewrites `import.meta.url`, which breaks MapLibre's default worker lookup: serve the worker ourselves.
+// public/maplibre-gl-worker.mjs is a verbatim copy of node_modules/maplibre-gl/dist (guarded by a unit test).
+setWorkerUrl("/maplibre-gl-worker.mjs");
 
 export const DEFAULT_MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 const MAP_STYLE = process.env.NEXT_PUBLIC_MAP_STYLE_URL || DEFAULT_MAP_STYLE;
@@ -29,6 +33,9 @@ const FOUND = "#8a8a8f";
 const IS_FIT: ExpressionSpecification = ["in", ["get", "status"], ["literal", ["fit", "contacted", "qualified"]]];
 const isStatus = (s: string): ExpressionSpecification => ["==", ["get", "status"], s];
 const zoomR = (a: number, b: number, c: number): ExpressionSpecification => ["interpolate", ["linear"], ["zoom"], 9, a, 13, b, 17, c];
+
+/** Zoom must be the outermost expression: each stop picks its radius by status (found, fit, contacted/qualified). */
+const radiusAt = (found: number, fit: number, adv: number): ExpressionSpecification => ["match", ["get", "status"], "found", found, "fit", fit, adv];
 
 const clusterLayer: LayerProps = {
   id: "clusters",
@@ -68,7 +75,7 @@ const pointLayer: LayerProps = {
   layout: { "circle-sort-key": ["match", ["get", "status"], "qualified", 3, "contacted", 2, "fit", 1, 0] },
   paint: {
     "circle-color": ["match", ["get", "status"], "qualified", LIME, "contacted", "#ffffff", "fit", LIME, FOUND],
-    "circle-radius": ["match", ["get", "status"], "found", zoomR(2.2, 4, 7), "fit", zoomR(3, 5.5, 9), zoomR(3.6, 6, 10)],
+    "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, radiusAt(2.2, 3, 3.6), 13, radiusAt(4, 5.5, 6), 17, radiusAt(7, 9, 10)],
     "circle-opacity": ["match", ["get", "status"], "found", 0.7, 1],
     "circle-stroke-width": ["match", ["get", "status"], "qualified", 1.6, "contacted", 1.2, 0],
     "circle-stroke-color": ["match", ["get", "status"], "qualified", "#ffffff", "contacted", "rgba(203,232,80,0.9)", "transparent"],
@@ -264,6 +271,7 @@ export default function MapView({ points, arrival, selectedId, onSelect, fly, pa
         onMouseLeave={() => setHover(null)}
         onError={(e) => {
           const err = e.error as (Error & { sourceId?: string; status?: number }) | undefined;
+          if (process.env.NODE_ENV !== "production") console.warn("[map]", err?.message);
           if (!styleFailed && err && !err.sourceId && /style|fetch|load/i.test(err.message)) {
             setStyleFailed(true);
             setStyle(FALLBACK_STYLE);
@@ -272,7 +280,7 @@ export default function MapView({ points, arrival, selectedId, onSelect, fly, pa
         reuseMaps
         style={{ width: "100%", height: "100%", background: "#0a0a0b" }}
       >
-        <AttributionControl position="bottom-left" compact={false} customAttribution="Faro" />
+        <AttributionControl position="bottom-left" compact={false} />
         <NavigationControl position="bottom-left" showCompass={false} />
         <Source id="leads" type="geojson" data={data} cluster clusterMaxZoom={13} clusterRadius={46} clusterProperties={{ fit: ["+", ["case", IS_FIT, 1, 0]] }}>
           <Layer {...clusterLayer} />

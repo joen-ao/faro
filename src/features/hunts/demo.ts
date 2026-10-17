@@ -115,8 +115,17 @@ const criteriaFor = (status: Status, row: DemoRow) => {
 
 const chunk = <T,>(a: T[], n = 400): T[][] => Array.from({ length: Math.ceil(a.length / n) }, (_, k) => a.slice(k * n, k * n + n));
 
-/** Idempotent. Everything is `is_demo` (and sources `is_mock`) so it never touches real totals. */
-export async function ensureDemoHunt(db: AppDb): Promise<string> {
+let seeding: Promise<string> | undefined;
+
+/** Idempotent and single-flight per process. Everything is `is_demo` (and sources `is_mock`) so it never touches real totals. */
+export function ensureDemoHunt(db: AppDb): Promise<string> {
+  return (seeding ??= seedDemo(db).catch((e) => {
+    seeding = undefined;
+    throw e;
+  }));
+}
+
+async function seedDemo(db: AppDb): Promise<string> {
   const [existing] = await db.select({ id: hunts.id }).from(hunts).where(eq(hunts.id, DEMO_HUNT_ID)).limit(1);
   if (existing) return DEMO_HUNT_ID;
 

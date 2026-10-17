@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils";
 export function FaroMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={cn("size-6", className)} aria-hidden fill="none">
-      <path d="M12 12 3.5 5.2a14 14 0 0 1 17 0L12 12Z" fill="#cbe850" opacity="0.95" />
-      <circle cx="12" cy="13.2" r="2.6" fill="#cbe850" />
-      <path d="M8 21h8M12 15.8V21" stroke="#cbe850" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="2.8" fill="#cbe850" />
+      <path d="M7.2 7.2a6.8 6.8 0 0 0 0 9.6M16.8 7.2a6.8 6.8 0 0 1 0 9.6" stroke="#cbe850" strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M4.2 4.2a11 11 0 0 0 0 15.6M19.8 4.2a11 11 0 0 1 0 15.6" stroke="#cbe850" strokeWidth="1.9" strokeLinecap="round" opacity="0.5" />
     </svg>
   );
 }

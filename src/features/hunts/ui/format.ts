@@ -78,3 +78,7 @@ export const COST_LABEL: Record<string, string> = {
   ads: "Pauta",
   human: "Tiempo humano",
 };
+
+const CITY_NAMES: Record<string, string> = { bogota: "Bogotá", medellin: "Medellín", cali: "Cali", barranquilla: "Barranquilla", miami: "Miami" };
+/** Presets store ASCII city names; show them with their accents. */
+export const prettyCity = (c: string): string => CITY_NAMES[c.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()] ?? c;
