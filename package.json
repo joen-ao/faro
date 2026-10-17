@@ -13,7 +13,8 @@
     "e2e:smoke": "playwright test",
     "coverage:sources": "tsx scripts/coverage-test.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "db:seed": "tsx scripts/db-seed.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.10",
