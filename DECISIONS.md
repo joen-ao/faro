@@ -17,3 +17,5 @@
 - 2026-10-17 · F02: `.gitignore` ignoraba `coverage` en cualquier ruta (tapaba `src/features/coverage`); se anchó a `/coverage`.
 - 2026-10-17 03:44 · F02 se integró con `merge --squash` (no --no-ff) y se borró la rama local: commits intermedios tenían razones sociales con nombres de personas en fixtures; así no llegan al historial de main sin reescribir historia.
 - 2026-10-17 03:44 · Para cumplir la hora límite, features independientes se implementan en paralelo (hasta 3) en git worktrees, cada una con su review propio; DECISIONS.md usa merge=union.
+- 2026-10-17 · F08: modelo por defecto `claude-sonnet-5-5` (ANTHROPIC_MODEL); sin `thinking`/sampling params. `complete()` valida con Zod y reintenta 1 vez; el mock despacha por marcador `[[task:...]]` y usa presets/keywords (sin red).
+- 2026-10-17 · F08: scoring = reglas (web 20, contacto generico 20, juridica verificada 20, sector 20, ciudad 10, senales 10; reescala sin senales). Un criterio `cumplido` exige evidencia+URL; citas de la IA deben ser subcadena del texto web o se descartan. Costo IA mock con is_mock=true (fuera de totales); api_calls.cost_usd=0 (el costo vive en cost_entries).
