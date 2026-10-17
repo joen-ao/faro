@@ -17,7 +17,10 @@ export interface ViewProps {
   optOutHref: string | null;
 }
 
-/** Dapta widget: snippet comes ONLY from env and runs in a sandboxed iframe without same-origin access. */
+/**
+ * Dapta widget: snippet comes ONLY from env (never from source data). It runs in a sandboxed iframe that keeps
+ * allow-same-origin because the Dapta widget needs storage to open its chat; approved by Joen on 2026-10-17.
+ */
 function WidgetBlock({ snippet }: { snippet: string | undefined }) {
   if (!snippet) {
     return (
@@ -32,8 +35,7 @@ function WidgetBlock({ snippet }: { snippet: string | undefined }) {
     <iframe
       data-testid="dapta-widget"
       title="Asistente de Dapta"
-      sandbox="allow-scripts allow-forms allow-popups"
-      referrerPolicy="no-referrer"
+      sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
       loading="lazy"
       srcDoc={doc}
       className="h-[560px] w-full rounded-card border border-border bg-faro-surface-1"
