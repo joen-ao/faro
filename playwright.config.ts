@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 const PORT = 3100;
 process.env.OPTOUT_SECRET ??= "e2e-only-secret"; // inherited by the web server and the test workers
+process.env.FARO_SEED_DEMO = "1"; // seeds the demo-clinica lead (F12) and enables the demo-only events read
 
 export default defineConfig({
   testDir: "tests/e2e",
