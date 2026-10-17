@@ -23,6 +23,7 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F16 | Meta Ads | P1 | DONE | feat/F16-meta-ads | 2 | UTM builder, fbclid→meta_ads, carga de gasto manual/CSV con clave demo separada, CPL meta_ads real; 1 MINOR |
 | F17 | WhatsApp vía Dapta | P2 | DONE | feat/F17-whatsapp | 2 | WhatsApp vía Dapta: CSV de secuencias tras WHATSAPP_ENABLED, solo teléfonos de empresa CO, webhook con secreto, STOP suprime; 3 MINOR |
 | F18 | Landing + video HyperFrames | P1 | DONE | feat/F18-landing | 1 | Landing estilo Dapta + video HyperFrames local (1,2 MB, rotulado demostración); Lighthouse móvil 94–96/100, desktop 100/100; MINOR aplicados |
-| F19 | Búsqueda en vivo con mapa | P1 | IN_REVIEW | | 0 | |
+| F19 | Búsqueda en vivo con mapa | P1 | DONE | feat/F19-busqueda-en-vivo | 3 | Mapa MapLibre con capa GeoJSON y clusters (2k pts), lotes reanudables con advisory lock, panel, lista virtualizada, drawer con LeadReceipt; nombres de persona OSM excluidos por lista blanca. MAJOR abierto (recall: descarta 74% restaurantes) → F19b |
 | F20 | Recomendación + bandit | P2 | DONE | feat/F20-bandit | 2 | Thompson sampling por fuente con P(mejor), datos insuficientes honestos, simulación siempre etiquetada; 2 MINOR (F20-r2) |
+| F19b | Ajuste de recall de nombres de negocio (seguimiento de F19) | P1 | IN_PROGRESS | | 0 | MAJOR de F19-r3 |
 | F21 | README + HANDOFF | P0 | DONE | feat/F21-readme | 1 | README completo (arquitectura, fuentes/licencias, costos, cómo correr verificado desde cero); requireAppAccess en receipt/matrix; F19 pendiente de actualizar en README |

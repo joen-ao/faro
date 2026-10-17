@@ -32,3 +32,4 @@
 - 2026-10-17 04:54 · F16 → DONE: UTM builder, fbclid→meta_ads, carga de gasto manual/CSV con clave demo separada, CPL meta_ads real; 1 MINOR
 - 2026-10-17 04:56 · F11 → DONE: Webhook Resend (Svix) con idempotencia, reply→responded sin retroceder, baja por texto suprime siempre, marcado manual auditado; 3 NIT
 - 2026-10-17 05:05 · F21 → DONE: README completo (arquitectura, fuentes/licencias, costos, cómo correr verificado desde cero); requireAppAccess en receipt/matrix; F19 pendiente de actualizar en README
+- 2026-10-17 05:09 · F19 → DONE: Mapa MapLibre con capa GeoJSON y clusters (2k pts), lotes reanudables con advisory lock, panel, lista virtualizada, drawer con LeadReceipt; nombres de persona OSM excluidos por lista blanca. MAJOR abierto (recall: descarta 74% restaurantes) → F19b
