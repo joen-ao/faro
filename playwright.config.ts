@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 const PORT = 3100;
 process.env.OPTOUT_SECRET ??= "e2e-only-secret"; // inherited by the web server and the test workers
+process.env.APP_ACCESS_KEY ??= "e2e-key"; // /app pages are gated by requireAppAccess
 
 export default defineConfig({
   testDir: "tests/e2e",
