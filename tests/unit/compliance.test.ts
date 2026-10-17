@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { HOLIDAYS_CO_2026 } from "@/config/holidays-co-2026";
 import { checkSendWindow } from "@/features/compliance/windows";
 import { isGenericEmail, isLegalEntity, looksLikePersonalEmail } from "@/features/compliance/email";
@@ -32,6 +32,8 @@ describe("checkSendWindow (CO)", () => {
   it("blocks Saturday 15:01 and allows 14:59", () => {
     expect(checkSendWindow(bog("2026-10-17T15:01:00"), "CO").allowed).toBe(false);
     expect(checkSendWindow(bog("2026-10-17T14:59:00"), "CO").allowed).toBe(true);
+    expect(checkSendWindow(bog("2026-10-17T15:00:00"), "CO").allowed).toBe(true);
+    expect(checkSendWindow(bog("2026-10-17T15:00:59"), "CO").allowed).toBe(true);
     expect(checkSendWindow(bog("2026-10-17T07:59:00"), "CO").allowed).toBe(false);
     expect(checkSendWindow(bog("2026-10-17T08:00:00"), "CO").allowed).toBe(true);
   });
@@ -41,7 +43,8 @@ describe("checkSendWindow (CO)", () => {
     expect(early.nextAllowedAt).toEqual(bog("2026-10-19T07:00:00"));
     expect(checkSendWindow(bog("2026-10-19T07:00:00"), "CO").allowed).toBe(true);
     expect(checkSendWindow(bog("2026-10-19T18:59:00"), "CO").allowed).toBe(true);
-    expect(checkSendWindow(bog("2026-10-19T19:00:00"), "CO").nextAllowedAt).toEqual(bog("2026-10-20T07:00:00"));
+    expect(checkSendWindow(bog("2026-10-19T19:00:00"), "CO").allowed).toBe(true); // closing hour allowed through that minute
+    expect(checkSendWindow(bog("2026-10-19T19:01:00"), "CO").nextAllowedAt).toEqual(bog("2026-10-20T07:00:00"));
   });
   it("uses Bogotá time regardless of UTC date", () => {
     // 2026-10-19T01:00Z is Sunday 20:00 in Bogotá
@@ -100,6 +103,20 @@ describe("tokens", () => {
   it("works with default dev secret", () => {
     expect(verifyOptOutToken(createOptOutToken("l"))?.leadId).toBe("l");
   });
+  it("fails closed in production without OPTOUT_SECRET", () => {
+    const prev = { n: process.env.NODE_ENV, s: process.env.OPTOUT_SECRET };
+    vi.stubEnv("NODE_ENV", "production");
+    delete process.env.OPTOUT_SECRET;
+    try {
+      expect(() => createOptOutToken("l")).toThrow(/OPTOUT_SECRET/);
+      expect(() => verifyOptOutToken("a.b")).toThrow(/OPTOUT_SECRET/);
+      vi.stubEnv("OPTOUT_SECRET", "prod-secret");
+      expect(verifyOptOutToken(createOptOutToken("l"))?.leadId).toBe("l");
+    } finally {
+      vi.unstubAllEnvs();
+      if (prev.s) process.env.OPTOUT_SECRET = prev.s;
+    }
+  });
 });
 
 describe("evaluateOutreach", () => {
@@ -124,10 +141,24 @@ describe("evaluateOutreach", () => {
     );
     expect(r.blocks.every((b) => b.message.length > 10)).toBe(true);
   });
+  it("email gate is a whitelist of generic mailboxes", () => {
+    for (const v of ["camila@x.co", "luisa@x.co", "drgomez@x.co", "santiagoc@x.co"]) {
+      expect(evaluateOutreach(ok, { channel: "email", value: v }, mon).blocks.map((b) => b.rule)).toContain("personal_email");
+    }
+    for (const v of ["info@x.co", "citas@x.co", "contacto@x.co"]) {
+      expect(evaluateOutreach(ok, { channel: "email", value: v }, mon).allowed).toBe(true);
+    }
+  });
+  it("flags unverified legal entities and splits sender causes", () => {
+    expect(evaluateOutreach({ ...ok, legalVerified: false }, email, mon).unverifiedLegal).toBe(true);
+    expect(evaluateOutreach({ ...ok, legalVerified: true }, email, mon).unverifiedLegal).toBe(false);
+    const us = { ...ok, country: "US" as const };
+    expect(evaluateOutreach(us, email, mon, { senderIdentified: false, senderAddress: "x" }).blocks[0]?.rule).toBe("sender_missing");
+  });
   it("US: email only, needs address", () => {
     const us = { ...ok, country: "US" as const };
     expect(evaluateOutreach(us, { channel: "whatsapp", value: "+1" }, mon, { senderAddress: "x" }).blocks[0]?.rule).toBe("channel_not_allowed");
-    expect(evaluateOutreach(us, email, mon).blocks[0]?.rule).toBe("sender_missing");
+    expect(evaluateOutreach(us, email, mon).blocks[0]?.rule).toBe("sender_address_missing");
     expect(evaluateOutreach(us, email, mon, { senderAddress: "1 Main St" }).allowed).toBe(true);
   });
 });
@@ -167,11 +198,25 @@ describe("suppression, opt-out and metrics (db)", () => {
     expect(await isSuppressed(db, { domain: "clinicax.co" })).toBe(true);
     const again = await applyOptOut(db, token);
     expect(again).toMatchObject({ ok: true, suppressed: 0 });
+    // Forged contact / unknown lead: nothing is suppressed.
+    const ghost = "11111111-1111-4111-8111-111111111111";
+    expect(await applyOptOut(db, createOptOutToken(ghost, "victim@rival.co"))).toMatchObject({ ok: true, leadFound: false, suppressed: 0 });
+    expect(await isSuppressed(db, { email: "victim@rival.co" })).toBe(false);
+    expect(await applyOptOut(db, createOptOutToken(l!.id, "victim@rival.co"))).toMatchObject({ ok: true, suppressed: 0 });
+    expect(await isSuppressed(db, { email: "victim@rival.co" })).toBe(false);
     expect(await applyOptOut(db, createOptOutToken("not-a-uuid"))).toMatchObject({ ok: true, leadFound: false });
+
+    // Shared hosts are never suppressed by domain.
+    const [c2] = await db.insert(companies).values({ name: "Link Co", normalizedName: "link co", website: "https://linktr.ee/linkco" }).returning();
+    const [l2] = await db.insert(leads).values({ companyId: c2!.id, primarySource: "osm", slug: "link-co" }).returning();
+    await db.insert(contactPoints).values({ companyId: c2!.id, type: "email", value: "info@linkco.co", isGeneric: true });
+    await applyOptOut(db, createOptOutToken(l2!.id, "INFO@linkco.co"));
+    expect(await isSuppressed(db, { email: "info@linkco.co" })).toBe(true);
+    expect(await isSuppressed(db, { domain: "linktr.ee" })).toBe(false);
 
     await db.insert(messages).values([{ leadId: l!.id, contactChannel: "email", body: "x", status: "blocked", blockedByRule: "outside_window" }]);
     const m = await queryComplianceMetrics(db);
-    expect(m).toMatchObject({ optOutsTotal: 1, optOutsRespected: 1, blockedBySchedule: 1, naturalPersonsContacted: 0, sentTotal: 0, senderIdentifiedPct: null });
+    expect(m).toMatchObject({ optOutsTotal: 2, optOutsRespected: 2, blockedBySchedule: 1, naturalPersonsContacted: 0, sentTotal: 0, senderIdentifiedPct: null });
   });
 });
 

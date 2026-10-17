@@ -7,12 +7,20 @@ import { suppress } from "./suppression";
 const DEV_SECRET = "faro-dev-only-optout-secret";
 let warned = false;
 
+/** Hosts shared by many companies: never suppressed by domain (only by exact email). */
+export const SHARED_DOMAINS = [
+  "linktr.ee", "facebook.com", "instagram.com", "wa.me", "gmail.com", "hotmail.com", "outlook.com", "yahoo.com",
+  "wixsite.com", "business.site", "google.com", "tiktok.com", "linkedin.com", "x.com", "twitter.com",
+];
+
 function secret(override?: string): string {
   const s = override ?? process.env.OPTOUT_SECRET;
   if (s) return s;
-  if (process.env.NODE_ENV === "production" && !warned) {
+  // Fail closed: a public dev secret in production would let anyone forge opt-out tokens.
+  if (process.env.NODE_ENV === "production") throw new Error("OPTOUT_SECRET is required in production");
+  if (!warned) {
     warned = true;
-    console.warn("[compliance] OPTOUT_SECRET no está definido: usando secreto de desarrollo. Defínelo antes de producción.");
+    console.warn("[compliance] OPTOUT_SECRET no está definido: usando secreto de desarrollo (solo dev/test).");
   }
   return DEV_SECRET;
 }
@@ -60,19 +68,22 @@ export async function applyOptOut(db: AppDb, token: string, secretOverride?: str
   if (!p) return { ok: false, reason: "invalid_token" };
   const reason = "opt-out de un clic";
   let count = 0;
-  if (p.contact && (await suppress(db, p.contact, reason))) count++;
-
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.leadId);
   const [lead] = isUuid ? await db.select().from(leads).where(eq(leads.id, p.leadId)).limit(1) : [];
   if (!lead) return { ok: true, leadFound: false, suppressed: count };
 
   const points = await db.select().from(contactPoints).where(eq(contactPoints.companyId, lead.companyId));
+  // Only contacts that belong to the token's lead are suppressed.
+  const want = p.contact?.trim().toLowerCase();
+  if (want && points.some((cp) => cp.value.trim().toLowerCase() === want) && (await suppress(db, want, reason))) count++;
   for (const cp of points) if (cp.type !== "web_form" && (await suppress(db, cp.value, reason))) count++;
   const [company] = await db.select().from(companies).where(eq(companies.id, lead.companyId)).limit(1);
   if (company?.website) {
     try {
       const host = new URL(company.website.startsWith("http") ? company.website : `https://${company.website}`).hostname;
-      if (await suppress(db, host, reason)) count++;
+      const bare = host.replace(/^www\./, "").toLowerCase();
+      const shared = SHARED_DOMAINS.some((d) => bare === d || bare.endsWith(`.${d}`));
+      if (!shared && (await suppress(db, host, reason))) count++;
     } catch {
       /* unparsable website: skip domain suppression */
     }

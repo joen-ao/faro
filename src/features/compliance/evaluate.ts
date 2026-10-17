@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { companies, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
-import { looksLikePersonalEmail } from "./email";
+import { isGenericEmail } from "./email";
 import { isSuppressed } from "./suppression";
 import { checkSendWindow, type Country } from "./windows";
 
@@ -12,7 +12,8 @@ export type BlockRule =
   | "outside_window"
   | "already_contacted"
   | "channel_not_allowed"
-  | "sender_missing";
+  | "sender_missing"
+  | "sender_address_missing";
 
 export interface OutreachBlock {
   rule: BlockRule;
@@ -49,6 +50,8 @@ export interface OutreachEvaluation {
   /** SEND_ENABLED=false: the pipeline runs but nothing leaves. */
   simulated: boolean;
   blocks: OutreachBlock[];
+  /** Legal-entity status is only a heuristic: show "por verificar". */
+  unverifiedLegal: boolean;
   note?: string;
 }
 
@@ -64,8 +67,8 @@ export function evaluateOutreach(
     blocks.push({ rule: "natural_person", message: "Persona natural o profesional independiente: solo se contacta a personas jurídicas." });
   }
   if (contact.channel === "email") {
-    if (looksLikePersonalEmail(contact.value) || contact.isGeneric === false) {
-      blocks.push({ rule: "personal_email", message: "Correo con apariencia de nombre propio: solo se usan buzones genéricos (info@, contacto@…)." });
+    if (!isGenericEmail(contact.value)) {
+      blocks.push({ rule: "personal_email", message: "Solo se usan buzones genéricos de empresa (info@, contacto@, citas@…); este correo no lo es o parece de una persona." });
     }
   }
   if (lead.suppressed) blocks.push({ rule: "suppressed", message: "El contacto o su dominio está en la lista de supresión (opt-out): no se contacta nunca más." });
@@ -74,7 +77,7 @@ export function evaluateOutreach(
     blocks.push({ rule: "channel_not_allowed", message: "EE. UU.: solo correo (CAN-SPAM); sin llamadas, SMS ni WhatsApp." });
   }
   if (lead.country === "US" && contact.channel === "email" && !opts.senderAddress) {
-    blocks.push({ rule: "sender_missing", message: "CAN-SPAM exige dirección física del remitente (SENDER_ADDRESS)." });
+    blocks.push({ rule: "sender_address_missing", message: "CAN-SPAM exige dirección física del remitente (SENDER_ADDRESS)." });
   }
   if (opts.senderIdentified === false) {
     blocks.push({ rule: "sender_missing", message: "El mensaje debe identificar al remitente (producto, 30X Hackathon, correo de respuesta, motivo)." });
@@ -88,6 +91,7 @@ export function evaluateOutreach(
     allowed,
     simulated: allowed && simulated,
     blocks,
+    unverifiedLegal: lead.isLegalEntity && lead.legalVerified === false,
     ...(allowed && simulated ? { note: "SEND_ENABLED=false: envío simulado, no sale ningún mensaje." } : {}),
   };
 }

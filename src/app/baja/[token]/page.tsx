@@ -1,14 +1,22 @@
 import type { Metadata } from "next";
 import { Attribution } from "@/components/attribution";
-import { handleOptOut } from "@/features/compliance/handle";
+import { verifyOptOutToken } from "@/features/compliance/optout";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Baja confirmada · Faro", robots: { index: false, follow: false } };
 
-export default async function BajaPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function BajaPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ done?: string }>;
+}) {
   const { token } = await params;
-  const result = await handleOptOut(token);
-  const ok = result.ok;
+  const { done } = await searchParams;
+  // GET never writes: scanners that prefetch the link must not trigger the opt-out. The form POSTs.
+  const ok = verifyOptOutToken(token) !== null;
+  const confirmed = ok && done === "1";
 
   return (
     <main className="relative isolate flex min-h-dvh flex-col justify-between overflow-hidden px-5 py-8 sm:px-8">
@@ -24,9 +32,26 @@ export default async function BajaPage({ params }: { params: Promise<{ token: st
           aria-hidden
           className={`grid size-14 place-items-center rounded-full border text-2xl ${ok ? "border-faro-accent text-faro-accent" : "border-[var(--faro-danger)] text-[var(--faro-danger)]"}`}
         >
-          {ok ? "✓" : "!"}
+          {confirmed ? "✓" : ok ? "?" : "!"}
         </div>
-        {ok ? (
+        {ok && !confirmed ? (
+          <>
+            <h1 data-testid="optout-title" className="text-4xl font-bold leading-[1.05] sm:text-5xl">
+              ¿Quieres dejar de recibir mensajes de Faro?
+            </h1>
+            <p className="text-lg text-faro-text-2">Confirma con un clic. La baja es inmediata y tu contacto no se volverá a usar.</p>
+            <form method="POST" action={`/api/optout/${encodeURIComponent(token)}`}>
+              <input type="hidden" name="redirect" value="1" />
+              <button
+                type="submit"
+                data-testid="optout-confirm"
+                className="h-12 w-full rounded-button bg-faro-accent px-6 text-base font-semibold text-[var(--faro-accent-ink)] transition-transform active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
+              >
+                Sí, darme de baja
+              </button>
+            </form>
+          </>
+        ) : ok ? (
           <>
             <h1 data-testid="optout-title" className="text-4xl font-bold leading-[1.05] sm:text-5xl">
               Listo. No volverás a recibir mensajes nuestros.

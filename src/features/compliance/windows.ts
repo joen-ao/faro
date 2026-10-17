@@ -84,11 +84,12 @@ export function checkSendWindow(date: Date, country: Country): SendWindowResult 
     return { allowed: false, reason: "Domingo: no se envía", nextAllowedAt: nextOpening({ ...t, hour: 23 }) };
   }
   const [start, end] = win;
-  const hm = t.hour + t.minute / 60;
-  if (hm < start) {
+  const mins = t.hour * 60 + t.minute;
+  if (mins < start * 60) {
     return { allowed: false, reason: `Antes de las ${start}:00 (hora Colombia)`, nextAllowedAt: bogotaInstant(t.iso, start) };
   }
-  if (hm >= end) {
+  // The closing hour is allowed through the end of that minute (15:00 ok, 15:01 blocked).
+  if (mins > end * 60) {
     return { allowed: false, reason: `Después de las ${end}:00 (hora Colombia)`, nextAllowedAt: nextOpening({ ...t, hour: 23 }) };
   }
   return { allowed: true, reason: "Dentro de la ventana de envío (Colombia)", nextAllowedAt: null };
