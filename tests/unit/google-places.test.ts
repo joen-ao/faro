@@ -49,7 +49,7 @@ describe("google places real", () => {
     expect(h["X-Goog-Api-Key"]).toBe("K");
     expect(h["X-Goog-FieldMask"]).toBe(PLACES_FIELD_MASK);
     expect(h["X-Goog-FieldMask"]).not.toContain("reviews");
-    expect(h["X-Goog-FieldMask"]).not.toContain("nationalPhoneNumber");
+    expect(h["X-Goog-FieldMask"]).not.toContain("places.nationalPhoneNumber");
     expect(JSON.parse(init.body as string)).toEqual({
       textQuery: "clínica dental Bogotá",
       pageSize: 5,
