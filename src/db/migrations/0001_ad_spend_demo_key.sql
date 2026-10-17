@@ -1,2 +1,0 @@
-DROP INDEX "ad_spend_platform_campaign_date_uq";--> statement-breakpoint
-CREATE UNIQUE INDEX "ad_spend_platform_campaign_date_demo_uq" ON "ad_spend" USING btree ("platform","campaign","date","is_demo");

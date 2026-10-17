@@ -8,13 +8,6 @@
       "when": 1792225511118,
       "tag": "0000_lumpy_pet_avengers",
       "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1792229140717,
-      "tag": "0001_ad_spend_demo_key",
-      "breakpoints": true
     }
   ]
 }
