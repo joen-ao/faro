@@ -10,6 +10,7 @@ process.env.FARO_E2E = "1"; // lets those demo tools run under `next start` (NOD
 
 export default defineConfig({
   testDir: "tests/e2e",
+  workers: 1, // all specs share one PGlite directory behind one next start
   use: { baseURL: `http://localhost:${PORT}` },
   projects: [
     { name: "desktop-1440", use: { viewport: { width: 1440, height: 900 } } },

@@ -20,7 +20,7 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F13 | Motor de costos y Recibo | P0 | DONE | feat/F13-costos-recibo | 2 | Prorrateo exacto, recibo, métricas por canal con Beta 90%, migración automática, demo/mock separados; 7 MINOR (F13-r2). Endpoints sin control de acceso |
 | F14 | Tablero | P0/P1 | DONE | feat/F14-tablero | 2 | Tablero: KPIs con IC 90%, matriz fuente×canal trazable a recibos, embudo, pauta vs gratis, recomendación honesta, cumplimiento, toggle demo; 3 MINOR (F14-r2) |
 | F15 | Integración Dapta | P1 | DONE | feat/F15-dapta | 2 | Webhook con secreto, http_push con SSRF y SEND_ENABLED, csv_export anti-fórmulas, créditos; requireAppAccess (APP_ACCESS_KEY). 7 MINOR (F15-r2) |
-| F16 | Meta Ads | P1 | IN_REVIEW | | 0 | |
+| F16 | Meta Ads | P1 | DONE | feat/F16-meta-ads | 2 | UTM builder, fbclid→meta_ads, carga de gasto manual/CSV con clave demo separada, CPL meta_ads real; 1 MINOR |
 | F17 | WhatsApp vía Dapta | P2 | DONE | feat/F17-whatsapp | 2 | WhatsApp vía Dapta: CSV de secuencias tras WHATSAPP_ENABLED, solo teléfonos de empresa CO, webhook con secreto, STOP suprime; 3 MINOR |
 | F18 | Landing + video HyperFrames | P1 | DONE | feat/F18-landing | 1 | Landing estilo Dapta + video HyperFrames local (1,2 MB, rotulado demostración); Lighthouse móvil 94–96/100, desktop 100/100; MINOR aplicados |
 | F19 | Búsqueda en vivo con mapa | P1 | IN_REVIEW | | 0 | |

@@ -29,3 +29,4 @@
 - 2026-10-17 04:39 · F18 → DONE: Landing estilo Dapta + video HyperFrames local (1,2 MB, rotulado demostración); Lighthouse móvil 94–96/100, desktop 100/100; MINOR aplicados
 - 2026-10-17 04:49 · F20 → DONE: Thompson sampling por fuente con P(mejor), datos insuficientes honestos, simulación siempre etiquetada; 2 MINOR (F20-r2)
 - 2026-10-17 04:53 · F17 → DONE: WhatsApp vía Dapta: CSV de secuencias tras WHATSAPP_ENABLED, solo teléfonos de empresa CO, webhook con secreto, STOP suprime; 3 MINOR
+- 2026-10-17 04:54 · F16 → DONE: UTM builder, fbclid→meta_ads, carga de gasto manual/CSV con clave demo separada, CPL meta_ads real; 1 MINOR
