@@ -17,3 +17,4 @@
 - 2026-10-17 03:51 · F04 → DONE: RUES por CIIU+cámara, REPS dental, SoQL seguro, filtro jurídico; 4 MINOR (F04-r1)
 - 2026-10-17 03:52 · F03 → DONE: Overpass endurecido: caché, rate limit, mirror, raw con lista blanca, email genérico; 4 MINOR (F03-r2)
 - 2026-10-17 03:55 · F09 → DONE: Ventanas CO+festivos 2026, supresión, opt-out HMAC con POST, gate correo genérico, /baja; 2 MINOR (F09-r2). Requiere OPTOUT_SECRET en prod
+- 2026-10-17 04:01 · F08 → DONE: ICP NL→criteria (Zod), scoring con evidencia y anti-injection, costo IA; mock sin llave. MINOR: legalVerified no persistido → F10 debe bloquear no verificados

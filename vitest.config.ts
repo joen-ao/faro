@@ -5,6 +5,8 @@ export default defineConfig({
   resolve: { alias: { "@": path.resolve(__dirname, "src") } },
   test: {
     environment: "node",
+    testTimeout: 30000,
+    hookTimeout: 30000,
     include: ["tests/unit/**/*.test.ts", "src/**/*.test.ts"],
     coverage: { provider: "v8", include: ["src/features/**", "src/integrations/**", "src/lib/**", "src/db/**"], reporter: ["text", "html"], exclude: ["**/*.sql", "**/migrations/**"] },
   },
