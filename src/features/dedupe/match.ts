@@ -4,7 +4,7 @@ import type { SourceCompany } from "@/integrations/types";
 export type DedupeInput = Omit<SourceCompany, "isLegalEntity" | "possibleNaturalPerson" | "raw" | "nit"> &
   Partial<Pick<SourceCompany, "isLegalEntity" | "possibleNaturalPerson" | "nit">> & { raw: Record<string, unknown> };
 
-import { domainOf, haversineMeters, normalizeName, normalizePhoneE164, trigramSimilarity } from "./normalize";
+import { domainOf, isGenericOnly, haversineMeters, normalizeName, normalizePhoneE164, trigramSimilarity } from "./normalize";
 
 export const NAME_SIMILARITY_THRESHOLD = 0.6;
 export const MAX_DISTANCE_METERS = 80;
@@ -23,6 +23,8 @@ export interface Entity {
   isDemo: boolean;
   name: string;
   normalizedName: string;
+  /** Name made only of generic sector words: distance alone is not enough to merge. */
+  genericOnly?: boolean;
   nit?: string;
   address?: string;
   city?: string;
@@ -43,13 +45,15 @@ export interface Match {
 }
 
 export function normalizeNit(nit: string | undefined): string | undefined {
-  const digits = nit?.replace(/\D/g, "").replace(/^0+/, "");
+  // "900123456-7": drop the check digit after the hyphen
+  const digits = nit?.split("-")[0].replace(/\D/g, "").replace(/^0+/, "");
   return digits && digits.length >= 5 ? digits : undefined;
 }
 
 export interface Probe {
   company: DedupeInput;
   normalizedName: string;
+  genericOnly: boolean;
   nit?: string;
   domain?: string;
   phone?: string;
@@ -59,6 +63,7 @@ export function probeOf(company: DedupeInput, generic?: readonly string[]): Prob
   return {
     company,
     normalizedName: normalizeName(company.name, generic),
+    genericOnly: isGenericOnly(company.name, generic),
     nit: normalizeNit(company.nit),
     domain: domainOf(company.website),
     phone: normalizePhoneE164(company.phone),
@@ -70,10 +75,11 @@ export function probeOf(company: DedupeInput, generic?: readonly string[]): Prob
  * Returns the best reason found, or undefined when it must NOT merge.
  */
 export function compareByName(probe: Probe, e: Entity): Match | undefined {
+  if (probe.nit && e.nit && probe.nit !== e.nit) return undefined; // different legal entities
   const similarity = trigramSimilarity(probe.normalizedName, e.normalizedName);
   if (similarity < NAME_SIMILARITY_THRESHOLD) return undefined;
   const { lat, lng } = probe.company;
-  if (lat !== undefined && lng !== undefined && e.lat !== undefined && e.lng !== undefined) {
+  if (!probe.genericOnly && !e.genericOnly && lat !== undefined && lng !== undefined && e.lat !== undefined && e.lng !== undefined) {
     const d = haversineMeters(lat, lng, e.lat, e.lng);
     if (d <= MAX_DISTANCE_METERS) return { entity: e, reason: "name+distance", similarity, distanceMeters: d };
   }

@@ -55,6 +55,14 @@ export function normalizeName(name: string | null | undefined, generic: readonly
   return (core.length ? core : noLegal).join(" ");
 }
 
+/** True when stripping legal suffixes and generic words leaves nothing (e.g. "Clínica Dental SAS"). */
+export function isGenericOnly(name: string | null | undefined, generic: readonly string[] = DEFAULT_GENERIC_WORDS): boolean {
+  if (!name) return false;
+  const genericSet = new Set(generic.map(fold));
+  const tokens = normalizeName(name, []).split(/\s+/).filter(Boolean);
+  return tokens.length > 0 && tokens.every((t) => genericSet.has(t));
+}
+
 function trigrams(s: string): Set<string> {
   const out = new Set<string>();
   for (const word of s.split(/\s+/).filter(Boolean)) {

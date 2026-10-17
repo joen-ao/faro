@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 import { companies, companySources, contactPoints, hunts } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { isGenericEmail } from "@/features/coverage/metrics";
-import { priorityOf, type DedupeInput, type Entity } from "./match";
-import { domainOf, normalizeName, normalizePhoneE164 } from "./normalize";
+import { normalizeNit, priorityOf, type DedupeInput, type Entity } from "./match";
+import { domainOf, isGenericOnly, normalizeName, normalizePhoneE164 } from "./normalize";
 import { planDedupe, type MergedPair } from "./plan";
 
 export interface DedupeResult {
@@ -26,7 +26,7 @@ function chunks<T>(arr: readonly T[], size = CHUNK): T[][] {
 }
 
 /** Loads existing companies as in-memory entities (3 queries total, no N+1). */
-async function loadExisting(db: AppDb) {
+async function loadExisting(db: AppDb, generic?: readonly string[]) {
   const [comps, sources, phones] = await Promise.all([
     db.select().from(companies),
     db.select({ companyId: companySources.companyId, channel: companySources.sourceChannel, externalId: companySources.externalId, raw: companySources.raw }).from(companySources),
@@ -41,8 +41,9 @@ async function loadExisting(db: AppDb) {
       dirty: false,
       isDemo: c.isDemo,
       name: c.name,
-      normalizedName: normalizeName(c.name),
-      nit: c.nit?.replace(/\D/g, "").replace(/^0+/, "") || undefined,
+      normalizedName: normalizeName(c.name, generic),
+      genericOnly: isGenericOnly(c.name, generic),
+      nit: normalizeNit(c.nit ?? undefined),
       address: c.address ?? undefined,
       city: c.city ?? undefined,
       lat: c.lat ?? undefined,
@@ -76,10 +77,10 @@ async function loadExisting(db: AppDb) {
  * new companies, ALL company_sources (never drops a source), filled-in fields on kept companies and deduplicated contact_points.
  * Idempotent per `(source_channel, external_id)`. Pairs are stored in `hunts.progress.dedupe` (accumulated).
  */
-export async function dedupeAndPersist(db: AppDb, huntId: string, incoming: readonly DedupeInput[]): Promise<DedupeResult> {
+export async function dedupeAndPersist(db: AppDb, huntId: string, incoming: readonly DedupeInput[], opts: { generic?: readonly string[] } = {}): Promise<DedupeResult> {
   return db.transaction(async (tx) => {
-    const { entities, skip } = await loadExisting(tx as unknown as AppDb);
-    const plan = planDedupe(entities, incoming, skip);
+    const { entities, skip } = await loadExisting(tx as unknown as AppDb, opts.generic);
+    const plan = planDedupe(entities, incoming, skip, opts.generic);
 
     for (const batch of chunks(plan.created)) {
       await tx.insert(companies).values(
@@ -138,8 +139,8 @@ export async function dedupeAndPersist(db: AppDb, huntId: string, incoming: read
     const [hunt] = await tx.select({ progress: hunts.progress }).from(hunts).where(eq(hunts.id, huntId)).limit(1);
     if (hunt) {
       const prev = hunt.progress?.dedupe as DedupeProgress | undefined;
-      const known = new Set((prev?.pairs ?? []).map((p) => p.mergedExternalId));
-      const pairs = [...(prev?.pairs ?? []), ...plan.pairs.filter((p) => !known.has(p.mergedExternalId))];
+      const known = new Set((prev?.pairs ?? []).map((p) => `${p.mergedChannel}:${p.mergedExternalId}`));
+      const pairs = [...(prev?.pairs ?? []), ...plan.pairs.filter((p) => !known.has(`${p.mergedChannel}:${p.mergedExternalId}`))];
       const progress: DedupeProgress = {
         inserted: (prev?.inserted ?? 0) + result.inserted,
         merged: pairs.length,

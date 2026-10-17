@@ -72,7 +72,7 @@ describe("normalize helpers", () => {
     expect(domainOf("https://sites.google.com/view/x")).toBeUndefined();
     expect(domainOf("not a url")).toBeUndefined();
     expect(domainOf("")).toBeUndefined();
-    expect(normalizeNit("830.001.007-1")).toBe("8300010071");
+    expect(normalizeNit("830.001.007-1")).toBe("830001007");
     expect(normalizeNit("12")).toBeUndefined();
   });
 });
@@ -150,6 +150,25 @@ describe("matching rules (planDedupe)", () => {
   it("missing coords need domain/phone to merge; generic-only names still need proximity", () => {
     expect(planDedupe([], [co({ name: "Clínica Dental", lat: LAT, lng: LNG }), co({ name: "Clínica Dental", lat: LAT + dLat(3000), lng: LNG })]).created).toHaveLength(2);
     expect(planDedupe([], [co({ name: "Odontoven" }), co({ name: "Odontoven" })]).created).toHaveLength(2);
+  });
+
+  it("never merges companies whose NITs differ, whatever the name, distance, domain or phone", () => {
+    const plan = planDedupe([], [
+      co({ name: "Sonrisas", nit: "900111222", lat: LAT, lng: LNG, website: "https://sonrisas.co", phone: "+576015550101" }),
+      co({ name: "Sonrisas", nit: "900333444", lat: LAT, lng: LNG, website: "https://sonrisas.co", phone: "+576015550101" }),
+    ]);
+    expect(plan.created).toHaveLength(2);
+    expect(plan.pairs).toHaveLength(0);
+  });
+
+  it("NIT check digit is ignored; generic-only names need phone or domain, not distance", () => {
+    expect(normalizeNit("900123456-7")).toBe("900123456");
+    const dv = planDedupe([], [co({ name: "A Uno", nit: "900123456-7" }), co({ name: "A Uno SAS", nit: "900.123.456" })]);
+    expect(dv.pairs.map((p) => p.reason)).toEqual(["nit"]);
+    const near = planDedupe([], [co({ name: "Clínica Dental", lat: LAT, lng: LNG }), co({ name: "Clínica Dental", lat: LAT, lng: LNG })]);
+    expect(near.created).toHaveLength(2);
+    const phone = planDedupe([], [co({ name: "Clínica Dental", phone: "+576015550101" }), co({ name: "Clínica Dental", phone: "601 555 0101" })]);
+    expect(phone.pairs.map((p) => p.reason)).toEqual(["name+phone"]);
   });
 
   it("does not mix demo and real records", () => {

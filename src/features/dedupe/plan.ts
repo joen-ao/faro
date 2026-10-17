@@ -85,6 +85,7 @@ export function planDedupe(existing: readonly Entity[], incoming: readonly Dedup
         isDemo: c.isMock,
         name: c.name,
         normalizedName: probe.normalizedName,
+        genericOnly: probe.genericOnly,
         nit: probe.nit,
         address: c.address,
         city: c.city,
@@ -148,6 +149,7 @@ function mergeInto(ix: Index, e: Entity, p: Probe) {
   if (pr > e.priority) {
     e.name = c.name;
     e.normalizedName = p.normalizedName || e.normalizedName;
+    e.genericOnly = p.genericOnly;
     if (c.address) e.address = c.address;
     if (c.city) e.city = c.city;
     e.isLegalEntity = c.isLegalEntity ?? e.isLegalEntity;
