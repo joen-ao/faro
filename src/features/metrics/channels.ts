@@ -25,6 +25,10 @@ export interface MetricsRow {
 }
 
 export interface MetricsBucket {
+  /** Mock cost that hit leads of this bucket's world but is excluded from `real` (so CPL is not silently understated). Only set on `real`. */
+  excludedMockUsd: number;
+  /** is_demo cost on real leads / leadless demo entries, excluded from `real`. Only set on `real`. */
+  excludedDemoUsd: number;
   bySource: MetricsRow[];
   byContact: MetricsRow[];
   /** source x contact cells (matrix) */
@@ -51,7 +55,9 @@ interface Raw {
   contacted?: number;
   responded?: number;
   qualified?: number;
+  qfit?: number;
   usd?: number;
+  excl?: string | null;
 }
 
 /**
@@ -71,6 +77,7 @@ with lf as (
         where e.lead_id = l.id and e.type in ('widget_open','widget_chat','form_submit') and (l.is_demo or not e.is_mock) limit 1)
     ) as ch,
     exists (select 1 from events e where e.lead_id = l.id and e.type in ('reply','widget_chat','form_submit') and (l.is_demo or not e.is_mock)) as responded,
+    exists (select 1 from messages m where m.lead_id = l.id and m.status in ('sent','delivered') and (l.is_demo or not m.is_mock)) as contacted,
     exists (select 1 from qualifications q where q.lead_id = l.id and q.qualified and (l.is_demo or not q.is_mock)) as qualified
   from leads l
   left join hunts h on h.id = l.hunt_id
@@ -83,9 +90,9 @@ const GROUP: Record<Dim, { sel: string; grp: string }> = {
   cell: { sel: "src, ch", grp: "src, ch, demo" },
 };
 const COST_GROUP: Record<Dim, { sel: string; grp: string }> = {
-  source: { sel: "coalesce(e.source_channel::text, f.src) as src, null::text as ch", grp: "1, 3" },
-  contact: { sel: "null::text as src, f.ch as ch", grp: "2, 3" },
-  cell: { sel: "coalesce(e.source_channel::text, f.src) as src, f.ch as ch", grp: "1, 2, 3" },
+  source: { sel: "coalesce(e.source_channel::text, f.src) as src, null::text as ch", grp: "1, 3, 4" },
+  contact: { sel: "null::text as src, f.ch as ch", grp: "2, 3, 4" },
+  cell: { sel: "coalesce(e.source_channel::text, f.src) as src, f.ch as ch", grp: "1, 2, 3, 4" },
 };
 
 async function rows<T>(db: AppDb, q: ReturnType<typeof sql>): Promise<T[]> {
@@ -103,23 +110,26 @@ async function aggregate(db: AppDb, dim: Dim): Promise<Raw[]> {
 select ${g.sel}, demo,
   count(*)::int as found,
   (count(*) filter (where fit))::int as fit,
-  (count(*) filter (where ch is not null))::int as contacted,
+  (count(*) filter (where contacted))::int as contacted,
   (count(*) filter (where responded))::int as responded,
-  (count(*) filter (where qualified))::int as qualified
+  (count(*) filter (where qualified))::int as qualified,
+  (count(*) filter (where qualified and fit))::int as qfit
 from lf ${filter} group by ${g.grp}`),
   );
   const c = COST_GROUP[dim];
   const cost = await rows<Raw>(
     db,
     sql.raw(`${LEAD_FACTS}
-select ${c.sel}, (e.is_demo or e.is_mock or coalesce(f.demo, false)) as demo, coalesce(sum(e.usd), 0)::float8 as usd
+select ${c.sel}, (e.is_demo or e.is_mock or coalesce(f.demo, false)) as demo,
+  (case when not coalesce(f.demo, false) and e.is_mock then 'mock' when not coalesce(f.demo, false) and e.is_demo then 'demo' end) as excl,
+  coalesce(sum(e.usd), 0)::float8 as usd
 from cost_entries e left join lf f on f.id = e.lead_id
 group by ${c.grp}`),
   );
   return [...funnel, ...cost];
 }
 
-function buildRow(source: string | null, contact: string | null, a: Required<Omit<Raw, "src" | "ch" | "demo">>): MetricsRow {
+function buildRow(source: string | null, contact: string | null, a: Counts): MetricsRow {
   const costUsd = round6(a.usd);
   return {
     source,
@@ -133,11 +143,12 @@ function buildRow(source: string | null, contact: string | null, a: Required<Omi
     cpl: a.fit > 0 ? costUsd / a.fit : null,
     cplc: a.qualified > 0 ? costUsd / a.qualified : null,
     insufficientData: a.qualified === 0,
-    qualifiedRate: betaCredibleInterval(Math.min(a.qualified, a.fit), a.fit),
+    qualifiedRate: betaCredibleInterval(a.qfit, a.fit),
   };
 }
 
-const zero = (): Required<Omit<Raw, "src" | "ch" | "demo">> => ({ found: 0, fit: 0, contacted: 0, responded: 0, qualified: 0, usd: 0 });
+type Counts = { found: number; fit: number; contacted: number; responded: number; qualified: number; qfit: number; usd: number };
+const zero = (): Counts => ({ found: 0, fit: 0, contacted: 0, responded: 0, qualified: 0, qfit: 0, usd: 0 });
 
 function fold(raw: Raw[], demo: boolean, dim: Dim): { rows: MetricsRow[]; unattributed: number; nullKeyUsd: number } {
   const acc = new Map<string, { src: string | null; ch: string | null; v: ReturnType<typeof zero> }>();
@@ -155,7 +166,7 @@ function fold(raw: Raw[], demo: boolean, dim: Dim): { rows: MetricsRow[]; unattr
     }
     const key = `${r.src}|${r.ch}`;
     const cur = acc.get(key) ?? { src: r.src, ch: r.ch, v: zero() };
-    for (const k of ["found", "fit", "contacted", "responded", "qualified", "usd"] as const) cur.v[k] += r[k] ?? 0;
+    for (const k of ["found", "fit", "contacted", "responded", "qualified", "qfit", "usd"] as const) cur.v[k] += r[k] ?? 0;
     acc.set(key, cur);
   }
   const out = [...acc.values()].map((x) => buildRow(x.src, x.ch, x.v));
@@ -179,9 +190,13 @@ export async function getChannelMetrics(db: AppDb, opts: { includeDemo?: boolean
       total.contacted += r.contacted;
       total.responded += r.responded;
       total.qualified += r.qualified;
+      total.qfit += r.qualifiedRate.k;
     }
     total.usd = src.rows.reduce((a, r) => a + r.costUsd, 0) + src.unattributed;
+    const excluded = (kind: string) => round6(bySource.filter((r) => r.demo && r.excl === kind).reduce((a, r) => a + (r.usd ?? 0), 0));
     return {
+      excludedMockUsd: demo ? 0 : excluded("mock"),
+      excludedDemoUsd: demo ? 0 : excluded("demo"),
       bySource: src.rows,
       byContact: fold(byContact, demo, "contact").rows,
       cells: fold(cells, demo, "cell").rows,

@@ -50,6 +50,8 @@ beforeAll(async () => {
     { leadId: ads[0], sourceChannel: "meta_ads", category: "ads", quantity: 1, unit: "x", rate: 6, usd: 6 },
     { leadId: ads[1], sourceChannel: "meta_ads", category: "dapta", quantity: 1, unit: "x", rate: 2, usd: 2 },
     { category: "human", quantity: 1, unit: "x", rate: 0.5, usd: 0.5 }, // no lead, no source
+    { leadId: osm[3], sourceChannel: "osm", category: "dapta", quantity: 1, unit: "x", rate: 0.7, usd: 0.7, isMock: true }, // mock cost on a real lead
+    { leadId: ads[0], sourceChannel: "meta_ads", category: "data", quantity: 1, unit: "x", rate: 0.2, usd: 0.2, isDemo: true }, // demo cost on a real lead
   ]);
 });
 afterAll(() => conn.close());
@@ -62,6 +64,8 @@ describe("getChannelMetrics", () => {
     expect(m.real.totals.costUsd).toBeCloseTo(totals.totalUsd, 6);
     expect(m.real.totals.costUsd).toBeCloseTo(14.5, 6);
     expect(m.real.unattributedUsd).toBe(0.5);
+    expect(m.real.excludedMockUsd).toBe(0.7);
+    expect(m.real.excludedDemoUsd).toBe(0.2);
     expect(m.real.bySource.map((r) => r.source).sort()).toEqual(["meta_ads", "osm"]);
     expect(m.real.bySource.some((r) => r.source === "sample")).toBe(false);
   });
@@ -77,7 +81,7 @@ describe("getChannelMetrics", () => {
 
     const ads = m.real.bySource.find((r) => r.source === "meta_ads")!;
     // the mock qualification of ads[1] does not count
-    expect(ads).toMatchObject({ found: 2, fit: 2, qualified: 1, costUsd: 8 });
+    expect(ads).toMatchObject({ found: 2, fit: 2, contacted: 0, qualified: 1, costUsd: 8 });
     expect(ads.cpl).toBe(4);
     expect(ads.cplc).toBe(8);
     expect(ads.insufficientData).toBe(false);
@@ -88,7 +92,7 @@ describe("getChannelMetrics", () => {
     const email = m.real.byContact.find((r) => r.contact === "email")!;
     expect(email).toMatchObject({ contacted: 2, fit: 2, responded: 1, costUsd: 3 });
     const widget = m.real.byContact.find((r) => r.contact === "dapta_widget")!;
-    expect(widget).toMatchObject({ found: 2, qualified: 1, costUsd: 8 });
+    expect(widget).toMatchObject({ found: 2, contacted: 0, qualified: 1, costUsd: 8 }); // widget-only leads are not "contacted"
     const cell = m.real.cells.find((r) => r.source === "meta_ads" && r.contact === "dapta_widget")!;
     expect(cell.cplc).toBe(8);
     expect(m.real.cells.find((r) => r.source === "osm" && r.contact === "email")!.found).toBe(2);
@@ -100,8 +104,9 @@ describe("getChannelMetrics", () => {
     expect(both.real).toEqual(base.real);
     expect(both.demo).not.toBeNull();
     expect(both.demo!.totals.found).toBe(3);
-    expect(both.demo!.bySource.map((r) => r.source)).toEqual(["sample"]);
-    expect(both.demo!.totals.costUsd).toBeCloseTo(0.0384, 6);
+    expect(both.demo!.bySource.map((r) => r.source).sort()).toEqual(["meta_ads", "osm", "sample"]); // cost-only rows for excluded mock/demo cost
+    expect(both.demo!.totals.costUsd).toBeCloseTo(0.0384 + 0.9, 6); // seed demo + mock/demo entries kept out of real
+    expect(both.demo!.excludedMockUsd).toBe(0);
     expect(both.demo!.totals.qualified).toBe(1); // mock qualification counts only inside the demo bucket
   });
 

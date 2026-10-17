@@ -2,6 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { migrate } from "./migrate";
 import * as schema from "./schema";
 
 export const PGLITE_DIR = "./.pglite";
@@ -22,4 +23,25 @@ export function createDb(databaseUrl: string | undefined = process.env.DATABASE_
 let singleton: ReturnType<typeof createDb> | undefined;
 export function getDb() {
   return (singleton ??= createDb());
+}
+
+const ready = new WeakMap<object, Promise<void>>();
+
+/** Applies migrations once per connection (memoized; idempotent on PGlite and Postgres). A failure is not cached. */
+export function ensureMigrated(conn: ReturnType<typeof createDb>): Promise<void> {
+  let p = ready.get(conn);
+  if (!p) {
+    p = migrate(conn).catch((e) => {
+      ready.delete(conn);
+      throw e;
+    });
+    ready.set(conn, p);
+  }
+  return p;
+}
+
+/** The singleton DB, migrated on first use. Use this in route handlers. */
+export async function getReadyDb(conn: ReturnType<typeof createDb> = getDb()) {
+  await ensureMigrated(conn);
+  return conn.db;
 }

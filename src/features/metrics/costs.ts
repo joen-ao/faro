@@ -1,4 +1,4 @@
-import { and, eq, inArray, like, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import * as s from "@/db/schema";
 import type { AppDb, CostEntry, SourceChannel } from "@/db/types";
@@ -200,39 +200,42 @@ export async function recordPlacesCost(
 }
 
 /**
- * Paid ads: total `ad_spend` of a campaign divided across leads whose events carry
- * `utm.utm_campaign = campaign`. Returns [] when no lead is attributed (spend stays unattributed).
- * Not idempotent-safe on purpose: a second call for the same campaign throws.
+ * Paid ads: `ad_spend` of a campaign divided across leads whose events carry `utm.utm_campaign = campaign`.
+ * Demo and real spend are handled separately: real spend only goes to real leads (not demo, and
+ * not via mock events); demo spend only to demo leads. Idempotent: re-attributing replaces the
+ * previous entries of that campaign. Returns the new entries ([] if nothing to attribute).
  */
 export async function attributeAdSpend(db: AppDb, p: { campaign: string; huntId?: string | null }): Promise<CostEntry[]> {
-  const [spend] = await db
-    .select({
-      total: sql<number>`coalesce(sum(${s.adSpend.usd}), 0)::float8`,
-      demo: sql<boolean>`coalesce(bool_and(${s.adSpend.isDemo}), false)`,
-    })
-    .from(s.adSpend)
-    .where(eq(s.adSpend.campaign, p.campaign));
-  const attributed = await db
-    .selectDistinct({ leadId: s.events.leadId })
-    .from(s.events)
-    .where(sql`${s.events.utm} ->> 'utm_campaign' = ${p.campaign}`);
-  if (!spend || spend.total <= 0 || attributed.length === 0) return [];
-  const ids = attributed.map((a) => a.leadId);
   const prefix = `campaña ${p.campaign}:`;
-  const already = await db
-    .select({ id: s.costEntries.id })
-    .from(s.costEntries)
-    .where(and(eq(s.costEntries.category, "ads"), inArray(s.costEntries.leadId, ids), like(s.costEntries.evidence, `${prefix}%`)))
-    .limit(1);
-  if (already.length > 0) throw new Error(`ad spend for campaign ${p.campaign} is already attributed`);
-  return prorateSharedCost(db, {
-    huntId: p.huntId,
-    sourceChannel: "meta_ads",
-    category: "ads",
-    totalUsd: spend.total,
-    leadIds: ids,
-    evidence: `${prefix} ad_spend ÷ leads atribuidos por UTM`,
-    unit: "share of campaign spend",
-    isDemo: spend.demo,
+  return db.transaction(async (tx) => {
+    const out: CostEntry[] = [];
+    for (const demo of [false, true]) {
+      await tx
+        .delete(s.costEntries)
+        .where(and(eq(s.costEntries.category, "ads"), eq(s.costEntries.isDemo, demo), sql`left(${s.costEntries.evidence}, ${prefix.length}) = ${prefix}`));
+      const [spend] = await tx
+        .select({ total: sql<number>`coalesce(sum(${s.adSpend.usd}), 0)::float8` })
+        .from(s.adSpend)
+        .where(and(eq(s.adSpend.campaign, p.campaign), eq(s.adSpend.isDemo, demo)));
+      const attributed = await tx
+        .selectDistinct({ leadId: s.events.leadId })
+        .from(s.events)
+        .innerJoin(s.leads, eq(s.leads.id, s.events.leadId))
+        .where(and(sql`${s.events.utm} ->> 'utm_campaign' = ${p.campaign}`, eq(s.leads.isDemo, demo), demo ? undefined : eq(s.events.isMock, false)));
+      if (!spend || spend.total <= 0 || attributed.length === 0) continue;
+      out.push(
+        ...(await prorateSharedCost(tx as unknown as AppDb, {
+          huntId: p.huntId,
+          sourceChannel: "meta_ads",
+          category: "ads",
+          totalUsd: spend.total,
+          leadIds: attributed.map((a) => a.leadId),
+          evidence: `${prefix} ad_spend ÷ leads atribuidos por UTM`,
+          unit: "share of campaign spend",
+          isDemo: demo,
+        })),
+      );
+    }
+    return out;
   });
 }

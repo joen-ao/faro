@@ -141,6 +141,27 @@ describe("attributeAdSpend", () => {
     expect(entries).toHaveLength(2);
     expect(entries.reduce((a, e) => a + Math.round(e.usd * 1e6), 0)).toBe(7_000_000);
     expect(entries.every((e) => e.sourceChannel === "meta_ads" && e.category === "ads")).toBe(true);
-    await expect(attributeAdSpend(conn.db, { campaign: "c1" })).rejects.toThrow(/already attributed/);
+    expect(entries.every((e) => !e.isDemo)).toBe(true);
+    // idempotent: re-attributing replaces
+    expect(await attributeAdSpend(conn.db, { campaign: "c1" })).toHaveLength(2);
+    const all = await conn.db.select().from(s.costEntries).where(eq(s.costEntries.category, "ads"));
+    expect(all.filter((e) => e.evidence?.startsWith("campaña c1:"))).toHaveLength(2);
+  });
+
+  it("keeps demo and real spend apart, each only to leads of its own kind", async () => {
+    const [c] = await conn.db.insert(s.companies).values({ name: "Demo Co", normalizedName: "demo co", isDemo: true }).returning();
+    const [dl] = await conn.db.insert(s.leads).values({ companyId: c.id, huntId, primarySource: "osm", slug: "t-demo", isDemo: true }).returning();
+    await conn.db.insert(s.adSpend).values([
+      { platform: "meta", campaign: "mix", date: "2026-10-17", usd: 10 },
+      { platform: "meta", campaign: "mix", date: "2026-10-18", usd: 2, isDemo: true },
+    ]);
+    await conn.db.insert(s.events).values([
+      { leadId: leadIds[0], type: "click", utm: { utm_campaign: "mix" } },
+      { leadId: leadIds[1], type: "click", utm: { utm_campaign: "mix" }, isMock: true }, // mock event: no real spend
+      { leadId: dl.id, type: "click", utm: { utm_campaign: "mix" } },
+    ]);
+    const entries = await attributeAdSpend(conn.db, { campaign: "mix" });
+    expect(entries.filter((e) => !e.isDemo).map((e) => [e.leadId, e.usd])).toEqual([[leadIds[0], 10]]);
+    expect(entries.filter((e) => e.isDemo).map((e) => [e.leadId, e.usd])).toEqual([[dl.id, 2]]);
   });
 });

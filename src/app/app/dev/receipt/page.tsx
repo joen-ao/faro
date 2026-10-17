@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { z } from "zod";
 import { LeadReceipt } from "@/components/lead-receipt";
-import { getDb } from "@/db/client";
+import { getReadyDb } from "@/db/client";
 import { buildDemoReceipt, getLeadReceipt } from "@/features/metrics";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Recibo de lead (interno)", robots: {
 export default async function ReceiptDevPage({ searchParams }: { searchParams: Promise<{ demo?: string; lead?: string }> }) {
   const sp = await searchParams;
   const leadId = z.string().uuid().safeParse(sp.lead);
-  const receipt = sp.demo === "1" ? await buildDemoReceipt() : leadId.success ? await getLeadReceipt(getDb().db, leadId.data) : null;
+  const receipt = sp.demo === "1" ? await buildDemoReceipt() : leadId.success ? await getLeadReceipt(await getReadyDb(), leadId.data) : null;
 
   return (
     <main className="relative isolate min-h-dvh px-4 py-10 sm:py-16">
