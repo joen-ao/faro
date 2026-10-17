@@ -23,7 +23,7 @@ import { getEnv, type Env } from "@/lib/env";
 import { channelOptions, optionFor, selectChannel, type ChannelOption } from "./channel";
 import { buildLinks, generateMessage, textToHtml, type GeneratedMessage } from "./generate";
 
-export type OutreachRule = BlockRule | "legal_unverified" | "missing_unsubscribe" | "no_channel" | "channel_unavailable";
+export type OutreachRule = BlockRule | "legal_unverified" | "missing_unsubscribe" | "no_channel" | "channel_unavailable" | "sender_incomplete";
 
 export interface ServiceBlock {
   rule: OutreachRule;
@@ -170,6 +170,16 @@ export async function assess(
   const blocks: ServiceBlock[] = ev.blocks.map((b) => ({ rule: b.rule, message: b.message, nextAllowedAt: b.nextAllowedAt ?? null }));
   if (channel === "whatsapp" && env.WHATSAPP_ENABLED !== true) {
     blocks.push({ rule: "channel_unavailable", message: "WhatsApp está desactivado (WHATSAPP_ENABLED=false)." });
+  }
+  if (enabled) {
+    const missing = [
+      ["SENDER_LEGAL_NAME", env.SENDER_LEGAL_NAME],
+      ["SENDER_ADDRESS", env.SENDER_ADDRESS],
+      ["EMAIL_REPLY_TO", replyTo],
+    ].filter(([, v]) => !v).map(([k]) => k);
+    if (missing.length) {
+      blocks.push({ rule: "sender_incomplete", message: `Envío real bloqueado: faltan datos del remitente (${missing.join(", ")}).` });
+    }
   }
   const unverifiedLegal = ctx.company.isLegalEntity && !ctx.legalVerified;
   if (enabled && unverifiedLegal && !ctx.allowUnverifiedLegal) {

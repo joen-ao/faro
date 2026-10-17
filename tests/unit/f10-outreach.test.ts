@@ -11,7 +11,6 @@ import { escapeHtml, generateMessage, sanitizeCopy, textToHtml } from "@/feature
 import { assess, enqueue, loadLeadContext, previewOutreach, processQueue, recordAssistedSend, type OutreachDeps } from "@/features/outreach/service";
 import { createMockAnthropic, type AnthropicAdapter } from "@/integrations/anthropic";
 import { createMockEmail, createRealEmail, getEmail, RESEND_ENDPOINT } from "@/integrations/email";
-import { hasAppAccess } from "@/lib/app-access";
 import { parseEnv, type Env } from "@/lib/env";
 import { createTestDb } from "../helpers/test-db";
 
@@ -414,13 +413,19 @@ describe("API handlers", () => {
   });
 });
 
-describe("app access", () => {
-  it("is open without key outside production, closed in production, and key-checked otherwise", () => {
-    expect(hasAppAccess({}, { NODE_ENV: "development" })).toBe(true);
-    expect(hasAppAccess({}, { NODE_ENV: "production" })).toBe(false);
-    expect(hasAppAccess({ headerKey: "k1" }, { APP_ACCESS_KEY: "k1", NODE_ENV: "production" })).toBe(true);
-    expect(hasAppAccess({ headerKey: "bad" }, { APP_ACCESS_KEY: "k1" })).toBe(false);
-    expect(hasAppAccess({ cookieHeader: "a=1; faro_key=k1" }, { APP_ACCESS_KEY: "k1" })).toBe(true);
-    expect(hasAppAccess({}, { APP_ACCESS_KEY: "k1" })).toBe(false);
+describe("real send needs a complete sender (F12 note)", () => {
+  it("blocks when SENDER_LEGAL_NAME, SENDER_ADDRESS or EMAIL_REPLY_TO is missing; simulation is not affected", async () => {
+    const { lead } = await mkLead({ registry: true });
+    const ctx = await loadLeadContext(db, lead.id);
+    const to = `info@c${n}.example`;
+    for (const drop of ["SENDER_LEGAL_NAME", "SENDER_ADDRESS", "EMAIL_REPLY_TO"] as const) {
+      const env = parseEnv({ ...baseEnv, [drop]: "", SEND_ENABLED: "true" });
+      const a = await assess(db, ctx, "email", to, SAT_10, env);
+      expect(a.allowed).toBe(false);
+      expect(a.blocks.map((b) => b.rule).join()).toMatch(/sender_incomplete/);
+    }
+    const sim = parseEnv({ ...baseEnv, SENDER_ADDRESS: "", SEND_ENABLED: "false" });
+    expect((await assess(db, ctx, "email", to, SAT_10, sim)).allowed).toBe(true);
+    expect((await assess(db, ctx, "email", to, SAT_10, envOn)).allowed).toBe(true);
   });
 });

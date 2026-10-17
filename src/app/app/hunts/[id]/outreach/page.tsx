@@ -7,7 +7,7 @@ import { companies, hunts, leads, messages } from "@/db/schema";
 import { checkSendWindow } from "@/features/compliance/windows";
 import { ensureOutreachDemo } from "@/features/outreach/demo";
 import { listOutreachRows } from "@/features/outreach/service";
-import { hasAppAccess } from "@/lib/app-access";
+import { requireAppAccess } from "@/lib/app-access";
 import { getEnv } from "@/lib/env";
 import { OutreachClient, type QueueItem } from "./outreach-client";
 
@@ -38,7 +38,7 @@ export default async function OutreachPage({
   const { id } = await params;
   const { now: nowParam } = await searchParams;
   const jar = await cookies();
-  if (!hasAppAccess({ cookieHeader: jar.toString() })) {
+  if (requireAppAccess(new Request("http://localhost/", { headers: { cookie: jar.toString() } }))) {
     return <Notice title="Acceso restringido" body="Esta vista requiere la clave de la app (cookie faro_key)." />;
   }
 

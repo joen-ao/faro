@@ -71,6 +71,7 @@ const RULE_LABEL: Record<string, string> = {
   legal_unverified: "Jurídica por verificar",
   missing_unsubscribe: "Falta enlace de baja",
   no_channel: "Sin canal",
+  sender_incomplete: "Remitente incompleto",
   channel_unavailable: "Canal desactivado",
 };
 const STATUS_LABEL: Record<string, string> = { queued: "En cola", simulated: "Simulado", sent: "Enviado", blocked: "Bloqueado", failed: "Falló", delivered: "Entregado", draft: "Borrador" };

@@ -6,7 +6,7 @@ type Conn = ReturnType<typeof createDb>;
 const g = globalThis as unknown as { __faroOptOutConn?: Promise<Conn> };
 
 /** One connection + one migration per process, shared by the route handler and the /baja page bundles. */
-function ready(): Promise<Conn> {
+export function ready(): Promise<Conn> {
   return (g.__faroOptOutConn ??= (async () => {
     const conn = createDb();
     await migrate(conn);

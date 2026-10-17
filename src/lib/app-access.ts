@@ -1,37 +1,36 @@
-import { timingSafeEqual } from "node:crypto";
+import { timingSafeEqual, createHash } from "node:crypto";
 
-/**
- * Minimal access gate for /app and the internal APIs (SPEC §15: a simple key is enough).
- * APP_ACCESS_KEY via header `x-app-key` or cookie `faro_key`. Without a key configured the app is
- * open outside production and CLOSED in production.
- */
-const same = (a: string, b: string) => {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-};
+/** Constant-time string comparison (hashes first so lengths do not leak). */
+export function safeEqual(a: string, b: string): boolean {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
 
-function cookieValue(header: string | null | undefined, name: string): string | undefined {
-  if (!header) return undefined;
-  for (const part of header.split(";")) {
-    const i = part.indexOf("=");
-    if (i > 0 && part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim());
+function cookieValue(header: string | null, name: string): string | undefined {
+  for (const part of (header ?? "").split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === name) try {
+        return decodeURIComponent(v.join("="));
+      } catch {
+        return undefined;
+      }
   }
   return undefined;
 }
 
-export function hasAppAccess(
-  input: { headerKey?: string | null; cookieHeader?: string | null },
-  env: { APP_ACCESS_KEY?: string | undefined; NODE_ENV?: string | undefined } = process.env,
-): boolean {
+/**
+ * Simple access gate for /app and its APIs: `APP_ACCESS_KEY` via header `x-app-key` or cookie `faro_key`.
+ * Without a configured key: allowed outside production (local dev), denied in production.
+ * Returns a 401 Response when access is denied, or null when allowed.
+ */
+export function requireAppAccess(req: Request, env: Record<string, string | undefined> = process.env): Response | null {
   const key = env.APP_ACCESS_KEY;
-  if (!key) return env.NODE_ENV !== "production";
-  const given = input.headerKey ?? cookieValue(input.cookieHeader, "faro_key");
-  return !!given && same(given, key);
-}
-
-/** Returns a 401 Response when access is denied, otherwise null. */
-export function requireAppAccess(req: Request): Response | null {
-  const ok = hasAppAccess({ headerKey: req.headers.get("x-app-key"), cookieHeader: req.headers.get("cookie") });
-  return ok ? null : Response.json({ error: "Acceso restringido: falta la clave de la app (x-app-key)." }, { status: 401 });
+  if (!key) {
+    if (env.NODE_ENV !== "production") return null;
+    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+  const given = req.headers.get("x-app-key") ?? cookieValue(req.headers.get("cookie"), "faro_key");
+  if (given && safeEqual(given, key)) return null;
+  return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
 }
