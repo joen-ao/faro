@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { companies, contactPoints, costEntries, events, leads, qualifications } from "@/db/schema";
 import type { AppDb } from "@/db/types";
+import { suppress } from "@/features/compliance/suppression";
 import { safeEqual } from "@/lib/app-access";
 import type { Env } from "@/lib/env";
 
@@ -24,21 +25,31 @@ export const daptaWebhookSchema = z
     need: z.unknown().optional(),
     timeline: z.unknown().optional(),
     summary: z.string().max(4000).optional().nullable(),
+    opt_out: z.boolean().optional(),
     ai_replies: num.optional(),
     credits_used: num.optional(),
   })
   .passthrough()
   .refine((p) => p.lead_id || p.slug || p.phone || p.email, { message: "lead_id, slug, phone or email is required" })
-  .refine((p) => p.qualified !== undefined || p.score !== undefined, { message: "qualified or score is required" });
+  .refine((p) => p.qualified !== undefined || p.score !== undefined || p.opt_out === true, { message: "qualified or score is required" });
 
 export type DaptaWebhookPayload = z.infer<typeof daptaWebhookSchema>;
 
-/** Verifies the shared secret. Fail-closed: no secret configured -> reject in production. */
+/**
+ * Verifies the shared secret. Fail-closed: no secret configured -> reject in every environment.
+ * Also accepts `?secret=` because Dapta's native analysis webhook is a bare URL with no custom headers.
+ */
 export function verifyWebhookSecret(req: Request, env: Record<string, string | undefined> = process.env): boolean {
   const secret = env.DAPTA_WEBHOOK_SECRET;
   if (!secret) return false; // fail-closed in every environment
   const bearer = req.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
-  const given = req.headers.get("x-dapta-secret") ?? bearer;
+  let query: string | null = null;
+  try {
+    query = new URL(req.url).searchParams.get("secret");
+  } catch {
+    query = null;
+  }
+  const given = req.headers.get("x-dapta-secret") ?? bearer ?? query;
   return !!given && safeEqual(given, secret);
 }
 
@@ -80,7 +91,7 @@ async function findLead(db: AppDb, p: DaptaWebhookPayload) {
 }
 
 export type WebhookOutcome =
-  | { ok: true; duplicate: boolean; leadId: string; qualified: boolean; costUsd: number; credits: number }
+  | { ok: true; duplicate: boolean; leadId: string | null; qualified: boolean; costUsd: number; credits: number }
   | { ok: false; status: 404; error: "lead_not_found" };
 
 /** Applies one Dapta result. Idempotent by `conversation_id`. */
@@ -89,10 +100,19 @@ export async function processDaptaWebhook(
   payload: DaptaWebhookPayload,
   env: Pick<Env, "DAPTA_CREDIT_USD" | "DAPTA_CREDITS_PER_AI_REPLY">,
 ): Promise<WebhookOutcome> {
+  const optOut = payload.opt_out === true;
+  // An opt-out is honoured even when the contact cannot be matched to a lead (Ley 1581).
+  if (optOut) {
+    if (payload.phone) await suppress(db, payload.phone, "dapta_opt_out");
+    if (payload.email) await suppress(db, payload.email, "dapta_opt_out");
+  }
   const lead = await findLead(db, payload);
-  if (!lead) return { ok: false, status: 404, error: "lead_not_found" };
+  if (!lead) {
+    if (optOut) return { ok: true, duplicate: false, leadId: null, qualified: false, costUsd: 0, credits: 0 };
+    return { ok: false, status: 404, error: "lead_not_found" };
+  }
 
-  const qualified = payload.qualified ?? (payload.score ?? 0) >= 60;
+  const qualified = optOut ? false : (payload.qualified ?? (payload.score ?? 0) >= 60);
   const replies = payload.ai_replies ?? 0;
   const usesReplies = replies > 0;
   const credits = usesReplies ? replies * env.DAPTA_CREDITS_PER_AI_REPLY : (payload.credits_used ?? 0);
@@ -126,12 +146,14 @@ export async function processDaptaWebhook(
       { leadId: lead.id, type: "widget_chat", payload: { conversation_id: payload.conversation_id, ai_replies: replies }, isDemo: lead.isDemo },
       {
         leadId: lead.id,
-        type: qualified ? "qualified" : "disqualified",
-        payload: { conversation_id: payload.conversation_id, score: payload.score ?? null, origin: "dapta" },
+        type: optOut ? "opt_out" : qualified ? "qualified" : "disqualified",
+        payload: { conversation_id: payload.conversation_id, score: payload.score ?? null, origin: "dapta", ...(optOut ? { via: "dapta_chat" } : {}) },
         isDemo: lead.isDemo,
       },
     ]);
-    if (["found", "fit", "contacted", "responded"].includes(lead.status)) {
+    if (optOut) {
+      if (lead.status !== "opted_out") await tx.update(leads).set({ status: "opted_out" }).where(eq(leads.id, lead.id));
+    } else if (["found", "fit", "contacted", "responded"].includes(lead.status)) {
       await tx.update(leads).set({ status: qualified ? "qualified" : "disqualified" }).where(eq(leads.id, lead.id));
     }
     if (credits > 0) {
