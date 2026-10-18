@@ -36,20 +36,21 @@ type Snap = "peek" | "half" | "full";
 const SNAP_CSS: Record<Snap, string> = { peek: "152px", half: "56dvh", full: "90dvh" };
 const SNAP_ORDER: Snap[] = ["peek", "half", "full"];
 
-function StatusPill({ status, active, isDemo }: { status: string | null; active: boolean; isDemo: boolean }) {
+function StatusLine({ status, active, isDemo, city }: { status: string | null; active: boolean; isDemo: boolean; city: string }) {
   const live = active || status === "running" || status === "pending";
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className={cn("inline-flex items-center gap-2 rounded-full border px-2.5 py-1 whitespace-nowrap text-[12px] font-medium", live ? "border-faro-accent/50 text-white" : "border-white/20 text-faro-text-2")} data-testid="hunt-status">
-        {live ? <span className="faro-live-dot" aria-hidden /> : status === "completed" ? <Check className="size-3.5 text-faro-accent" aria-hidden /> : null}
-        {live ? "Buscando en vivo" : status === "completed" ? "Búsqueda completa" : status === "failed" ? "Con errores" : "Lista"}
+    <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-white/60 md:text-[14px]">
+      {city && <span className="truncate">{city} ·</span>}
+      <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap", live || status === "completed" ? "text-faro-accent" : status === "failed" ? "text-[var(--faro-danger)]" : "text-white/75")} data-testid="hunt-status">
+        {live ? <span className="faro-live-dot" aria-hidden /> : status === "completed" ? <Check className="size-3.5" aria-hidden /> : null}
+        {live ? "Buscando en vivo" : status === "completed" ? "Terminada" : status === "failed" ? "Con errores" : "Lista"}
       </span>
       {isDemo && (
-        <span className="rounded-full border border-dashed border-white/50 px-2.5 py-1 text-[11px] font-bold tracking-[0.14em] text-white" data-testid="demo-badge" title="Datos sintéticos de demostración">
+        <span className="ml-1 rounded-full border border-dashed border-white/50 px-2 py-px text-[10.5px] font-bold tracking-[0.14em] text-white" data-testid="demo-badge" title="Datos sintéticos de demostración">
           DEMO
         </span>
       )}
-    </div>
+    </p>
   );
 }
 
@@ -121,7 +122,7 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
     return () => window.removeEventListener("resize", on);
   }, []);
   const sheetPx = snap === "peek" ? 152 : snap === "half" ? vh * 0.56 : vh * 0.9;
-  const padding = mobile ? { top: 84, right: 24, bottom: Math.min(sheetPx, vh * 0.55) + 24, left: 24 } : { top: 110, right: (selected ? 460 : 400) + 52, bottom: 60, left: 40 };
+  const padding = mobile ? { top: 84, right: 24, bottom: Math.min(sheetPx, vh * 0.55) + 24, left: 24 } : { top: 110, right: (selected ? 460 : 420) + 60, bottom: 80, left: 60 };
   const fitKey = `${[...srcFilter].sort()}|${[...statusFilter].sort()}`;
 
   // Bottom-sheet drag (mobile).
@@ -180,45 +181,45 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
       <MapView points={filtered} arrival={stream.arrival} selectedId={selected?.id ?? null} onSelect={selectById} fly={fly} padding={padding} fitKey={fitKey} />
 
       {/* title card */}
-      <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-w-[calc(100%-24px)] flex-col gap-2.5 md:top-4 md:left-4 md:max-w-[min(560px,calc(100%-480px))]">
-        <div className="pointer-events-auto faro-rise flex items-center gap-3 rounded-[16px] border border-white/[0.14] bg-faro-surface-1/95 py-2.5 pr-4 pl-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-          <Link href="/app/hunts" aria-label="Volver a mis búsquedas" className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-white/[0.14] text-white transition-colors hover:border-faro-accent">
+      <div className="pointer-events-none absolute top-3 left-3 z-10 max-w-[calc(100%-24px)] md:top-5 md:left-5 md:max-w-[min(560px,calc(100%-500px))]">
+        <div className="pointer-events-auto faro-rise flex items-center gap-3 rounded-[16px] border border-white/[0.14] bg-faro-surface-1/95 py-2.5 pr-3.5 pl-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+          <Link
+            href="/app/hunts"
+            aria-label="Volver a mis búsquedas"
+            className="grid size-10 shrink-0 place-items-center rounded-[10px] border border-white/[0.14] text-white transition-colors hover:border-faro-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-faro-accent"
+          >
             <ArrowLeft className="size-4" aria-hidden />
           </Link>
-          <div className="min-w-0">
-            <h1 className="truncate text-[16px] leading-tight font-semibold md:text-[18px]" data-testid="hunt-title">
-              {stream.loading ? (
-                <span className="faro-skeleton inline-block h-5 w-44 align-middle" />
-              ) : (
-                <>
-                  <span className="block truncate">{title}</span>
-                  {stream.city && <span className="block truncate text-[13px] font-medium text-faro-text-2 md:text-[14px]">{prettyCity(stream.city)}</span>}
-                </>
-              )}
+          <div className="min-w-0 flex-1" data-testid="hunt-title">
+            <h1 className="truncate font-display text-[16px] leading-tight font-semibold md:text-[18px]">
+              {stream.loading ? <span className="faro-skeleton inline-block h-5 w-44 align-middle" /> : title}
             </h1>
-            <div className="mt-1.5">
-              <StatusPill status={stream.status} active={runnerActive.size > 0} isDemo={stream.isDemo} />
-            </div>
+            {!stream.loading && <StatusLine status={stream.status} active={runnerActive.size > 0} isDemo={stream.isDemo} city={stream.city ? prettyCity(stream.city) : ""} />}
           </div>
           <Link
             href={`/app/hunts/${huntId}/outreach`}
             data-testid="to-outreach"
-            className="ml-1 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] bg-faro-accent px-3 text-[13px] font-semibold text-faro-accent-ink transition-[filter] hover:brightness-110"
+            className="ml-1 inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[10px] bg-faro-accent px-3.5 text-[14px] font-bold text-faro-accent-ink transition-[filter] hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-faro-accent"
           >
             Contactar <ArrowRight className="size-3.5" aria-hidden />
           </Link>
         </div>
-        {!mobile && (
-          <ul className="pointer-events-auto faro-rise hidden w-fit items-center gap-4 rounded-[10px] border border-white/[0.14] bg-faro-surface-1/95 px-3.5 py-2 text-[12px] text-faro-text-2 md:flex" aria-label="Leyenda del mapa" style={{ animationDelay: "80ms" }}>
-            {(["found", "fit", "contacted", "qualified"] as const).map((s) => (
-              <li key={s} className="flex items-center gap-2">
-                <StatusDot status={s} />
-                {STATUS_LABEL[s]}
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
+
+      {!mobile && (
+        <ul
+          className="faro-rise absolute bottom-5 left-5 z-10 flex items-center gap-[18px] rounded-[12px] border border-white/[0.14] bg-faro-surface-1/95 px-4 py-2.5 text-[13px] text-white/75"
+          aria-label="Leyenda del mapa"
+          style={{ animationDelay: "80ms" }}
+        >
+          {(["found", "fit", "contacted", "qualified"] as const).map((s) => (
+            <li key={s} className="flex items-center gap-2">
+              <StatusDot status={s} className="!size-2" />
+              {STATUS_LABEL[s]}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {stream.error && !stream.loading && (
         <div role="alert" className="absolute top-3 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-[10px] border border-[var(--faro-danger)]/50 bg-faro-surface-2 px-4 py-2 text-[13px] shadow-lg md:left-[calc(50%-200px)]">
@@ -271,7 +272,7 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
           <div className="min-h-0 flex-1 overflow-hidden">{panel}</div>
         </section>
       ) : (
-        <aside aria-label="Panel de la búsqueda" className="faro-rise absolute top-3 right-3 bottom-3 z-20 w-[400px] overflow-hidden rounded-[16px] border border-white/[0.14] bg-faro-surface-1 shadow-[0_24px_60px_rgba(0,0,0,0.55)]" style={{ animationDelay: "120ms" }} data-testid="panel">
+        <aside aria-label="Panel de la búsqueda" className="faro-rise absolute top-5 right-5 bottom-5 z-20 w-[420px] max-w-[calc(100%-40px)] overflow-hidden rounded-[18px] border border-white/[0.14] bg-faro-surface-1/[0.97] shadow-[0_24px_60px_rgba(0,0,0,0.55)]" style={{ animationDelay: "120ms" }} data-testid="panel">
           {panel}
         </aside>
       )}

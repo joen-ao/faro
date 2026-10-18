@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ReplyDialog } from "./reply-dialog";
@@ -108,13 +109,24 @@ function verdict(a: Assessment, sendEnabled: boolean) {
   return <Chip tone="ok">{sendEnabled ? "Listo para enviar" : "Listo (se simula)"}</Chip>;
 }
 
+const DONE_STATUSES = new Set(["sent", "simulated", "delivered"]);
+const CONTACTED_LEAD = new Set(["contacted", "responded", "qualified", "opted_out"]);
+const isContacted = (r: RowView) => CONTACTED_LEAD.has(r.status) || (r.latest !== null && ["sending", "sent", "simulated", "delivered"].includes(r.latest.status));
+const isBlocked = (r: RowView) => !isContacted(r) && blocking(r.assessment).length > 0;
+
+const focusRing = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-faro-accent";
+const checkCls = "size-[18px] cursor-pointer accent-[var(--faro-accent)] disabled:cursor-not-allowed " + focusRing;
 const inputCls =
   "w-full rounded-button border border-border bg-faro-surface-2 px-3 py-2 text-sm text-white placeholder:text-faro-text-3 focus-visible:border-faro-accent focus-visible:outline-none";
+/** Fields drawn on the white "paper" of the email preview: dark text, dark focus ring (lime has no contrast on white). */
+const paperInput =
+  "mt-0.5 block w-full rounded-[6px] border border-transparent bg-transparent px-1.5 py-1 text-sm text-[#1a1a1c] hover:border-black/15 focus-visible:border-[#1a1a1c] focus-visible:outline-none";
 const btn =
   "inline-flex h-10 items-center justify-center rounded-button px-4 text-sm font-semibold transition-transform active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40";
 
 export function OutreachClient(props: {
   huntId: string;
+  huntTitle: string;
   isDemoHunt: boolean;
   sendEnabled: boolean;
   whatsappEnabled: boolean;
@@ -140,6 +152,7 @@ export function OutreachClient(props: {
   const [feedback, setFeedback] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [replyFor, setReplyFor] = useState<RowView | null>(null);
+  const [view, setView] = useState<"all" | "blocked" | "contacted">("all");
 
   const active = rows.find((r) => r.leadId === activeId) ?? null;
   const channelOf = (r: RowView): Channel | null => override[r.leadId] ?? r.suggested;
@@ -262,180 +275,240 @@ export function OutreachClient(props: {
   const allEligibleSelected = eligible.length > 0 && eligible.every((r) => selected.has(r.leadId));
   const queuedCount = queue.filter((q) => q.status === "queued").length;
 
+  const visibleRows = view === "blocked" ? rows.filter(isBlocked) : view === "contacted" ? rows.filter(isContacted) : rows;
+  const tabs = [
+    { id: "all" as const, label: "Del perfil", n: rows.length },
+    { id: "blocked" as const, label: "Bloqueados", n: rows.filter(isBlocked).length },
+    { id: "contacted" as const, label: "Contactados", n: rows.filter(isContacted).length },
+  ];
+  const processed = queue.filter((q) => DONE_STATUSES.has(q.status)).length;
+  const queueTotal = queue.filter((q) => q.status !== "blocked" && q.status !== "failed" && q.status !== "draft").length;
+  const pct = queueTotal ? Math.round((processed / queueTotal) * 100) : 0;
+  const cols = "md:grid-cols-[28px_minmax(0,1.5fr)_minmax(0,1.15fr)_52px_minmax(0,1.25fr)]";
+
   return (
-    <main className="mx-auto flex max-w-[1400px] flex-col gap-5 px-4 py-6 sm:px-6 lg:py-8">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <p className="flex items-center gap-2 text-sm text-faro-text-3">
-            <span aria-hidden className="size-2.5 rounded-full bg-faro-accent" />
-            <span className="font-display font-semibold text-white">Faro</span> · Búsqueda {props.isDemoHunt ? "de demostración" : props.huntId.slice(0, 8)}
-          </p>
-          <h1 className="text-3xl font-bold leading-tight sm:text-4xl">Contacto</h1>
+    <main className="mx-auto flex w-full max-w-[1280px] flex-col gap-5 px-4 pt-6 pb-16 sm:px-6 lg:pt-7 lg:pb-20">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <nav aria-label="Migas" className="text-sm text-faro-text-3">
+            <ol className="flex flex-wrap items-center gap-1.5">
+              <li>
+                <Link href="/app/hunts" className={cn(focusRing, "rounded text-faro-text-3 underline-offset-2 hover:text-white hover:underline")}>
+                  Búsquedas
+                </Link>
+              </li>
+              <li aria-hidden>/</li>
+              <li className="min-w-0 [overflow-wrap:anywhere]">
+                <Link href={`/app/hunts/${props.isDemoHunt ? "demo" : props.huntId}`} className={cn(focusRing, "rounded text-faro-text-3 underline-offset-2 hover:text-white hover:underline")}>
+                  {props.huntTitle}
+                </Link>
+                {props.isDemoHunt && <span className="ml-2 rounded-full border border-dashed border-white/40 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-white">DEMO</span>}
+              </li>
+            </ol>
+          </nav>
+          <h1 className="mt-1.5 font-display text-3xl font-bold tracking-[-0.03em] sm:text-4xl">Contacto</h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {props.isDemoHunt && <Chip tone="wait">Datos demo</Chip>}
-          <span data-testid="window-state">
-            <Chip tone={props.window.allowed ? "ok" : "wait"}>
-              {props.window.allowed ? "Ventana abierta" : `Ventana cerrada${props.window.nextAllowedAt ? ` · abre ${fmtTime(props.window.nextAllowedAt)}` : ""}`}
-            </Chip>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span
+            data-testid="window-state"
+            className={cn(
+              "inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-sm font-bold",
+              props.window.allowed ? "bg-faro-accent/[0.12] text-faro-accent" : "bg-white/[0.08] text-white",
+            )}
+          >
+            <span aria-hidden className={cn("size-2 rounded-full", props.window.allowed ? "bg-faro-accent" : "bg-white/60")} />
+            {props.window.allowed ? "Ventana abierta" : `Ventana cerrada${props.window.nextAllowedAt ? ` · abre ${fmtTime(props.window.nextAllowedAt)}` : ""}`}
           </span>
+          <Link href="/app/settings/envio" className={cn(focusRing, "rounded text-sm text-faro-accent underline-offset-2 hover:underline")}>
+            Cambiar horario
+          </Link>
         </div>
       </header>
 
       {sendEnabled ? (
-        <div role="status" data-testid="send-banner" className="rounded-card border border-[var(--faro-danger)]/60 bg-faro-surface-1 px-4 py-3 text-sm">
-          <strong className="text-[var(--faro-danger)]">SEND_ENABLED=true:</strong> los envíos por correo salen de verdad, solo dentro de la ventana y sin suprimidos.
+        <div role="status" data-testid="send-banner" className="rounded-[12px] border border-faro-accent/35 bg-faro-accent/[0.06] px-4 py-3.5 text-sm leading-relaxed">
+          <strong className="text-faro-accent">Envío real activo (SEND_ENABLED=true).</strong> Un mensaje por empresa, solo buzones genéricos, dentro de la ventana, sin suprimidos y con enlace de baja.
         </div>
       ) : (
-        <div role="status" data-testid="send-banner" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-card border border-faro-accent/40 bg-faro-surface-1 px-4 py-3 text-sm">
+        <div role="status" data-testid="send-banner" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[12px] border border-white/20 bg-white/[0.04] px-4 py-3.5 text-sm leading-relaxed">
           <code className="rounded bg-faro-surface-2 px-2 py-0.5 font-mono text-xs text-faro-accent">SEND_ENABLED=false</code>
           <span>Los envíos se simulan: el flujo corre completo, se registra, pero no sale ningún mensaje.</span>
         </div>
       )}
 
       {feedback && (
-        <p role="status" data-testid="feedback" className={cn("rounded-card border px-4 py-2.5 text-sm", feedback.tone === "ok" ? "border-faro-accent/40 text-white" : "border-[var(--faro-danger)]/50 text-[var(--faro-danger)]")}>
+        <p role="status" data-testid="feedback" className={cn("rounded-[12px] border px-4 py-2.5 text-sm", feedback.tone === "ok" ? "border-faro-accent/40 text-white" : "border-[var(--faro-danger)]/50 text-[var(--faro-danger)]")}>
           {feedback.text}
         </p>
       )}
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
-        <section aria-label="Leads" className="flex min-w-0 flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="size-4 accent-[var(--faro-accent)]"
-                checked={allEligibleSelected}
-                disabled={eligible.length === 0}
-                onChange={() => setSelected(allEligibleSelected ? new Set() : new Set(eligible.map((r) => r.leadId)))}
-              />
-              Seleccionar todos los aptos ({eligible.length})
-            </label>
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <section aria-label="Leads" className="min-w-0 overflow-hidden rounded-card border border-white/10 bg-faro-surface-1">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] px-4 py-4 sm:px-5">
+            <div role="group" aria-label="Filtrar leads" className="flex flex-wrap gap-1.5 text-sm">
+              {tabs.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-pressed={view === t.id}
+                  onClick={() => setView(t.id)}
+                  className={cn(
+                    focusRing,
+                    "h-[34px] rounded-[8px] border px-3 tabular-nums transition-colors",
+                    view === t.id ? "border-faro-accent text-white" : "border-white/[0.14] text-faro-text-3 hover:text-white",
+                  )}
+                >
+                  {t.label} · {t.n}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               data-testid="send-selected"
               disabled={busy || selected.size === 0}
               onClick={sendSelected}
-              className={cn(btn, "bg-faro-accent text-[var(--faro-accent-ink)]")}
+              className={cn(btn, focusRing, "bg-faro-accent font-bold text-[var(--faro-accent-ink)]")}
             >
-              {busy ? "Procesando…" : `${sendEnabled ? "Encolar y enviar" : "Encolar y simular"} ${selected.size || ""}`.trim()}
+              {busy ? "Procesando…" : `${sendEnabled ? "Encolar" : "Encolar y simular"} ${selected.size || ""} ${selected.size === 1 ? "seleccionado" : "seleccionados"}`.replace(/\s+/g, " ").trim()}
             </button>
           </div>
 
           {rows.length === 0 ? (
-            <div className="rounded-card border border-dashed border-border p-8 text-center">
+            <div className="p-8 text-center">
               <p className="font-display text-lg font-semibold">Aún no hay leads del perfil en esta búsqueda</p>
               <p className="mt-1 text-sm text-faro-text-2">Cuando la búsqueda termine y el scoring marque leads con encaje, aparecerán aquí para contactarlos.</p>
             </div>
           ) : (
-            <ul className="flex flex-col gap-2" data-testid="lead-list">
-              {rows.map((r) => {
-                const ch = channelOf(r);
-                const isActive = r.leadId === activeId;
-                const canPick = selectable(r);
-                return (
-                  <li
-                    key={r.leadId}
-                    data-testid="lead-row"
-                    className={cn("rounded-card border bg-faro-surface-1 p-3 transition-colors", isActive ? "border-faro-accent" : "border-border hover:border-white/30")}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        aria-label={`Seleccionar ${r.name}`}
-                        className="mt-1 size-4 accent-[var(--faro-accent)] disabled:opacity-30"
-                        disabled={!canPick}
-                        checked={selected.has(r.leadId)}
-                        onChange={() => toggle(r.leadId)}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <button type="button" onClick={() => open(r)} className="break-words text-left font-medium hover:text-faro-accent focus-visible:text-faro-accent [overflow-wrap:anywhere]">
-                            {r.name}
-                          </button>
-                          {r.isDemo && <Chip tone="mute">Demo</Chip>}
-                          {r.assessment.unverifiedLegal && <Chip tone="mute">Jurídica por verificar</Chip>}
-                        </div>
-                        <p className="mt-0.5 text-xs text-faro-text-3">
-                          {r.city ?? "—"} · {SOURCE_LABEL[r.source] ?? r.source} · encaje {r.fitScore ?? "—"}
-                          {r.recipient ? ` · ${r.recipient}` : " · sin contacto"}
-                        </p>
-                        {blocking(r.assessment).length > 0 && (
-                          <p className="mt-1.5 text-xs text-[var(--faro-danger)]">{blocking(r.assessment)[0]!.message}</p>
+            <>
+              <div className={cn("grid grid-cols-[28px_minmax(0,1fr)] items-center gap-x-3 px-4 py-3 text-sm text-faro-text-3 sm:px-5", cols)}>
+                <input
+                  type="checkbox"
+                  id="select-all"
+                  className={checkCls}
+                  checked={allEligibleSelected}
+                  disabled={eligible.length === 0}
+                  onChange={() => setSelected(allEligibleSelected ? new Set() : new Set(eligible.map((r) => r.leadId)))}
+                />
+                <label htmlFor="select-all" className="cursor-pointer">
+                  <span className="md:sr-only">Seleccionar todos los aptos ({eligible.length})</span>
+                  <span aria-hidden className="hidden md:inline">Empresa</span>
+                </label>
+                <span aria-hidden className="hidden md:block">Canal</span>
+                <span aria-hidden className="hidden md:block">Puntaje</span>
+                <span aria-hidden className="hidden md:block">Cumplimiento</span>
+              </div>
+              {visibleRows.length === 0 ? (
+                <p className="border-t border-white/[0.06] px-5 py-10 text-center text-sm text-faro-text-2">{view === "blocked" ? "Ningún lead está bloqueado por cumplimiento." : "Aún no has contactado a ninguna empresa de esta búsqueda."}</p>
+              ) : (
+                <ul className="flex flex-col" data-testid="lead-list">
+                  {visibleRows.map((r) => {
+                    const ch = channelOf(r);
+                    const isActive = r.leadId === activeId;
+                    const canPick = selectable(r);
+                    const hard = blocking(r.assessment);
+                    return (
+                      <li
+                        key={r.leadId}
+                        data-testid="lead-row"
+                        className={cn(
+                          "grid grid-cols-[28px_minmax(0,1fr)] gap-x-3 gap-y-2 border-t border-white/[0.06] px-4 py-3.5 transition-colors sm:px-5",
+                          cols,
+                          isActive ? "bg-faro-accent/[0.07] shadow-[inset_3px_0_0_var(--faro-accent)]" : selected.has(r.leadId) ? "bg-faro-accent/[0.04]" : "hover:bg-white/[0.02]",
                         )}
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1.5">
-                        {r.latest ? <Chip tone={r.latest.status === "blocked" || r.latest.status === "failed" ? "bad" : "mute"}>{STATUS_LABEL[r.latest.status] ?? r.latest.status}</Chip> : verdict(r.assessment, sendEnabled)}
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2 pl-7">
-                      <label className="sr-only" htmlFor={`ch-${r.leadId}`}>
-                        Canal para {r.name}
-                      </label>
-                      <select
-                        id={`ch-${r.leadId}`}
-                        className="h-8 rounded-button border border-border bg-faro-surface-2 px-2 text-xs"
-                        value={ch ?? ""}
-                        disabled={r.options.length === 0}
-                        onChange={(e) => {
-                          const v = e.target.value as Channel;
-                          setOverride((o) => ({ ...o, [r.leadId]: v }));
-                          if (isActive) void loadPreview(r.leadId, v);
-                        }}
                       >
-                        {r.options.length === 0 && <option value="">Sin canal</option>}
-                        {r.options.map((o) => (
-                          <option key={o.channel} value={o.channel}>
-                            {CHANNEL_LABEL[o.channel]}
-                            {o.usable ? "" : " (no apto)"}
-                          </option>
-                        ))}
-                      </select>
-                      <button type="button" onClick={() => open(r)} className="h-8 rounded-button border border-border px-3 text-xs hover:border-faro-accent hover:text-faro-accent">
-                        {ch === "web_form" ? "Modo asistido" : "Vista previa"}
-                      </button>
-                      {r.status === "responded" ? (
-                        <Chip tone="ok">Respondió</Chip>
-                      ) : (
-                        r.status !== "opted_out" && (
-                          <button
-                            type="button"
-                            data-testid="mark-reply"
-                            onClick={() => setReplyFor(r)}
-                            className="h-8 rounded-button border border-border px-3 text-xs hover:border-faro-accent hover:text-faro-accent"
+                        <input
+                          type="checkbox"
+                          aria-label={`Seleccionar ${r.name}`}
+                          className={cn(checkCls, "mt-0.5 disabled:opacity-30")}
+                          disabled={!canPick}
+                          checked={selected.has(r.leadId)}
+                          onChange={() => toggle(r.leadId)}
+                        />
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <button type="button" onClick={() => open(r)} className={cn(focusRing, "rounded break-words text-left font-medium hover:text-faro-accent [overflow-wrap:anywhere]")}>
+                              {r.name}
+                            </button>
+                            {r.isDemo && <Chip tone="mute">Demo</Chip>}
+                            {r.assessment.unverifiedLegal && <Chip tone="mute">Jurídica por verificar</Chip>}
+                          </div>
+                          <p className="mt-0.5 text-xs text-faro-text-3">
+                            {r.city ?? "—"} · {SOURCE_LABEL[r.source] ?? r.source}
+                            <span className="md:hidden"> · encaje {r.fitScore ?? "—"}</span>
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                            <button type="button" onClick={() => open(r)} className={cn(focusRing, "rounded text-faro-accent underline-offset-2 hover:underline")}>
+                              {ch === "web_form" ? "Modo asistido" : "Vista previa"}
+                            </button>
+                            {r.status === "responded" ? (
+                              <Chip tone="ok">Respondió</Chip>
+                            ) : (
+                              r.status !== "opted_out" && (
+                                <button type="button" data-testid="mark-reply" onClick={() => setReplyFor(r)} className={cn(focusRing, "rounded text-faro-text-2 underline-offset-2 hover:text-white hover:underline")}>
+                                  Marcar respondió
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </div>
+                        <div className="col-start-2 flex min-w-0 flex-col gap-1.5 md:col-start-auto">
+                          <span className={cn("text-sm [overflow-wrap:anywhere]", r.recipient ? "text-white" : "text-faro-text-3")}>{r.recipient ?? "sin contacto"}</span>
+                          <label className="sr-only" htmlFor={`ch-${r.leadId}`}>
+                            Canal para {r.name}
+                          </label>
+                          <select
+                            id={`ch-${r.leadId}`}
+                            className={cn(focusRing, "h-8 w-full max-w-[13rem] rounded-[8px] border border-white/[0.14] bg-faro-surface-2 px-2 text-xs")}
+                            value={ch ?? ""}
+                            disabled={r.options.length === 0}
+                            onChange={(e) => {
+                              const v = e.target.value as Channel;
+                              setOverride((o) => ({ ...o, [r.leadId]: v }));
+                              if (isActive) void loadPreview(r.leadId, v);
+                            }}
                           >
-                            Marcar respondió
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                            {r.options.length === 0 && <option value="">Sin canal</option>}
+                            {r.options.map((o) => (
+                              <option key={o.channel} value={o.channel}>
+                                {CHANNEL_LABEL[o.channel]}
+                                {o.usable ? "" : " (no apto)"}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <span className={cn("hidden font-display text-[15px] tabular-nums md:block", hard.length === 0 && (r.fitScore ?? 0) >= 60 ? "font-bold text-faro-accent" : "text-white")}>{r.fitScore ?? "—"}</span>
+                        <div className="col-start-2 flex min-w-0 flex-col items-start gap-1.5 md:col-start-auto">
+                          {r.latest ? <Chip tone={r.latest.status === "blocked" || r.latest.status === "failed" ? "bad" : r.latest.status === "queued" ? "wait" : "mute"}>{STATUS_LABEL[r.latest.status] ?? r.latest.status}</Chip> : verdict(r.assessment, sendEnabled)}
+                          {hard.length > 0 && <p className="text-xs leading-snug text-[var(--faro-danger)]">{hard[0]!.message}</p>}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </>
           )}
         </section>
 
-        <div className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-4">
-          <section aria-label="Vista previa" aria-live="polite" className="rounded-card border border-border bg-faro-surface-1 p-4" data-testid="preview-panel">
+        <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-16">
+          <section aria-label="Vista previa" aria-live="polite" className="rounded-card border border-white/10 bg-faro-surface-1 p-5" data-testid="preview-panel">
             {!active ? (
-              <div className="py-8 text-center">
-                <p className="font-display text-lg font-semibold">Elige un lead</p>
-                <p className="mt-1 text-sm text-faro-text-2">Verás el mensaje que Faro redactó, podrás editarlo y los bloqueos de cumplimiento se actualizan al instante.</p>
+              <div className="py-6 text-center">
+                <h2 className="font-display text-lg font-semibold">Vista previa</h2>
+                <p className="mt-1 text-sm text-faro-text-2">Elige un lead: verás el mensaje que Faro redactó, podrás editarlo y los bloqueos de cumplimiento se actualizan al instante.</p>
               </div>
             ) : loadingPreview ? (
               <div aria-busy="true" className="flex flex-col gap-3">
                 <div className="h-5 w-2/3 animate-pulse rounded bg-faro-surface-2" />
-                <div className="h-40 animate-pulse rounded-card bg-faro-surface-2" />
+                <div className="h-40 animate-pulse rounded-[12px] bg-faro-surface-2" />
               </div>
             ) : !preview ? (
               <p className="text-sm text-[var(--faro-danger)]">No hay vista previa. Revisa el aviso de arriba e intenta de nuevo.</p>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3.5">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <h2 className="font-display text-lg font-semibold [overflow-wrap:anywhere]">{active.name}</h2>
+                    <h2 className="font-display text-lg font-semibold [overflow-wrap:anywhere]">Vista previa · {active.name}</h2>
                     <p className="text-xs text-faro-text-3">
                       {channel ? CHANNEL_LABEL[channel] : "Sin canal"} · {preview.recipient ?? "sin destinatario"}
                     </p>
@@ -448,13 +521,13 @@ export function OutreachClient(props: {
                     <li className="text-sm text-faro-text-2">Sin bloqueos de cumplimiento. {preview.assessment.note ?? ""}</li>
                   )}
                   {preview.assessment.blocks.map((b) => (
-                    <li key={b.rule} className={cn("rounded-button border px-3 py-2 text-sm", b.rule === "outside_window" ? "border-white/25" : "border-[var(--faro-danger)]/40")}>
+                    <li key={b.rule} className={cn("rounded-[10px] border px-3 py-2 text-sm", b.rule === "outside_window" ? "border-white/25" : "border-[var(--faro-danger)]/40")}>
                       <strong className={b.rule === "outside_window" ? "text-white" : "text-[var(--faro-danger)]"}>{RULE_LABEL[b.rule] ?? b.rule}.</strong>{" "}
                       <span className="text-faro-text-2">{b.message}</span>
                     </li>
                   ))}
                   {preview.assessment.unverifiedLegal && (
-                    <li className="rounded-button border border-border px-3 py-2 text-sm text-faro-text-2">
+                    <li className="rounded-[10px] border border-white/[0.14] px-3 py-2 text-sm text-faro-text-2">
                       <strong className="text-white">Por verificar.</strong> La naturaleza jurídica sale de una heurística, no de RUES/REPS.
                     </li>
                   )}
@@ -463,30 +536,30 @@ export function OutreachClient(props: {
                 {preview.message && (
                   <>
                     {preview.isMockAi && <p className="text-xs text-faro-text-3">Redactado con IA en modo demo (mock).</p>}
-                    {channel === "email" && (
-                      <div>
-                        <label htmlFor="subject" className="mb-1 block text-xs text-faro-text-3">
-                          Asunto
-                        </label>
-                        <input id="subject" className={inputCls} value={subject} maxLength={200} onChange={(e) => setSubject(e.target.value)} />
-                      </div>
-                    )}
-                    <div>
-                      <label htmlFor="body" className="mb-1 block text-xs text-faro-text-3">
+                    <div className="rounded-[12px] bg-white p-4 text-[#1a1a1c] sm:p-[18px]">
+                      {channel === "email" && (
+                        <div className="mb-3">
+                          <label htmlFor="subject" className="block text-xs text-[#5c5c62]">
+                            Asunto
+                          </label>
+                          <input id="subject" className={cn(paperInput, "font-bold")} value={subject} maxLength={200} onChange={(e) => setSubject(e.target.value)} />
+                        </div>
+                      )}
+                      <label htmlFor="body" className="block text-xs text-[#5c5c62]">
                         Mensaje (editable; debe conservar el enlace de baja)
                       </label>
-                      <textarea id="body" data-testid="body" rows={14} className={cn(inputCls, "min-h-56 max-h-[32rem] overflow-y-auto font-mono text-xs leading-relaxed [field-sizing:content]")} value={body} onChange={(e) => setBody(e.target.value)} />
+                      <textarea id="body" data-testid="body" rows={14} className={cn(paperInput, "min-h-56 max-h-[30rem] resize-y overflow-y-auto leading-[1.55] [field-sizing:content]")} value={body} onChange={(e) => setBody(e.target.value)} />
                     </div>
 
                     {isForm ? (
-                      <div className="flex flex-col gap-3 rounded-card border border-border bg-faro-surface-2 p-3" data-testid="assisted">
+                      <div className="flex flex-col gap-3 rounded-[12px] border border-white/[0.14] bg-faro-surface-2 p-3.5" data-testid="assisted">
                         <p className="text-sm text-faro-text-2">Modo asistido: lo envías tú. Copia el texto, abre el formulario, pégalo y marca como enviado con el tiempo que te tomó.</p>
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={copy} className={cn(btn, "border border-border hover:border-faro-accent")}>
+                          <button type="button" onClick={copy} className={cn(btn, focusRing, "border border-white/[0.14] hover:border-faro-accent")}>
                             {copied ? "Copiado" : "Copiar texto"}
                           </button>
                           {safeFormUrl ? (
-                            <a href={safeFormUrl} target="_blank" rel="noopener noreferrer" className={cn(btn, "border border-border hover:border-faro-accent")}>
+                            <a href={safeFormUrl} target="_blank" rel="noopener noreferrer" className={cn(btn, focusRing, "border border-white/[0.14] hover:border-faro-accent")}>
                               Abrir formulario
                             </a>
                           ) : (
@@ -512,14 +585,14 @@ export function OutreachClient(props: {
                           data-testid="mark-sent"
                           disabled={busy || !preview.assessment.allowed || !(minutesNum >= 0.5)}
                           onClick={markSent}
-                          className={cn(btn, "bg-faro-accent text-[var(--faro-accent-ink)]")}
+                          className={cn(btn, focusRing, "bg-faro-accent font-bold text-[var(--faro-accent-ink)]")}
                         >
                           Marcar enviado · US$ {(Number.isFinite(minutesNum) ? minutesNum * props.humanRate : 0).toFixed(2)} de tiempo
                         </button>
                       </div>
                     ) : (
                       <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={saveEdit} className={cn(btn, "border border-border hover:border-faro-accent")}>
+                        <button type="button" onClick={saveEdit} className={cn(btn, focusRing, "border border-white/[0.14] hover:border-faro-accent")}>
                           Guardar edición
                         </button>
                         <button
@@ -527,7 +600,7 @@ export function OutreachClient(props: {
                           data-testid="queue-one"
                           disabled={busy || blocking(preview.assessment).length > 0 || channel !== "email"}
                           onClick={queueActive}
-                          className={cn(btn, "bg-faro-accent text-[var(--faro-accent-ink)]")}
+                          className={cn(btn, focusRing, "bg-faro-accent font-bold text-[var(--faro-accent-ink)]")}
                         >
                           {sendEnabled ? "Encolar y enviar" : "Encolar y simular"}
                         </button>
@@ -539,25 +612,39 @@ export function OutreachClient(props: {
             )}
           </section>
 
-          <section aria-label="Cola de envío" className="rounded-card border border-border bg-faro-surface-1 p-4" data-testid="queue-panel">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="font-display text-lg font-semibold">Cola de envío</h2>
-              <button type="button" disabled={busy || queuedCount === 0} onClick={processNow} className={cn(btn, "h-8 border border-border px-3 text-xs hover:border-faro-accent")}>
+          <section aria-labelledby="queue-title" className="rounded-card border border-white/10 bg-faro-surface-1 p-5" data-testid="queue-panel">
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="queue-title" className="font-display text-lg font-semibold">
+                Cola de envío
+              </h2>
+              <button type="button" disabled={busy || queuedCount === 0} onClick={processNow} className={cn(btn, focusRing, "bg-faro-accent font-bold text-[var(--faro-accent-ink)]")}>
                 Procesar ahora
               </button>
             </div>
-            <p className="mt-1 text-xs text-faro-text-3">
-              {props.window.label ?? "Lun–vie 7:00–19:00 · sáb 8:00–15:00 (Bogotá) · nunca domingo ni festivos"} · lotes de 20. {props.window.allowed ? "" : props.window.reason + "."}{" "}
-              <a href="/app/settings/envio" className="text-faro-accent underline-offset-2 hover:underline">
-                Cambiar horario
-              </a>
+            <p className="mt-2 text-[13px] leading-relaxed text-faro-text-3">
+              {queuedCount} en cola · lotes de 20 · {props.window.label ?? "Lun–vie 7:00–19:00 · sáb 8:00–15:00 (Bogotá) · nunca domingo ni festivos"}
+              {props.window.allowed ? "" : ` · ${props.window.reason}.`}
+            </p>
+            <div
+              className="mt-3.5 h-2 overflow-hidden rounded-full bg-faro-surface-2"
+              role="progressbar"
+              aria-label="Mensajes procesados de la cola"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={pct}
+              aria-valuetext={`${processed} de ${queueTotal} procesados`}
+            >
+              <div className="h-full rounded-full bg-faro-accent transition-[width] duration-500" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="mt-1.5 text-xs text-faro-text-3 tabular-nums">
+              {processed} de {queueTotal} procesados
             </p>
             {queue.length === 0 ? (
               <p className="py-6 text-center text-sm text-faro-text-2">La cola está vacía. Selecciona leads y encólalos.</p>
             ) : (
               <ul className="mt-3 flex max-h-72 flex-col gap-1.5 overflow-y-auto" data-testid="queue-list">
                 {queue.map((q) => (
-                  <li key={q.id} className="flex items-center justify-between gap-2 rounded-button bg-faro-surface-2 px-3 py-2 text-sm">
+                  <li key={q.id} className="flex items-center justify-between gap-2 rounded-[10px] bg-faro-surface-2 px-3 py-2.5 text-sm">
                     <span className="min-w-0">
                       <span className="block truncate">{q.company}</span>
                       <span className="block text-xs text-faro-text-3">
@@ -571,7 +658,7 @@ export function OutreachClient(props: {
               </ul>
             )}
           </section>
-        </div>
+        </aside>
       </div>
     {replyFor && (
         <ReplyDialog

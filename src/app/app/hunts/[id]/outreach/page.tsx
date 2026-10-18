@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { desc, eq } from "drizzle-orm";
 import { ensureMigrated, getDb } from "@/db/client";
-import { companies, hunts, leads, messages } from "@/db/schema";
+import { companies, hunts, icpProfiles, leads, messages } from "@/db/schema";
 import { checkSendWindow, describeCustomWindow } from "@/features/compliance/windows";
 import { getSendWindow } from "@/features/settings/send-window";
 import { ensureOutreachDemo } from "@/features/outreach/demo";
 import { listOutreachRows } from "@/features/outreach/service";
 import { requireAppAccess } from "@/lib/app-access";
 import { getEnv } from "@/lib/env";
+import { prettyCity } from "@/features/hunts/ui/format";
 import { OutreachClient, type QueueItem } from "./outreach-client";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export const metadata: Metadata = { title: "Contacto · Faro", robots: { index: 
 // One bootstrap per server process: concurrent first requests must not race the seed.
 let demoHunt: Promise<string> | undefined;
 
+const SECTOR_TITLE: Record<string, string> = { dental: "Clínicas dentales", restaurant: "Restaurantes" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function Notice({ title, body }: { title: string; body: string }) {
@@ -59,6 +61,11 @@ export default async function OutreachPage({
   }
   const [hunt] = await db.select().from(hunts).where(eq(hunts.id, huntId)).limit(1);
   if (!hunt) return <Notice title="Búsqueda no encontrada" body="No existe una búsqueda con ese identificador." />;
+  const [profile] = await db.select({ criteria: icpProfiles.criteria }).from(icpProfiles).where(eq(icpProfiles.id, hunt.icpProfileId)).limit(1);
+  const crit = (profile?.criteria ?? {}) as { sector?: unknown; city?: unknown };
+  const rawSector = typeof crit.sector === "string" ? crit.sector : "";
+  const sector = SECTOR_TITLE[rawSector] ?? (rawSector ? rawSector.charAt(0).toUpperCase() + rawSector.slice(1) : "Búsqueda");
+  const huntTitle = typeof crit.city === "string" && crit.city ? `${sector} · ${prettyCity(crit.city)}` : sector;
 
   // `?now=` only on the demo, so screenshots are deterministic.
   const parsed = isDemo && nowParam ? new Date(nowParam) : null;
@@ -94,6 +101,7 @@ export default async function OutreachPage({
   return (
     <OutreachClient
       huntId={huntId}
+      huntTitle={huntTitle}
       isDemoHunt={isDemo}
       sendEnabled={env.SEND_ENABLED === true}
       whatsappEnabled={env.WHATSAPP_ENABLED === true}
