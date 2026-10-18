@@ -13,6 +13,7 @@ import type { ContactInput } from "./contact";
 import type { Tracking } from "./params";
 import { isEnrichedSite, signalsOf, siteFactsFrom, type CompanyInput, type SiteFacts, type SourceInput } from "./findings";
 import { resolveHuntCity, storedHuntCities, type PeerSite } from "./benchmark";
+import { isHealthSector } from "./vocab";
 
 const g = globalThis as unknown as { __faroDiagReady?: Promise<Awaited<ReturnType<typeof readyConn>>> };
 
@@ -37,6 +38,8 @@ export interface Diagnostic {
   benchCity: string | null;
   /** Services the hunt offers (or the team catalog): feeds "Cómo le ayudamos" and the final block. */
   offer: EffectiveOffer;
+  /** Health search (clinics/patients copy); false -> generic "empresa"/"cliente" copy. */
+  health: boolean;
 }
 
 /**
@@ -125,6 +128,7 @@ export async function getDiagnostic(slug: string): Promise<Diagnostic | null> {
     peers,
     benchCity: resolveHuntCity(row.company, storedHuntCities(icp?.criteria)),
     offer,
+    health: isHealthSector(icp?.criteria),
   };
 }
 

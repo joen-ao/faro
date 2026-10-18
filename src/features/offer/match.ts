@@ -19,6 +19,9 @@ export interface Recommendation {
 }
 
 /** Highest impact first: when a lead has several problems, the email mentions only the first one. */
+/** Minimum relevance for "Cómo le ayudamos": one keyword hit (2) or an accepted angle (10); loose text overlaps do not count. */
+export const HELP_MIN_SCORE = 2;
+
 export const PRIORITY: readonly FindingKind[] = ["no-website", "whatsapp", "booking", "freshness", "form", "social", "site-unreviewed"];
 
 /** Folded trigger fragments per finding kind (matched inside service keywords and service text). */
@@ -121,8 +124,10 @@ const lcFirst = (s: string) => (s && !/^[A-ZÁÉÍÓÚÑ]{2}/.test(s) ? s.charAt
  * "Cómo le ayudamos" for one finding: a fixed template per finding kind that names the service and its outcome.
  * Null when there are no services (the page then stays as before).
  */
-export function howWeHelp(findingId: string, services: readonly Service[], angles: readonly Angle[] = [], fallback?: Service | null): string | null {
+export function howWeHelp(findingId: string, services: readonly Service[], angles: readonly Angle[] = []): string | null {
   if (!services.length || !isFindingKind(findingId)) return null;
-  const service = bestServiceFor(findingId, services, angles) ?? fallback ?? services[0]!;
+  // Only when a service really relates to the finding (a keyword or an accepted angle); never a forced match.
+  const service = bestServiceFor(findingId, services, angles);
+  if (!service || serviceScore(service, findingId, angles) < HELP_MIN_SCORE) return null;
   return `${LEAD_IN[findingId]}: ${service.name}. Resultado: ${sentence(lcFirst(service.outcome))}`;
 }

@@ -10,6 +10,7 @@ import type { Tracking } from "@/features/diagnostic/params";
 import { buildWidgetDoc } from "@/features/diagnostic/widget";
 import { ContactForm } from "./contact-form";
 import { TrackOpen } from "./track-open";
+import { localize } from "@/features/diagnostic/vocab";
 
 export interface ViewProps {
   /** Page identity for tracking and the form: lead slug, or `icp:<icpSlug>`. */
@@ -25,6 +26,10 @@ export interface ViewProps {
   /** Generic ICP variant content. */
   icp?: { audience: string; headline: string; points: string[] };
   optOutHref: string | null;
+  /** Health search: keep the clinic/patient copy (default). False -> "empresa"/"cliente". */
+  health?: boolean;
+  /** The team's company that offers the services (signs the page; Faro is the tool). */
+  seller?: string;
   /** Lead pages with services: "Cómo le ayudamos" per finding id and the recommended service for the final block. */
   offer?: { help: Record<string, string>; service: { name: string; outcome: string; entryOffer: string | null } };
 }
@@ -182,21 +187,21 @@ function BenchRow({ r }: { r: BenchmarkRow }) {
   );
 }
 
-function BenchmarkBlock({ b }: { b: Benchmark }) {
+function BenchmarkBlock({ b, L = (t: string) => t }: { b: Benchmark; L?: (t: string) => string }) {
   const peers = Math.max(0, ...b.rows.map((r) => r.n));
   const city = b.city ? cityLabel(b.city) : null;
   // "hunt": fewer than 5 reviewed clinics in their city, so the comparison uses the whole search (and says so).
   const wide = b.scope === "hunt";
   const title =
-    peers < BENCHMARK_MIN_N ? "Usted frente a su competencia" : wide ? `Usted frente a ${peers} clínicas revisadas en su búsqueda` : `Usted frente a ${peers} clínicas${city ? ` de ${city}` : ""}`;
+    L(peers < BENCHMARK_MIN_N ? "Usted frente a su competencia" : wide ? `Usted frente a ${peers} clínicas revisadas en su búsqueda` : `Usted frente a ${peers} clínicas${city ? ` de ${city}` : ""}`);
   return (
     <section aria-labelledby="comparacion" className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
         <h2 id="comparacion" className="text-2xl font-semibold sm:text-[1.75rem]">{title}</h2>
         <p className="max-w-2xl text-pretty text-faro-text-3">
           {wide
-            ? `Clínicas revisadas en su búsqueda${city ? `: en ${city} aún hay menos de ${BENCHMARK_MIN_N} con sitio revisado, así que comparamos con todas las de la búsqueda` : ""}. Solo mostramos totales, nunca nombres.`
-            : `Comparamos su sitio con los de otras clínicas${city ? ` de ${city}` : ""} de la misma búsqueda pública. Solo mostramos totales, nunca nombres.`}
+            ? L(`Clínicas revisadas en su búsqueda${city ? `: en ${city} aún hay menos de ${BENCHMARK_MIN_N} con sitio revisado, así que comparamos con todas las de la búsqueda` : ""}. Solo mostramos totales, nunca nombres.`)
+            : L(`Comparamos su sitio con los de otras clínicas${city ? ` de ${city}` : ""} de la misma búsqueda pública. Solo mostramos totales, nunca nombres.`)}
         </p>
       </div>
       <ul data-testid="benchmark" className="divide-y divide-white/8 rounded-card border border-white/10 bg-faro-surface-1 px-5 sm:px-6">
@@ -226,7 +231,8 @@ function WhatsAppButton({ href, testId, className }: { href: string; testId: str
   );
 }
 
-export function DiagnosticView({ slug, tracking, company, findings, benchmark, registry, icp, optOutHref, offer }: ViewProps) {
+export function DiagnosticView({ slug, tracking, company, findings, benchmark, registry, icp, optOutHref, offer, health = true, seller }: ViewProps) {
+  const L = (text: string) => localize(text, health);
   const env = getEnv();
   const product = env.NEXT_PUBLIC_PRODUCT_NAME;
   const isIcp = !!icp;
@@ -277,7 +283,7 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
               ) : (
                 <>
                   <span className="block font-sans text-[0.8125rem] font-medium uppercase tracking-[0.2em] text-faro-accent">
-                    Diagnóstico de captación de pacientes<span className="sr-only"> ·</span>
+                    {L("Diagnóstico de captación de pacientes")}<span className="sr-only"> ·</span>
                   </span>
                   <span className="mt-4 block text-[2.25rem] leading-[1.04] tracking-[-0.035em] sm:text-[3.75rem]">{company?.name}</span>
                 </>
@@ -286,7 +292,7 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
             <p className="max-w-[35rem] text-pretty text-lg leading-relaxed text-white/70">
               {isIcp
                 ? `${product} es un proyecto del 30X Hackathon que ayuda a clínicas a ver qué les cuesta pacientes nuevos y cómo arreglarlo. Aquí tiene cómo funciona.`
-                : "Revisamos su presencia digital como lo haría un paciente nuevo: esto es lo que puede estar costándole citas y cómo arreglarlo, paso a paso."}
+                : L("Revisamos su presencia digital como lo haría un paciente nuevo: esto es lo que puede estar costándole citas y cómo arreglarlo, paso a paso.")}
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
               <WhatsAppButton href={wa} testId="whatsapp-cta-hero" className="w-full sm:w-auto" />
@@ -343,7 +349,7 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
           )}
         </section>
 
-        {!isIcp && benchmark && <BenchmarkBlock b={benchmark} />}
+        {!isIcp && benchmark && <BenchmarkBlock b={benchmark} L={L} />}
 
         <section
           id="hablar"
@@ -353,7 +359,7 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
         >
           <div className="flex min-w-0 flex-col gap-4">
             <h2 id="hablemos" className="text-balance text-[1.75rem] font-bold leading-[1.1] tracking-[-0.03em] sm:text-4xl">
-              ¿Le ayudamos a conseguir más pacientes?
+              {L("¿Le ayudamos a conseguir más pacientes?")}
             </h2>
             {offer && !isIcp ? (
               <div data-testid="offer-cta" className="flex max-w-xl flex-col gap-2">
@@ -366,7 +372,7 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
               </div>
             ) : (
               <p className="max-w-xl text-pretty leading-relaxed text-white/70">
-                Escríbanos por WhatsApp y le decimos por dónde empezar con su clínica. Sin costo y sin compromiso.
+                {L("Escríbanos por WhatsApp y le decimos por dónde empezar con su clínica. Sin costo y sin compromiso.")}
               </p>
             )}
             <WhatsAppButton href={wa} testId="whatsapp-cta" className="w-full sm:w-auto sm:self-start" />
@@ -404,8 +410,8 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
         <div className="mx-auto grid w-full max-w-[1080px] gap-7 px-5 py-9 text-sm leading-relaxed text-faro-text-3 md:grid-cols-3 md:gap-12">
           <div data-testid="sender" className="flex flex-col gap-1.5">
             <h2 className="font-sans text-sm font-bold tracking-normal text-white">Quién le escribe</h2>
-            <p>{product} — proyecto del 30X Hackathon.</p>
-            {env.SENDER_LEGAL_NAME && <p>{env.SENDER_LEGAL_NAME}</p>}
+            <p>{seller ? `${seller}, con ${product} (proyecto del 30X Hackathon).` : `${product} — proyecto del 30X Hackathon.`}</p>
+            {env.SENDER_LEGAL_NAME && !env.SENDER_LEGAL_NAME.toLowerCase().includes(product.toLowerCase()) && <p>{env.SENDER_LEGAL_NAME}</p>}
             {env.SENDER_ADDRESS && <p>{env.SENDER_ADDRESS}</p>}
             {env.EMAIL_REPLY_TO && (
               <p>
