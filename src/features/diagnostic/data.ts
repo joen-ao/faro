@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import type { AppDb } from "@/db/types";
-import { companies, companySources, contactPoints, events, leads } from "@/db/schema";
+import { companies, companySources, contactPoints, events, hunts, icpProfiles, leads } from "@/db/schema";
+import { loadEffectiveOffer, type EffectiveOffer } from "@/features/offer/resolve";
 import { seedDiagnosticDemo } from "@/db/seed";
 import { isLegalEntity } from "@/features/compliance/email";
 import { SHARED_DOMAINS } from "@/features/compliance/optout";
@@ -32,6 +33,8 @@ export interface Diagnostic {
   site: SiteFacts;
   /** Peers of the same hunt with an enriched website (real data only, never names). */
   peers: PeerSite[];
+  /** Services the hunt offers (or the team catalog): feeds "Cómo le ayudamos" and the final block. */
+  offer: EffectiveOffer;
 }
 
 /**
@@ -94,6 +97,15 @@ export async function getDiagnostic(slug: string): Promise<Diagnostic | null> {
     .from(contactPoints)
     .where(eq(contactPoints.companyId, row.company.id));
   const peers = row.lead.huntId ? await peerSites(db as unknown as AppDb, row.lead.huntId, row.company.id) : [];
+  const [icp] = row.lead.huntId
+    ? await db
+        .select({ offer: icpProfiles.offer })
+        .from(hunts)
+        .innerJoin(icpProfiles, eq(icpProfiles.id, hunts.icpProfileId))
+        .where(eq(hunts.id, row.lead.huntId))
+        .limit(1)
+    : [];
+  const offer = await loadEffectiveOffer(db as unknown as AppDb, icp?.offer ?? null);
   return {
     leadId: row.lead.id,
     isDemo: row.lead.isDemo || row.company.isDemo,
@@ -101,6 +113,7 @@ export async function getDiagnostic(slug: string): Promise<Diagnostic | null> {
     sources,
     site: siteFactsFrom(sources, contacts),
     peers,
+    offer,
   };
 }
 

@@ -24,6 +24,8 @@ export interface ViewProps {
   /** Generic ICP variant content. */
   icp?: { audience: string; headline: string; points: string[] };
   optOutHref: string | null;
+  /** Lead pages with services: "Cómo le ayudamos" per finding id and the recommended service for the final block. */
+  offer?: { help: Record<string, string>; service: { name: string; outcome: string; entryOffer: string | null } };
 }
 
 /**
@@ -88,7 +90,7 @@ function SourceLine({ f }: { f: Finding }) {
 }
 
 /** Opportunity: highlighted card with the recommendation beside it (stacked on mobile). */
-function OpportunityCard({ f }: { f: Finding }) {
+function OpportunityCard({ f, help }: { f: Finding; help?: string }) {
   return (
     <li data-testid="finding" data-status={f.status} className="grid gap-5 rounded-card border border-faro-warn/45 bg-faro-surface-1 p-5 sm:p-7 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-8">
       <div className="flex min-w-0 flex-col gap-3">
@@ -103,13 +105,19 @@ function OpportunityCard({ f }: { f: Finding }) {
       <div className="self-start rounded-button bg-faro-surface-2 p-4 sm:p-5">
         <p className="text-xs font-bold uppercase tracking-[0.12em] text-faro-accent">Recomendación</p>
         <p className="mt-2 text-pretty leading-relaxed text-white">{f.recommendation}</p>
+        {help && (
+          <div data-testid="how-we-help" className="mt-4 border-t border-white/10 pt-4">
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-faro-text-2">Cómo le ayudamos</p>
+            <p className="mt-2 text-pretty text-sm leading-relaxed text-white/85">{help}</p>
+          </div>
+        )}
       </div>
     </li>
   );
 }
 
 /** Point in favour (or not reviewed): compact card in the grid. */
-function GridCard({ f }: { f: Finding }) {
+function GridCard({ f, help }: { f: Finding; help?: string }) {
   return (
     <li data-testid="finding" data-status={f.status} className="flex flex-col gap-3 rounded-card border border-white/10 bg-faro-surface-1 p-5 sm:p-6">
       <StatusPill f={f} />
@@ -122,6 +130,12 @@ function GridCard({ f }: { f: Finding }) {
         <span className="font-semibold text-faro-accent">Recomendación: </span>
         {f.recommendation}
       </p>
+      {help && (
+        <p data-testid="how-we-help" className="text-pretty text-sm leading-relaxed text-white/85">
+          <span className="font-semibold text-white">Cómo le ayudamos: </span>
+          {help}
+        </p>
+      )}
       <div className="mt-auto pt-1">
         <SourceLine f={f} />
       </div>
@@ -206,7 +220,7 @@ function WhatsAppButton({ href, testId, className }: { href: string; testId: str
   );
 }
 
-export function DiagnosticView({ slug, tracking, company, findings, benchmark, registry, icp, optOutHref }: ViewProps) {
+export function DiagnosticView({ slug, tracking, company, findings, benchmark, registry, icp, optOutHref, offer }: ViewProps) {
   const env = getEnv();
   const product = env.NEXT_PUBLIC_PRODUCT_NAME;
   const isIcp = !!icp;
@@ -308,14 +322,14 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
               {opportunityCards.length > 0 && (
                 <ul aria-label="Oportunidades" className="flex flex-col gap-3.5">
                   {opportunityCards.map((f) => (
-                    <OpportunityCard key={f.id} f={f} />
+                    <OpportunityCard key={f.id} f={f} help={offer?.help[f.id]} />
                   ))}
                 </ul>
               )}
               {gridCards.length > 0 && (
                 <ul aria-label="Puntos a favor y pendientes" className="grid gap-3.5 md:grid-cols-[repeat(auto-fit,minmax(300px,1fr))]">
                   {gridCards.map((f) => (
-                    <GridCard key={f.id} f={f} />
+                    <GridCard key={f.id} f={f} help={offer?.help[f.id]} />
                   ))}
                 </ul>
               )}
@@ -335,9 +349,20 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
             <h2 id="hablemos" className="text-balance text-[1.75rem] font-bold leading-[1.1] tracking-[-0.03em] sm:text-4xl">
               ¿Le ayudamos a conseguir más pacientes?
             </h2>
-            <p className="max-w-xl text-pretty leading-relaxed text-white/70">
-              Escríbanos por WhatsApp y le decimos por dónde empezar con su clínica. Sin costo y sin compromiso.
-            </p>
+            {offer && !isIcp ? (
+              <div data-testid="offer-cta" className="flex max-w-xl flex-col gap-2">
+                <p className="text-pretty leading-relaxed text-white">
+                  <span className="font-semibold">{offer.service.name}.</span> <span className="text-white/75">{offer.service.outcome}</span>
+                </p>
+                <p className="text-pretty leading-relaxed text-white/70">
+                  {offer.service.entryOffer ? `Para empezar: ${offer.service.entryOffer} ` : ""}Escríbanos por WhatsApp y le decimos por dónde empezar. Sin compromiso.
+                </p>
+              </div>
+            ) : (
+              <p className="max-w-xl text-pretty leading-relaxed text-white/70">
+                Escríbanos por WhatsApp y le decimos por dónde empezar con su clínica. Sin costo y sin compromiso.
+              </p>
+            )}
             <WhatsAppButton href={wa} testId="whatsapp-cta" className="w-full sm:w-auto sm:self-start" />
             <p className="text-[0.8125rem] text-faro-text-3">
               {whatsappDisplay(env.NEXT_PUBLIC_WHATSAPP_NUMBER)} · responde el asistente de {product}, integrado con Dapta
