@@ -15,7 +15,8 @@ import {
 import type { AppDb, Company, CompanySource, ContactChannel, ContactPoint, Hunt, IcpProfile, Lead, Workspace } from "@/db/types";
 import { evaluateOutreach, type BlockRule, type OutreachContact } from "@/features/compliance/evaluate";
 import { isSuppressed } from "@/features/compliance/suppression";
-import { checkSendWindow, type Country } from "@/features/compliance/windows";
+import { checkSendWindow, type Country, type SendWindowSetting } from "@/features/compliance/windows";
+import { getSendWindow } from "@/features/settings/send-window";
 import { dbCallRecorder, loadAiRates, recordAiCost } from "@/features/scoring/cost";
 import { AiError, type AnthropicAdapter } from "@/integrations/anthropic";
 import { EmailSendError, type EmailAdapter } from "@/integrations/email";
@@ -135,7 +136,7 @@ export async function assess(
   value: string | null,
   now: Date,
   env: Env,
-  extra: { excludeMessageId?: string; body?: string } = {},
+  extra: { excludeMessageId?: string; body?: string; window?: SendWindowSetting } = {},
 ): Promise<Assessment> {
   if (!value) {
     return {
@@ -165,6 +166,7 @@ export async function assess(
       // Simulations do not need a real reply address; real sends do.
       senderIdentified: enabled ? !!replyTo : true,
       senderAddress: env.SENDER_ADDRESS ?? null,
+      window: extra.window ?? (await getSendWindow(db)).setting,
     },
   );
   const blocks: ServiceBlock[] = ev.blocks.map((b) => ({ rule: b.rule, message: b.message, nextAllowedAt: b.nextAllowedAt ?? null }));
@@ -320,7 +322,7 @@ export async function previewOutreach(
     message,
     isMockAi,
     sendEnabled: sendEnabled(env),
-    window: checkSendWindow(now, ctx.country),
+    window: checkSendWindow(now, ctx.country, (await getSendWindow(db)).setting),
   };
 }
 
@@ -497,13 +499,14 @@ export async function processQueue(
   const result: ProcessResult = { now, processed: 0, sent: 0, simulated: 0, deferred: 0, blocked: 0, failed: 0, remaining: 0, items: [] };
   const rate = await emailRateUsd(db);
   let worked = 0;
+  const window = (await getSendWindow(db)).setting;
   for (const { message: m } of queued) {
     if (worked >= limit) {
       result.remaining++;
       continue;
     }
     const ctx = await loadLeadContext(db, m.leadId);
-    const a = await assess(db, ctx, "email", m.recipient, now, env, { excludeMessageId: m.id, body: m.body });
+    const a = await assess(db, ctx, "email", m.recipient, now, env, { excludeMessageId: m.id, body: m.body, window });
     if (!a.allowed && a.deferrable) {
       await db.update(messages).set({ blockedByRule: "outside_window" }).where(eq(messages.id, m.id));
       result.deferred++;
@@ -710,6 +713,7 @@ export async function listOutreachRows(db: AppDb, huntId: string, env: Env, now:
     .orderBy(sql`case when ${leads.status} = 'found' then 1 else 0 end`, desc(leads.fitScore))
     .limit(60);
   const out: OutreachRow[] = [];
+  const window = (await getSendWindow(db)).setting;
   for (const { lead: leadId } of rows) {
     const ctx = await loadLeadContext(db, leadId);
     const opts = channelOpts(ctx, env);
@@ -727,7 +731,7 @@ export async function listOutreachRows(db: AppDb, huntId: string, env: Env, now:
       options,
       suggested: channel,
       recipient: option?.value ?? null,
-      assessment: await assess(db, ctx, channel ?? "email", option?.value ?? null, now, env),
+      assessment: await assess(db, ctx, channel ?? "email", option?.value ?? null, now, env, { window }),
       latest: latest
         ? { id: latest.id, status: latest.status, channel: latest.contactChannel, blockedByRule: latest.blockedByRule, subject: latest.subject, recipient: latest.recipient }
         : null,

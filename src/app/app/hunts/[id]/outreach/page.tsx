@@ -3,7 +3,8 @@ import { cookies } from "next/headers";
 import { desc, eq } from "drizzle-orm";
 import { ensureMigrated, getDb } from "@/db/client";
 import { companies, hunts, leads, messages } from "@/db/schema";
-import { checkSendWindow, sendWindowPolicy } from "@/features/compliance/windows";
+import { checkSendWindow, describeCustomWindow } from "@/features/compliance/windows";
+import { getSendWindow } from "@/features/settings/send-window";
 import { ensureOutreachDemo } from "@/features/outreach/demo";
 import { listOutreachRows } from "@/features/outreach/service";
 import { requireAppAccess } from "@/lib/app-access";
@@ -81,7 +82,14 @@ export default async function OutreachPage({
     .orderBy(desc(messages.createdAt))
     .limit(40);
   const queue: QueueItem[] = queueRows.map((q) => ({ ...q, at: q.at.toISOString() }));
-  const win = checkSendWindow(now, "CO");
+  const { setting } = await getSendWindow(db);
+  const win = checkSendWindow(now, "CO", setting);
+  const windowLabel =
+    setting.policy === "custom"
+      ? `${describeCustomWindow(setting)} (Bogotá) · horario del equipo`
+      : setting.policy === "extendida"
+        ? "Todos los días 8:00–20:00 (Bogotá) · ventana extendida del equipo"
+        : "Lun–vie 7:00–19:00 · sáb 8:00–15:00 (Bogotá) · nunca domingo ni festivos";
 
   return (
     <OutreachClient
@@ -91,7 +99,7 @@ export default async function OutreachPage({
       whatsappEnabled={env.WHATSAPP_ENABLED === true}
       humanRate={env.HUMAN_MINUTE_RATE_USD}
       nowIso={now.toISOString()}
-      window={{ allowed: win.allowed, reason: win.reason, nextAllowedAt: win.nextAllowedAt?.toISOString() ?? null, policy: sendWindowPolicy() }}
+      window={{ allowed: win.allowed, reason: win.reason, nextAllowedAt: win.nextAllowedAt?.toISOString() ?? null, policy: setting.policy, label: windowLabel }}
       rows={rows.map((r) => ({
         ...r,
         assessment: { ...r.assessment, nextAllowedAt: r.assessment.nextAllowedAt?.toISOString() ?? null, blocks: r.assessment.blocks.map((b) => ({ rule: b.rule, message: b.message })) },

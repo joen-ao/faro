@@ -120,7 +120,7 @@ export function OutreachClient(props: {
   whatsappEnabled: boolean;
   humanRate: number;
   nowIso: string;
-  window: { allowed: boolean; reason: string; nextAllowedAt: string | null; policy?: "ley2300" | "extendida" };
+  window: { allowed: boolean; reason: string; nextAllowedAt: string | null; policy?: "ley2300" | "extendida" | "custom"; label?: string };
   rows: RowView[];
   queue: QueueItem[];
 }) {
@@ -547,7 +547,10 @@ export function OutreachClient(props: {
               </button>
             </div>
             <p className="mt-1 text-xs text-faro-text-3">
-              {props.window.policy === "extendida" ? "Todos los días 8:00–20:00 (Bogotá) · ventana extendida del equipo · lotes de 20." : "Lun–vie 7:00–19:00 · sáb 8:00–15:00 (Bogotá) · nunca domingo ni festivos · lotes de 20."} {props.window.allowed ? "" : props.window.reason + "."}
+              {props.window.label ?? "Lun–vie 7:00–19:00 · sáb 8:00–15:00 (Bogotá) · nunca domingo ni festivos"} · lotes de 20. {props.window.allowed ? "" : props.window.reason + "."}{" "}
+              <a href="/app/settings/envio" className="text-faro-accent underline-offset-2 hover:underline">
+                Cambiar horario
+              </a>
             </p>
             {queue.length === 0 ? (
               <p className="py-6 text-center text-sm text-faro-text-2">La cola está vacía. Selecciona leads y encólalos.</p>

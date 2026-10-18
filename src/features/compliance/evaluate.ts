@@ -3,7 +3,8 @@ import { companies, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { isGenericEmail } from "./email";
 import { isSuppressed } from "./suppression";
-import { checkSendWindow, type Country } from "./windows";
+import { checkSendWindow, type Country, type SendWindowSetting } from "./windows";
+import { getSendWindow } from "@/features/settings/send-window";
 
 export type BlockRule =
   | "natural_person"
@@ -43,6 +44,8 @@ export interface OutreachOptions {
   senderIdentified?: boolean;
   /** CAN-SPAM requires a physical address for US email. */
   senderAddress?: string | null;
+  /** Active send window (panel setting); defaults to SEND_WINDOW_POLICY. */
+  window?: SendWindowSetting;
 }
 
 export interface OutreachEvaluation {
@@ -82,7 +85,7 @@ export function evaluateOutreach(
   if (opts.senderIdentified === false) {
     blocks.push({ rule: "sender_missing", message: "El mensaje debe identificar al remitente (producto, 30X Hackathon, correo de respuesta, motivo)." });
   }
-  const win = checkSendWindow(now, lead.country);
+  const win = checkSendWindow(now, lead.country, opts.window);
   if (!win.allowed) blocks.push({ rule: "outside_window", message: `Fuera de ventana de envío: ${win.reason}.`, nextAllowedAt: win.nextAllowedAt });
 
   const allowed = blocks.length === 0;
@@ -132,6 +135,6 @@ export async function evaluateOutreachForLead(
     },
     contact,
     now,
-    opts,
+    { ...opts, window: opts.window ?? (await getSendWindow(db)).setting },
   );
 }

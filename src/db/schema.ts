@@ -345,3 +345,10 @@ export const apiCalls = pgTable(
   (t) => [index("api_calls_service_idx").on(t.service, t.at)],
 );
 
+
+/** Team settings editable from /app/settings (key -> JSON value). */
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<Record<string, unknown>>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});

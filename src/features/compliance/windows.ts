@@ -73,6 +73,40 @@ export function sendWindowPolicy(env: Record<string, string | undefined> = proce
   return env.SEND_WINDOW_POLICY?.trim().toLowerCase() === "extendida" ? "extendida" : "ley2300";
 }
 
+/** Hours and weekdays chosen by the team in /app/settings/envio (America/Bogota). */
+export interface CustomSendWindow {
+  startHour: number;
+  /** Exclusive-ish: sends allowed through hh:00 of this hour; 24 = until midnight. */
+  endHour: number;
+  /** 0 = Sunday ... 6 = Saturday. */
+  days: number[];
+}
+export type SendWindowSetting = { policy: SendWindowPolicy } | ({ policy: "custom" } & CustomSendWindow);
+
+const DAY_NAMES = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+
+export function describeCustomWindow(w: CustomSendWindow): string {
+  const days = w.days.length === 7 ? "todos los días" : [...w.days].sort().map((d) => DAY_NAMES[d]).join(", ");
+  return `${w.startHour}:00–${w.endHour}:00, ${days}`;
+}
+
+/** Team-configured window: never at night by default, but holidays count as normal days (outside Ley 2300). */
+function checkCustomWindow(t: LocalParts, w: CustomSendWindow): SendWindowResult {
+  const label = `horario configurado ${describeCustomWindow(w)}, hora Colombia`;
+  const mins = t.hour * 60 + t.minute;
+  const today = w.days.includes(t.weekday);
+  if (today && mins >= w.startHour * 60 && mins <= w.endHour * 60) {
+    return { allowed: true, reason: `Dentro del ${label} (fuera de la Ley 2300)`, nextAllowedAt: null };
+  }
+  let next: Date | null = today && mins < w.startHour * 60 ? bogotaInstant(t.iso, w.startHour) : null;
+  for (let i = 1; !next && i <= 7; i++) {
+    const iso = addDays(t.iso, i);
+    if (w.days.includes(weekdayOf(iso))) next = bogotaInstant(iso, w.startHour);
+  }
+  const why = !today ? "Día no habilitado" : mins < w.startHour * 60 ? `Antes de las ${w.startHour}:00` : `Después de las ${w.endHour}:00`;
+  return { allowed: false, reason: `${why} (${label})`, nextAllowedAt: next };
+}
+
 /** "extendida": every day, holidays included, 8:00-20:00 America/Bogota (still never at night). */
 const EXTENDED_WINDOW: [number, number] = [8, 20];
 
@@ -81,11 +115,13 @@ const EXTENDED_WINDOW: [number, number] = [8, 20];
  * never Sunday or holiday. US: email only under CAN-SPAM, no time window.
  * With SEND_WINDOW_POLICY=extendida the team opts out of that voluntary rule: daily 8:00-20:00 Bogotá.
  */
-export function checkSendWindow(date: Date, country: Country, policy: SendWindowPolicy = sendWindowPolicy()): SendWindowResult {
+export function checkSendWindow(date: Date, country: Country, setting: SendWindowPolicy | SendWindowSetting = sendWindowPolicy()): SendWindowResult {
   if (country === "US") {
     return { allowed: true, reason: "EE. UU.: sin ventana horaria; solo correo con CAN-SPAM", nextAllowedAt: null };
   }
   const t = localParts(date);
+  const policy = typeof setting === "string" ? setting : setting.policy;
+  if (typeof setting !== "string" && setting.policy === "custom") return checkCustomWindow(t, setting);
   if (policy === "extendida") {
     const [start, end] = EXTENDED_WINDOW;
     const mins = t.hour * 60 + t.minute;
