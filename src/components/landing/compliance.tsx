@@ -1,47 +1,87 @@
-import { Check } from "lucide-react";
+import { formatCount } from "@/features/metrics/landing";
 import { sendWindowPolicy } from "@/features/compliance/windows";
+import { cn } from "@/lib/utils";
+import { EMPTY, Eyebrow, ScreenSection } from "./ui";
 
-const WINDOW_LEY_2300 = ["Ventanas horarias", "L–V 7:00–19:00, sábado 8:00–15:00. Nunca domingos ni festivos (Ley 2300)."];
-const WINDOW_EXTENDED = ["Horario de envío", "Todos los días entre 8:00 y 20:00 (hora Colombia), nunca de noche. Un solo mensaje por empresa."];
+const ICON = { width: 28, height: 28, viewBox: "0 0 24 24", fill: "none", stroke: "#cbe850", strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
-const BASE_RULES = [
-  ["Solo empresas", "Excluimos personas naturales y no guardamos nombres de personas. Las empresas de OSM y Places se marcan «por verificar»."],
-  ["Correos genéricos", "info@, contacto@, ventas@. Descartamos los que parecen nombre propio."],
-  ["Baja de un clic", "Todo mensaje trae su enlace. Quien se da de baja no vuelve a ser contactado."],
-  ["robots.txt", "Lo respetamos en cada sitio, con un User-Agent que dice quiénes somos."],
-  ["Atribución", "OpenStreetMap (ODbL) y datos.gov.co (CC BY-SA 4.0), visibles en mapa y tablero."],
-];
+const Icons = {
+  building: (
+    <svg aria-hidden {...ICON}>
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  ),
+  message: (
+    <svg aria-hidden {...ICON}>
+      <path d="M4 4h16v12H5.2L4 17.2z" />
+      <path d="M8 9h8" />
+    </svg>
+  ),
+  clock: (
+    <svg aria-hidden {...ICON}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  ),
+  link: (
+    <svg aria-hidden {...ICON}>
+      <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+      <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+    </svg>
+  ),
+};
 
-export function Compliance() {
+export function Compliance({ naturalPersonsContacted, excludedPersons }: { naturalPersonsContacted: number | null; excludedPersons: number | null }) {
   const strict = sendWindowPolicy() === "ley2300";
-  const RULES = [...BASE_RULES.slice(0, 3), strict ? WINDOW_LEY_2300 : WINDOW_EXTENDED, ...BASE_RULES.slice(3)];
+  const excluded = excludedPersons !== null && excludedPersons > 0 ? ` ${formatCount(excludedPersons)} registros excluidos hasta hoy.` : "";
+  const items = [
+    { icon: Icons.building, t: "Solo empresas", d: `Personas naturales y correos personales quedan fuera desde la búsqueda.${excluded}` },
+    { icon: Icons.message, t: "Un mensaje por empresa", d: "Sin secuencias ni insistencia. Baja en un clic, respetada para siempre." },
+    {
+      icon: Icons.clock,
+      t: "Horario de envío",
+      d: strict
+        ? "Ventana de la Ley 2300: L–V 7:00–19:00 y sábado 8:00–15:00. Nunca domingos ni festivos."
+        : "Todos los días entre 8:00 y 20:00 (hora Colombia), nunca de noche. Ajustable por el equipo desde el panel.",
+    },
+    { icon: Icons.link, t: "Fuentes citadas", d: "Cada dato muestra de dónde viene y su licencia: ODbL y CC BY-SA 4.0. Respetamos robots.txt en cada sitio." },
+  ];
+  const zero = naturalPersonsContacted === 0;
   return (
-    <section id="cumplimiento" aria-labelledby="comp-title" className="scroll-mt-8 border-t border-faro-border bg-faro-surface-1">
-      <div className="mx-auto grid max-w-6xl gap-12 px-6 py-24 lg:grid-cols-[0.8fr_1.2fr]">
-        <div>
-          <h2 id="comp-title" className="font-display text-3xl font-bold leading-tight sm:text-4xl">
-            Prospectar sin cruzar la línea
-          </h2>
-          <p className="mt-4 max-w-sm text-faro-text-2">
-            {strict
-              ? "Diseñado para cumplir la Ley 1581 (habeas data) y con la Ley 2300 adoptada de forma voluntaria. Un máximo de un mensaje por empresa, sin seguimientos automáticos."
-              : "Diseñado para cumplir la Ley 1581 (habeas data). Un máximo de un mensaje por empresa, sin seguimientos automáticos y siempre con baja de un clic."}
-          </p>
+    <ScreenSection id="cumplimiento" labelledBy="comp-title">
+      <div className="mx-auto w-full max-w-[1240px] px-4 py-24 sm:px-6">
+        <div className="faro-reveal flex flex-col gap-8 md:flex-row md:items-end md:justify-between md:gap-16">
+          <div className="min-w-0 flex-1">
+            <Eyebrow>Cumplimiento</Eyebrow>
+            <h2 id="comp-title" className="mt-4 font-display text-4xl font-bold leading-[1.02] tracking-[-0.04em] sm:text-5xl lg:text-[64px]">
+              Prospección que respeta la ley.
+            </h2>
+            <p className="mt-5 max-w-lg leading-relaxed text-white/60">Diseñado para cumplir la Ley 1581 (habeas data). Un máximo de un mensaje por empresa, sin seguimientos automáticos.</p>
+          </div>
+          <div className="md:text-right">
+            <p
+              className={cn(
+                "font-display font-bold leading-[0.85] tracking-[-0.06em]",
+                naturalPersonsContacted === null ? "py-4 text-3xl tracking-normal text-faro-text-3" : "text-[96px] sm:text-[140px] lg:text-[200px]",
+                zero ? "text-faro-accent" : naturalPersonsContacted !== null && "text-faro-warn",
+              )}
+            >
+              {naturalPersonsContacted === null ? EMPTY : formatCount(naturalPersonsContacted)}
+            </p>
+            <p className="mt-3 text-white/60">personas naturales contactadas</p>
+          </div>
         </div>
-        <ul className="grid gap-x-10 gap-y-6 sm:grid-cols-2">
-          {RULES.map(([t, d]) => (
-            <li key={t} className="flex gap-3">
-              <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-faro-accent text-faro-accent-ink" aria-hidden>
-                <Check className="size-3.5" strokeWidth={3} />
-              </span>
-              <div>
-                <h3 className="font-semibold">{t}</h3>
-                <p className="text-sm leading-relaxed text-faro-text-2">{d}</p>
-              </div>
+        <ul className="mt-16 grid grid-cols-1 border-t border-white/[0.12] sm:grid-cols-2 lg:mt-[72px] lg:grid-cols-4">
+          {items.map((it) => (
+            <li key={it.t} className="faro-reveal border-b border-white/[0.12] py-8 sm:pr-8">
+              {it.icon}
+              <h3 className="mt-5 font-display text-xl font-semibold">{it.t}</h3>
+              <p className="mt-2.5 leading-relaxed text-white/60">{it.d}</p>
             </li>
           ))}
         </ul>
       </div>
-    </section>
+    </ScreenSection>
   );
 }

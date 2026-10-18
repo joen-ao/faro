@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { getReadyDb } from "@/db/client";
-import type { AppDb } from "@/db/types";
-import { buildLandingStats, getPublicMetrics, type PublicMetrics } from "@/features/metrics";
+import "@/styles/landing.css";
 import { Compliance } from "@/components/landing/compliance";
-import { DemoVideo } from "@/components/landing/demo-video";
-import { Footer } from "@/components/landing/footer";
+import { loadLandingData } from "@/components/landing/data";
+import { DiagnosticPreview } from "@/components/landing/diagnostic";
+import { FiguresBand, SourcesStrip } from "@/components/landing/figures";
+import { FinalCta, Footer } from "@/components/landing/footer";
 import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { PaidVsFree } from "@/components/landing/paid-vs-free";
@@ -13,32 +13,24 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Faro — ¿Dónde están tus próximos clientes y cuánto te cuestan?",
-  description: "Describe a tu cliente ideal. Faro lo busca en fuentes gratuitas, lo contacta, lo califica con Dapta y mide el costo por lead de cada fuente.",
+  description: "Faro encuentra empresas en fuentes públicas, les escribe con un diagnóstico útil y mide el costo real de cada lead por canal. El agente de Dapta las califica.",
 };
 
-/** Real aggregates only; any failure degrades to the honest empty state. */
-async function loadMetrics(): Promise<PublicMetrics | null> {
-  try {
-    const db = (await getReadyDb()) as unknown as AppDb;
-    return await getPublicMetrics(db);
-  } catch (e) {
-    console.error("landing metrics unavailable", e);
-    return null;
-  }
-}
-
 export default async function Home() {
-  const stats = buildLandingStats(await loadMetrics());
+  const data = await loadLandingData();
   return (
-    <>
+    <div className="overflow-x-clip">
       <Hero />
       <main>
-        <DemoVideo />
-        <HowItWorks />
-        <PaidVsFree stats={stats} />
-        <Compliance />
+        <SourcesStrip />
+        <FiguresBand data={data} />
+        <HowItWorks stats={data.stats} />
+        <PaidVsFree stats={data.stats} bySource={data.bySource} />
+        <DiagnosticPreview sites={data.sites} />
+        <Compliance naturalPersonsContacted={data.naturalPersonsContacted} excludedPersons={data.excludedPersons} />
+        <FinalCta />
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

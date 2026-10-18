@@ -19,7 +19,7 @@ test("dashboard: empty real state, then demo toggle shows separated DEMO data", 
   await challenge.screenshot({ path: `artifacts/screens/F14-reto-dapta-${width}.png` });
   await expect(page.getByRole("heading", { name: /Todavía no hay datos reales/ })).toBeVisible();
   await expect(page.getByRole("link", { name: "Encontrar mis clientes" })).toHaveAttribute("href", "/app/new");
-  await expect(page.getByText("Panel de cumplimiento")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Panel de cumplimiento" })).toBeVisible();
   await expect(page.getByTestId("attribution")).toBeVisible();
   await expect(page.getByText("DEMO", { exact: true })).toHaveCount(0);
   expect(await noHScroll()).toBe(true);
