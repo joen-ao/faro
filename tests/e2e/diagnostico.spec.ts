@@ -6,9 +6,25 @@ test("diagnostic page: findings, opt-out button, event registered, contact form,
 
   await expect(page.getByTestId("diag-title")).toContainText("Sonrisa Norte");
   await expect(page.getByTestId("demo-badge")).toHaveText("Ejemplo");
+  await expect(page.getByTestId("diag-title")).toContainText("Diagnóstico de captación de pacientes");
+  // Website cards from the seeded (example) site: booking + WhatsApp + freshness are opportunities, form + social are fine.
   const findings = page.getByTestId("finding");
-  expect(await findings.count()).toBeLessThanOrEqual(5);
-  expect(await findings.count()).toBeGreaterThan(0);
+  await expect(findings).toHaveCount(5);
+  await expect(page.locator('[data-testid="finding"][data-status="opportunity"]')).toHaveCount(3);
+  await expect(page.locator('[data-testid="finding"][data-status="ok"]')).toHaveCount(2);
+  await expect(findings.first()).toContainText("Por qué importa");
+  await expect(findings.first()).toContainText("Recomendación");
+  // Benchmark: the demo lead has no real peers, so no percentage is shown.
+  await expect(page.getByTestId("bench-booking")).toContainText("Usted: no");
+  await expect(page.getByTestId("benchmark")).toContainText("aún no hay suficientes datos para comparar");
+  await expect(page.getByTestId("benchmark")).not.toContainText("%");
+  // Registry data is only the "why we wrote" note, with its source link.
+  await expect(page.getByTestId("why-we-wrote")).toContainText("REPS");
+  expect(await page.getByTestId("why-we-wrote").locator("a").getAttribute("href")).toMatch(/^https:\/\//);
+  // Primary CTA: WhatsApp with the company and slug in the prefilled text.
+  const wa = await page.getByTestId("whatsapp-cta").getAttribute("href");
+  expect(wa).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
+  expect(decodeURIComponent(wa!.split("text=")[1]!)).toContain("demo-clinica");
   await expect(page.getByTestId("widget-placeholder")).toContainText("no configurado");
   await expect(page.getByTestId("sender")).toContainText("30X Hackathon");
   await expect(page.getByTestId("attribution")).toContainText("ODbL");

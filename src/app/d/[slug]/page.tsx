@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createOptOutToken } from "@/features/compliance/optout";
+import { computeBenchmark } from "@/features/diagnostic/benchmark";
 import { getDiagnostic } from "@/features/diagnostic/data";
-import { buildFindings } from "@/features/diagnostic/findings";
+import { buildFindings, registryNote, safeHttpUrl } from "@/features/diagnostic/findings";
 import { parseTracking } from "@/features/diagnostic/params";
 import { DiagnosticView } from "../_components/diagnostic-view";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Diagnóstico público de tu empresa",
+  title: "Diagnóstico de captación de pacientes",
   robots: { index: false, follow: false },
 };
 
@@ -31,12 +32,15 @@ export default async function DiagnosticPage({
   const d = await getDiagnostic(slug);
   if (!d) notFound();
   const tracking = parseTracking(await searchParams);
+  const now = new Date();
   return (
     <DiagnosticView
       slug={slug}
       tracking={tracking}
       company={{ name: d.company.name, isDemo: d.isDemo }}
-      findings={buildFindings(d.company, d.sources, d.context)}
+      findings={buildFindings(d.company, d.site, now)}
+      benchmark={computeBenchmark(d.site, d.peers, { city: d.company.city, websiteKnown: !!safeHttpUrl(d.company.website), now })}
+      registry={registryNote(d.sources)}
       optOutHref={optOutHref(d.leadId)}
     />
   );

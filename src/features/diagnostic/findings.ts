@@ -11,31 +11,57 @@ export interface CompanyInput {
   city: string | null;
   website: string | null;
 }
+
+/** "ok" = already working for new patients; "opportunity" = something that may be costing patients; "unknown" = not reviewed. */
+export type FindingStatus = "ok" | "opportunity" | "unknown";
+
+/** One card about the clinic's own digital presence: the fact, why it matters for new patients, one fix. */
 export interface Finding {
-  id: string;
-  text: string;
+  id: "booking" | "whatsapp" | "form" | "freshness" | "social" | "no-website" | "site-unreviewed";
+  status: FindingStatus;
+  title: string;
+  why: string;
+  recommendation: string;
+  /** Where the fact was read (the clinic's site). Null when the fact is an absence across our sources. */
+  sourceUrl: string | null;
   sourceLabel: string;
-  sourceUrl: string;
   isExample: boolean;
 }
-/** Aggregate context computed from the same public data (never other companies' names). */
-export interface FindingContext {
-  /** Companies of the same search (same sector and city) found in public sources. */
-  peers?: { count: number; city: string | null } | null;
-  /** The company's site shows a WhatsApp link (from website enrichment). */
-  whatsappOnSite?: boolean;
-  now?: Date;
+
+/** Facts read from the website enrichment of ONE company (company_sources 'website' + contact_points from the site). */
+export interface SiteFacts {
+  /** Enriched site (at least one page read), or null when there is none. */
+  site: {
+    url: string | null;
+    isMock: boolean;
+    signals: SiteSignals;
+  } | null;
+  whatsappOnSite: boolean;
+  webFormOnSite: boolean;
 }
 
-export const MAX_FINDINGS = 5;
+export interface SiteSignals {
+  onlineBooking?: boolean;
+  noAppointmentForm?: boolean;
+  hasContactForm?: boolean;
+  copyrightYear?: number | null;
+  socialNetworks?: string[];
+}
 
-const FALLBACK: Record<string, { label: string; url: string }> = {
-  osm: { label: "OpenStreetMap (ODbL)", url: "https://www.openstreetmap.org/copyright" },
-  reps: { label: "REPS, datos.gov.co (CC BY-SA 4.0)", url: "https://www.datos.gov.co/" },
-  rues: { label: "RUES, datos.gov.co (CC BY-SA 4.0)", url: "https://www.datos.gov.co/" },
+/** Why we wrote: the public registry where the company appears, with its license. */
+export interface RegistryNote {
+  label: string;
+  url: string;
+  isExample: boolean;
+}
+
+const REGISTRY: Record<string, { label: string; url: string }> = {
+  reps: { label: "REPS (Registro Especial de Prestadores de Salud), datos.gov.co", url: "https://www.datos.gov.co/" },
+  rues: { label: "RUES (Registro Único Empresarial), datos.gov.co", url: "https://www.datos.gov.co/" },
   google_places: { label: "Google Maps (Places API)", url: "https://maps.google.com/" },
-  website: { label: "Sitio web público de la empresa", url: "" },
+  osm: { label: "OpenStreetMap", url: "https://www.openstreetmap.org/copyright" },
 };
+const REGISTRY_ORDER = ["reps", "rues", "google_places", "osm"];
 
 /** Only http(s) URLs are ever linked (blocks javascript: and data: from stored source data). */
 export function safeHttpUrl(u: string | null | undefined): string | null {
@@ -48,104 +74,211 @@ export function safeHttpUrl(u: string | null | undefined): string | null {
   }
 }
 
-const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : null);
-const PRIORITY = ["reps", "rues", "website", "google_places", "osm"];
-const rank = (c: string) => {
-  const i = PRIORITY.indexOf(c);
-  return i === -1 ? PRIORITY.length : i;
-};
-
-interface Signals {
-  onlineBooking?: boolean;
-  noAppointmentForm?: boolean;
-  hasContactForm?: boolean;
-  copyrightYear?: number | null;
-}
-
-function signalsOf(raw: Record<string, unknown>): Signals | null {
+/** Signals stored by website enrichment; also accepts the legacy F12 fixture shape `{ hasBookingForm }`. */
+export function signalsOf(raw: Record<string, unknown>): SiteSignals | null {
   const s = raw.signals;
-  if (s && typeof s === "object") return s as Signals;
-  // Legacy shape (F12 fixtures): { hasBookingForm }.
+  if (s && typeof s === "object" && !Array.isArray(s)) return s as SiteSignals;
   if (typeof raw.hasBookingForm === "boolean") return { onlineBooking: raw.hasBookingForm, noAppointmentForm: !raw.hasBookingForm };
   return null;
 }
 
+/** A website source counts as enriched when it has signals and at least one page was read (legacy rows lack the count). */
+export function isEnrichedSite(src: Pick<SourceInput, "sourceChannel" | "raw">): boolean {
+  if (src.sourceChannel !== "website") return false;
+  const pages = src.raw.fetchedPages;
+  if (typeof pages === "number" && pages <= 0) return false;
+  return signalsOf(src.raw) !== null;
+}
+
+/** Year the site counts as "updated": copyright of this year or the previous one. */
+export function isRecentYear(year: number | null | undefined, now: Date = new Date()): boolean | null {
+  if (typeof year !== "number" || !Number.isFinite(year)) return null;
+  return year >= now.getFullYear() - 1;
+}
+
+const NETWORK_LABEL: Record<string, string> = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  linkedin: "LinkedIn",
+  youtube: "YouTube",
+  twitter: "X (Twitter)",
+  x: "X (Twitter)",
+  whatsapp: "WhatsApp",
+};
+const networkName = (n: string) => NETWORK_LABEL[n.toLowerCase()] ?? n.charAt(0).toUpperCase() + n.slice(1);
+
+/** Builds SiteFacts from the stored sources and the site's contact points. */
+export function siteFactsFrom(sources: SourceInput[], contacts: { type: string; sourceChannel: string | null }[]): SiteFacts {
+  const site = sources.find(isEnrichedSite);
+  const fromSite = contacts.filter((c) => c.sourceChannel === "website");
+  return {
+    site: site ? { url: safeHttpUrl(site.sourceUrl), isMock: site.isMock, signals: signalsOf(site.raw)! } : null,
+    whatsappOnSite: !!site && fromSite.some((c) => c.type === "whatsapp"),
+    webFormOnSite: !!site && fromSite.some((c) => c.type === "web_form"),
+  };
+}
+
 /**
- * Up to 5 public findings, each with a linked source: where the company is registered, what its own website
- * shows (booking, contact, freshness, WhatsApp) and how many peers the same public search found. Facts only come
- * from stored source data; a finding without a usable source URL is dropped. No personal data is read.
+ * Cards about the clinic's own website, only from stored enrichment data: no data, no card.
+ * Without an enriched site there is a single honest card (no website found, or not reviewed yet).
  */
-export function buildFindings(company: CompanyInput, sources: SourceInput[], ctx: FindingContext = {}): Finding[] {
-  const ordered = [...sources].sort((a, b) => rank(a.sourceChannel) - rank(b.sourceChannel));
-  const out: Finding[] = [];
-  const add = (f: Finding) => {
-    if (out.length < MAX_FINDINGS && !out.some((x) => x.id === f.id)) out.push(f);
-  };
-  const labelOf = (src: SourceInput) => {
-    const fb = FALLBACK[src.sourceChannel];
-    const base = fb?.label.split(" (")[0] ?? src.sourceChannel;
-    return src.license ? `${base} (${src.license})` : (fb?.label ?? src.sourceChannel);
-  };
-  const urlOf = (src: SourceInput) =>
-    safeHttpUrl(src.sourceUrl) ?? safeHttpUrl(FALLBACK[src.sourceChannel]?.url) ?? safeHttpUrl(company.website);
-
-  const registry = ordered.find((s) => (s.sourceChannel === "reps" || s.sourceChannel === "rues") && urlOf(s));
-  const site = ordered.find((s) => s.sourceChannel === "website" && urlOf(s));
-  const sig = site ? signalsOf(site.raw) : null;
-  const sitePages = site ? num(site.raw.fetchedPages) : null;
-
-  for (const src of ordered) {
-    const url = urlOf(src);
-    if (!url) continue;
-    const base = { sourceLabel: labelOf(src), sourceUrl: url, isExample: src.isMock };
-    const ch = src.sourceChannel;
-    if (ch === "reps") add({ id: "reps", text: "Aparece en el REPS como prestador de salud habilitado.", ...base });
-    else if (ch === "rues") add({ id: "rues", text: "Figura en el RUES como persona jurídica con matrícula mercantil activa.", ...base });
-    else if (ch === "website" && sig) {
-      if (sig.onlineBooking === true) add({ id: "web-booking", text: "Su sitio web ya permite agendar citas en línea.", ...base });
-      else if (sig.noAppointmentForm === true)
-        add({
-          id: "web-booking",
-          text: sig.hasContactForm
-            ? "Su sitio web tiene formulario de contacto, pero no permite agendar citas en línea: cada paciente nuevo depende de que alguien responda."
-            : "Su sitio web no permite agendar citas en línea ni tiene formulario: los pacientes nuevos tienen que llamar o escribir.",
-          ...base,
-        });
-      if (ctx.whatsappOnSite === false && sitePages !== 0)
-        add({ id: "web-whatsapp", text: "No encontramos un botón de WhatsApp en su sitio web, el canal que más usan los pacientes en Colombia.", ...base });
-      const year = typeof sig.copyrightYear === "number" ? sig.copyrightYear : null;
-      const thisYear = (ctx.now ?? new Date()).getFullYear();
-      if (year && year <= thisYear - 2) add({ id: "web-year", text: `El pie de su sitio web dice © ${year}: puede dar la impresión de estar desactualizado.`, ...base });
-    } else if (ch === "google_places") {
-      const n = num(src.raw.userRatingCount);
-      add({ id: "google_places", text: n !== null ? `Tiene ${n} reseñas públicas en Google Maps.` : "Tiene ficha pública en Google Maps.", ...base });
-    } else if (ch === "osm") {
-      const where = company.address ?? company.city;
-      add({ id: "osm", text: where ? `Está registrada en OpenStreetMap en ${where}.` : "Está registrada en OpenStreetMap.", ...base });
+export function buildFindings(company: CompanyInput, facts: SiteFacts, now: Date = new Date()): Finding[] {
+  const site = facts.site;
+  if (!site) {
+    const known = safeHttpUrl(company.website);
+    if (known) {
+      return [
+        {
+          id: "site-unreviewed",
+          status: "unknown",
+          title: "Todavía no pudimos revisar su sitio web",
+          why: "Sin revisarlo no sabemos si un paciente nuevo puede agendar o escribirle desde ahí, que es donde se decide si llama a usted o a otra clínica.",
+          recommendation: "Pídanos la revisión por WhatsApp y le contamos qué ajustar en su sitio para recibir más citas.",
+          sourceUrl: known,
+          sourceLabel: "Sitio web registrado",
+          isExample: false,
+        },
+      ];
     }
+    return [
+      {
+        id: "no-website",
+        status: "opportunity",
+        title: "No encontramos un sitio web propio",
+        why: "Quien busca una clínica en internet compara opciones antes de llamar. Sin una página propia, ese paciente no tiene dónde conocerla ni cómo pedir cita, y elige a otra.",
+        recommendation: "Publique una página sencilla con sus servicios, horario, ubicación y un botón para agendar o escribir por WhatsApp.",
+        sourceUrl: null,
+        sourceLabel: "Registros públicos consultados",
+        isExample: false,
+      },
+    ];
   }
 
-  // No website anywhere in the public sources we checked.
-  if (!company.website && !site && registry) {
-    add({
-      id: "no-website",
-      text: "No encontramos un sitio web de la empresa en los registros públicos que consultamos: quien la busca en internet no llega a una página propia.",
-      sourceLabel: labelOf(registry),
-      sourceUrl: urlOf(registry)!,
-      isExample: registry.isMock,
+  const s = site.signals;
+  const base = { sourceUrl: site.url, sourceLabel: "Su sitio web", isExample: site.isMock };
+  const out: Finding[] = [];
+
+  if (s.onlineBooking === true) {
+    out.push({
+      id: "booking",
+      status: "ok",
+      title: "Su sitio permite agendar citas en línea",
+      why: "Muchos pacientes buscan cita de noche o en fin de semana. Poder reservar en ese momento evita que sigan buscando otra clínica.",
+      recommendation: "Ponga el botón de agendar arriba en todas las páginas y confirme la cita por WhatsApp para reducir inasistencias.",
+      ...base,
+    });
+  } else if (s.onlineBooking === false) {
+    out.push({
+      id: "booking",
+      status: "opportunity",
+      title: "Su sitio no permite agendar citas en línea",
+      why: "Si un paciente nuevo llega fuera del horario de atención y no puede reservar, lo más probable es que pida cita en la siguiente clínica que encuentre.",
+      recommendation: "Agregue un botón «Agendar cita» con un calendario en línea o un asistente que tome la solicitud y la confirme por WhatsApp.",
+      ...base,
     });
   }
 
-  // How crowded the market is, from the same public search (aggregate count only).
-  if (ctx.peers && ctx.peers.count > 1 && registry) {
-    const where = ctx.peers.city ? ` en ${ctx.peers.city}` : "";
-    add({
-      id: "peers",
-      text: `En fuentes públicas encontramos ${ctx.peers.count.toLocaleString("es-CO")} empresas de su mismo sector${where}: destacar ante un paciente nuevo depende de responderle rápido.`,
-      sourceLabel: "OpenStreetMap, REPS y RUES (datos públicos)",
-      sourceUrl: "https://www.datos.gov.co/",
-      isExample: registry.isMock,
-    });
+  out.push(
+    facts.whatsappOnSite
+      ? {
+          id: "whatsapp",
+          status: "ok",
+          title: "Su sitio tiene un enlace a WhatsApp",
+          why: "En Colombia WhatsApp es el canal donde los pacientes prefieren escribir. Un clic desde el sitio abre la conversación sin copiar números.",
+          recommendation: "Responda en minutos con un mensaje automático de bienvenida y horarios disponibles para no perder al paciente mientras espera.",
+          ...base,
+        }
+      : {
+          id: "whatsapp",
+          status: "opportunity",
+          title: "No encontramos un botón de WhatsApp en su sitio",
+          why: "En Colombia WhatsApp es el canal donde los pacientes prefieren escribir. Si tienen que copiar un número o llamar, muchos no lo hacen.",
+          recommendation: "Agregue un botón flotante de WhatsApp con un mensaje ya escrito, por ejemplo «Hola, quiero pedir una cita».",
+          ...base,
+        },
+  );
+
+  const hasForm = s.hasContactForm === true || facts.webFormOnSite;
+  if (hasForm || s.hasContactForm === false) {
+    out.push(
+      hasForm
+        ? {
+            id: "form",
+            status: "ok",
+            title: "Su sitio tiene formulario de contacto",
+            why: "Le permite recibir solicitudes aunque nadie conteste el teléfono en ese momento.",
+            recommendation: "Conteste cada formulario el mismo día: la primera clínica que responde suele quedarse con el paciente.",
+            ...base,
+          }
+        : {
+            id: "form",
+            status: "opportunity",
+            title: "Su sitio no tiene formulario de contacto",
+            why: "Sin formulario, el paciente que no puede llamar en horario de atención no tiene cómo dejarle sus datos.",
+            recommendation: "Agregue un formulario corto (nombre, teléfono, motivo de consulta) que le llegue al correo o al WhatsApp de la clínica.",
+            ...base,
+          },
+    );
   }
+
+  const recent = isRecentYear(s.copyrightYear, now);
+  if (recent !== null) {
+    out.push(
+      recent
+        ? {
+            id: "freshness",
+            status: "ok",
+            title: `Su sitio se ve actualizado (© ${s.copyrightYear})`,
+            why: "Un sitio con fecha reciente le dice al paciente que la clínica está activa y atendiendo.",
+            recommendation: "Mantenga al día precios, horarios y servicios: es lo primero que el paciente compara.",
+            ...base,
+          }
+        : {
+            id: "freshness",
+            status: "opportunity",
+            title: `El pie de su sitio dice © ${s.copyrightYear}`,
+            why: "Una fecha vieja hace pensar que el sitio está abandonado y que quizá la información de horarios o servicios ya no es correcta.",
+            recommendation: `Actualice el año del pie a ${now.getFullYear()} y revise horarios, servicios y teléfonos.`,
+            ...base,
+          },
+    );
+  }
+
+  if (Array.isArray(s.socialNetworks)) {
+    const nets = [...new Set(s.socialNetworks.filter((n) => typeof n === "string" && n.trim()).map(networkName))];
+    out.push(
+      nets.length > 0
+        ? {
+            id: "social",
+            status: "ok",
+            title: `Su sitio enlaza sus redes: ${nets.join(", ")}`,
+            why: "Las redes muestran casos, opiniones y el día a día de la clínica: ayudan a que un paciente nuevo confíe antes de pedir cita.",
+            recommendation: "Agregue en cada red un enlace directo para agendar o escribir por WhatsApp.",
+            ...base,
+          }
+        : {
+            id: "social",
+            status: "opportunity",
+            title: "Su sitio no enlaza redes sociales",
+            why: "Muchos pacientes revisan Instagram o Facebook para ver resultados y opiniones antes de escoger clínica.",
+            recommendation: "Enlace desde el sitio las redes donde publica y muestre allí casos reales y cómo pedir cita.",
+            ...base,
+          },
+    );
+  }
+
   return out;
+}
+
+/** Note "why we wrote to you": the first public registry where the company appears, with its license. */
+export function registryNote(sources: SourceInput[]): RegistryNote | null {
+  for (const ch of REGISTRY_ORDER) {
+    const src = sources.find((s) => s.sourceChannel === ch);
+    if (!src) continue;
+    const url = safeHttpUrl(src.sourceUrl) ?? REGISTRY[ch]!.url;
+    const label = src.license ? `${REGISTRY[ch]!.label} (${src.license})` : REGISTRY[ch]!.label;
+    return { label, url, isExample: src.isMock };
+  }
+  return null;
 }

@@ -43,6 +43,7 @@ export const envSchema = z.object({
     z.enum(["widget_only", "http_push", "csv_export"]).default("widget_only"),
   ),
   DAPTA_WIDGET_SNIPPET: optStr,
+  NEXT_PUBLIC_WHATSAPP_NUMBER: strDefault("573014734934"),
   DAPTA_PUSH_URL: optStr,
   DAPTA_PUSH_API_KEY: optStr,
   DAPTA_WEBHOOK_SECRET: optStr,
