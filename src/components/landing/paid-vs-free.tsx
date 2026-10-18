@@ -46,7 +46,7 @@ function SourceBars({ rows }: { rows: PublicMetrics["bySource"] }) {
           </div>
           <div aria-hidden className="mt-2.5 h-0.5 bg-white/10">
             <div
-              className={cn("faro-grow h-0.5", r.free ? "bg-faro-accent" : "bg-white/70")}
+              className={cn("m-bar h-0.5", r.free ? "bg-faro-accent" : "bg-white/70")}
               style={{ width: `${r.cpl === null ? 0 : Math.max(2, (r.cpl / max) * 100)}%` }}
             />
           </div>

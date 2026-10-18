@@ -27,7 +27,7 @@ export default async function Home() {
         <HowItWorks stats={data.stats} />
         <PaidVsFree stats={data.stats} bySource={data.bySource} />
         <DiagnosticPreview sites={data.sites} />
-        <Compliance naturalPersonsContacted={data.naturalPersonsContacted} excludedPersons={data.excludedPersons} />
+        <Compliance naturalPersonsContacted={data.naturalPersonsContacted} excludedPersons={data.excludedPersons} sendWindow={data.sendWindow} />
         <FinalCta />
       </main>
       <Footer />

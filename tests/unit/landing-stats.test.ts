@@ -68,7 +68,7 @@ describe("buildLandingStats", () => {
 
     const band = renderToStaticMarkup(
       createElement(FiguresBand, {
-        data: { stats, cpl: 0.3, bySource, mergedDuplicates: 8, excludedPersons: 35, naturalPersonsContacted: 0, sites: null },
+        data: { stats, cpl: 0.3, bySource, mergedDuplicates: 8, excludedPersons: 35, naturalPersonsContacted: 0, sites: null, sendWindow: { policy: "ley2300" } },
       }),
     );
     expect(band).toContain("12.345");
@@ -78,7 +78,7 @@ describe("buildLandingStats", () => {
   it("renders honest empty figures without invented numbers", () => {
     const band = renderToStaticMarkup(
       createElement(FiguresBand, {
-        data: { stats: buildLandingStats(null), cpl: null, bySource: [], mergedDuplicates: null, excludedPersons: null, naturalPersonsContacted: null, sites: null },
+        data: { stats: buildLandingStats(null), cpl: null, bySource: [], mergedDuplicates: null, excludedPersons: null, naturalPersonsContacted: null, sites: null, sendWindow: { policy: "ley2300" } },
       }),
     );
     expect(band).toContain("Sin datos aún");

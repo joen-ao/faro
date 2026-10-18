@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { InViewSection } from "./motion";
 
 const num2 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const num3 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
@@ -55,8 +56,8 @@ export function ArrowIcon({ className }: { className?: string }) {
 /** Full-screen section shell (sections 5-8): min-h-dvh, content centered vertically. */
 export function ScreenSection({ id, labelledBy, className, children }: { id?: string; labelledBy: string; className?: string; children: React.ReactNode }) {
   return (
-    <section id={id} aria-labelledby={labelledBy} className={cn("relative flex min-h-dvh scroll-mt-0 items-center overflow-hidden border-t border-white/[0.08]", className)}>
+    <InViewSection id={id} labelledBy={labelledBy} className={className}>
       {children}
-    </section>
+    </InViewSection>
   );
 }

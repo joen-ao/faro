@@ -59,3 +59,13 @@ describe("send window setting storage", () => {
     expect((await getSendWindow(db)).setting).toEqual({ policy: "ley2300" });
   });
 });
+
+describe("describeSendWindow", () => {
+  it("describes each policy in plain Spanish", async () => {
+    const { describeSendWindow } = await import("@/features/compliance/windows");
+    expect(describeSendWindow(custom)).toBe("Todos los días entre 8:00 y 23:00 (hora Colombia). Ajustable por el equipo desde el panel.");
+    expect(describeSendWindow({ ...custom, days: [1, 2, 3, 4, 5] })).toContain("Los días lun, mar, mié, jue, vie");
+    expect(describeSendWindow({ policy: "ley2300" })).toContain("Ley 2300");
+    expect(describeSendWindow({ policy: "extendida" })).toContain("8:00 y 20:00");
+  });
+});

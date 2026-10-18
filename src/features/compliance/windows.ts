@@ -90,6 +90,17 @@ export function describeCustomWindow(w: CustomSendWindow): string {
   return `${w.startHour}:00–${w.endHour}:00, ${days}`;
 }
 
+/** Public, plain-Spanish description of the active send window (landing and outreach copy). */
+export function describeSendWindow(setting: SendWindowSetting): string {
+  if (setting.policy === "custom") {
+    const w = setting as CustomSendWindow;
+    const days = w.days.length === 7 ? "Todos los días" : `Los días ${[...w.days].sort().map((d) => DAY_NAMES[d]).join(", ")}`;
+    return `${days} entre ${w.startHour}:00 y ${w.endHour}:00 (hora Colombia). Ajustable por el equipo desde el panel.`;
+  }
+  if (setting.policy === "extendida") return "Todos los días entre 8:00 y 20:00 (hora Colombia), nunca de noche. Ajustable por el equipo desde el panel.";
+  return "Ventana de la Ley 2300: L–V 7:00–19:00 y sábado 8:00–15:00. Nunca domingos ni festivos.";
+}
+
 /** Team-configured window: never at night by default, but holidays count as normal days (outside Ley 2300). */
 function checkCustomWindow(t: LocalParts, w: CustomSendWindow): SendWindowResult {
   const label = `horario configurado ${describeCustomWindow(w)}, hora Colombia`;

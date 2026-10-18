@@ -1,5 +1,5 @@
 import { formatCount } from "@/features/metrics/landing";
-import { sendWindowPolicy } from "@/features/compliance/windows";
+import { describeSendWindow, type SendWindowSetting } from "@/features/compliance/windows";
 import { cn } from "@/lib/utils";
 import { EMPTY, Eyebrow, ScreenSection } from "./ui";
 
@@ -32,8 +32,15 @@ const Icons = {
   ),
 };
 
-export function Compliance({ naturalPersonsContacted, excludedPersons }: { naturalPersonsContacted: number | null; excludedPersons: number | null }) {
-  const strict = sendWindowPolicy() === "ley2300";
+export function Compliance({
+  naturalPersonsContacted,
+  excludedPersons,
+  sendWindow,
+}: {
+  naturalPersonsContacted: number | null;
+  excludedPersons: number | null;
+  sendWindow: SendWindowSetting;
+}) {
   const excluded = excludedPersons !== null && excludedPersons > 0 ? ` ${formatCount(excludedPersons)} registros excluidos hasta hoy.` : "";
   const items = [
     { icon: Icons.building, t: "Solo empresas", d: `Personas naturales y correos personales quedan fuera desde la búsqueda.${excluded}` },
@@ -41,9 +48,7 @@ export function Compliance({ naturalPersonsContacted, excludedPersons }: { natur
     {
       icon: Icons.clock,
       t: "Horario de envío",
-      d: strict
-        ? "Ventana de la Ley 2300: L–V 7:00–19:00 y sábado 8:00–15:00. Nunca domingos ni festivos."
-        : "Todos los días entre 8:00 y 20:00 (hora Colombia), nunca de noche. Ajustable por el equipo desde el panel.",
+      d: describeSendWindow(sendWindow),
     },
     { icon: Icons.link, t: "Fuentes citadas", d: "Cada dato muestra de dónde viene y su licencia: ODbL y CC BY-SA 4.0. Respetamos robots.txt en cada sitio." },
   ];
@@ -62,7 +67,7 @@ export function Compliance({ naturalPersonsContacted, excludedPersons }: { natur
           <div className="md:text-right">
             <p
               className={cn(
-                "font-display font-bold leading-[0.85] tracking-[-0.06em]",
+                "m-zero font-display font-bold leading-[0.85] tracking-[-0.06em]",
                 naturalPersonsContacted === null ? "py-4 text-3xl tracking-normal text-faro-text-3" : "text-[96px] sm:text-[140px] lg:text-[200px]",
                 zero ? "text-faro-accent" : naturalPersonsContacted !== null && "text-faro-warn",
               )}
@@ -73,8 +78,8 @@ export function Compliance({ naturalPersonsContacted, excludedPersons }: { natur
           </div>
         </div>
         <ul className="mt-16 grid grid-cols-1 border-t border-white/[0.12] sm:grid-cols-2 lg:mt-[72px] lg:grid-cols-4">
-          {items.map((it) => (
-            <li key={it.t} className="faro-reveal border-b border-white/[0.12] py-8 sm:pr-8">
+          {items.map((it, i) => (
+            <li key={it.t} style={{ ["--d" as string]: `${300 + i * 140}ms` }} className="m-up border-b border-white/[0.12] py-8 sm:pr-8">
               {it.icon}
               <h3 className="mt-5 font-display text-xl font-semibold">{it.t}</h3>
               <p className="mt-2.5 leading-relaxed text-white/60">{it.d}</p>

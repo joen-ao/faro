@@ -3,6 +3,8 @@ import { getReadyDb } from "@/db/client";
 import { companies, companySources, contactPoints } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { queryComplianceMetrics } from "@/features/compliance/metrics";
+import { sendWindowPolicy, type SendWindowSetting } from "@/features/compliance/windows";
+import { getSendWindow } from "@/features/settings/send-window";
 import { queryChallengeFacts } from "@/features/dashboard/challenge";
 import { BENCHMARK_MIN_N } from "@/features/diagnostic/benchmark";
 import { isEnrichedSite, signalsOf } from "@/features/diagnostic/findings";
@@ -31,6 +33,8 @@ export interface LandingData {
   excludedPersons: number | null;
   naturalPersonsContacted: number | null;
   sites: SitesSummary | null;
+  /** Active send window: the panel setting, else SEND_WINDOW_POLICY. */
+  sendWindow: SendWindowSetting;
 }
 
 const share = (vals: boolean[]): SiteShare => ({
@@ -80,13 +84,14 @@ async function safe<T>(label: string, fn: () => Promise<T>): Promise<T | null> {
 export async function loadLandingData(): Promise<LandingData> {
   const db = await safe("db", async () => (await getReadyDb()) as unknown as AppDb);
   if (!db) {
-    return { stats: buildLandingStats(null), cpl: null, bySource: [], mergedDuplicates: null, excludedPersons: null, naturalPersonsContacted: null, sites: null };
+    return { stats: buildLandingStats(null), cpl: null, bySource: [], mergedDuplicates: null, excludedPersons: null, naturalPersonsContacted: null, sites: null, sendWindow: { policy: sendWindowPolicy() } };
   }
-  const [metrics, facts, compliance, sites] = await Promise.all([
+  const [metrics, facts, compliance, sites, win] = await Promise.all([
     safe("metrics", () => getPublicMetrics(db)),
     safe("facts", () => queryChallengeFacts(db)),
     safe("compliance", () => queryComplianceMetrics(db)),
     safe("sites", () => querySites(db)),
+    safe("sendWindow", () => getSendWindow(db)),
   ]);
   const stats = buildLandingStats(metrics);
   return {
@@ -97,5 +102,6 @@ export async function loadLandingData(): Promise<LandingData> {
     excludedPersons: facts?.excludedPersons ?? null,
     naturalPersonsContacted: compliance?.naturalPersonsContacted ?? null,
     sites,
+    sendWindow: win?.setting ?? { policy: sendWindowPolicy() },
   };
 }

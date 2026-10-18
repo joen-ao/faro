@@ -1,5 +1,6 @@
-import { formatCount, type LandingStats } from "@/features/metrics/landing";
+import type { LandingStats } from "@/features/metrics/landing";
 import { cn } from "@/lib/utils";
+import { CountUp } from "./motion";
 import { EMPTY, Eyebrow, ScreenSection } from "./ui";
 
 const STEPS = [
@@ -30,17 +31,17 @@ export function HowItWorks({ stats }: { stats: LandingStats }) {
             {STEPS.map((s, i) => {
               const last = i === STEPS.length - 1;
               return (
-                <li key={s.n} className={cn("relative flex gap-5 sm:gap-7", !last && "pb-8")}>
+                <li key={s.n} className={cn("m-up relative flex gap-5 sm:gap-7", !last && "pb-8")} style={{ ["--d" as string]: `${250 + i * 180}ms` }}>
                   {!last && (
                     <span
                       aria-hidden
-                      className={cn("absolute left-[27px] top-[60px] bottom-0 w-px", i === 0 ? "bg-gradient-to-b from-faro-accent/60 to-white/[0.08]" : "bg-white/[0.08]")}
+                      className={cn("m-line absolute left-[27px] top-[60px] bottom-0 w-px", i === 0 ? "bg-gradient-to-b from-faro-accent/60 to-white/[0.08]" : "bg-white/[0.08]")}
                     />
                   )}
                   <span
                     aria-hidden
                     className={cn(
-                      "grid size-14 flex-none place-items-center rounded-full border font-display text-lg font-semibold",
+                      "m-dot grid size-14 flex-none place-items-center rounded-full border font-display text-lg font-semibold",
                       i === 0 ? "border-faro-accent text-faro-accent" : "border-white/20 text-white/80",
                     )}
                   >
@@ -57,13 +58,13 @@ export function HowItWorks({ stats }: { stats: LandingStats }) {
         </div>
 
         <figure aria-labelledby="funnel-caption" className="faro-reveal relative min-w-0 flex-1">
-          <div aria-hidden className="absolute -inset-[60px] bg-[radial-gradient(50%_50%_at_50%_50%,rgba(203,232,80,0.12)_0%,rgba(0,0,0,0)_70%)]" />
+          <div aria-hidden className="m-glow absolute -inset-[60px] bg-[radial-gradient(50%_50%_at_50%_50%,rgba(203,232,80,0.12)_0%,rgba(0,0,0,0)_70%)]" />
           <div className="relative flex flex-col items-center gap-3.5">
-            {FUNNEL.map((f) => (
-              <div key={f.key} className={cn("flex items-baseline justify-between gap-4 rounded-[20px] border", f.w, f.box)}>
+            {FUNNEL.map((f, i) => (
+              <div key={f.key} className={cn("m-funnel flex items-baseline justify-between gap-4 rounded-[20px] border", f.w, f.box)} style={{ ["--d" as string]: `${400 + i * 160}ms` }}>
                 <span className={f.key === "qualified" ? "font-bold" : "text-white/65"}>{f.label}</span>
                 <span className={cn("font-display font-bold tracking-[-0.03em]", stats.state === "ready" ? f.size : "whitespace-nowrap text-sm font-semibold tracking-normal opacity-75 sm:text-base")}>
-                  {stats.state === "ready" ? formatCount(stats[f.key]) : EMPTY}
+                  {stats.state === "ready" ? <CountUp to={stats[f.key]} /> : EMPTY}
                 </span>
               </div>
             ))}

@@ -8,7 +8,7 @@
 
   /* Sections: fade up while they enter the viewport (scroll-driven, Chromium/Safari 26+). */
   @supports (animation-timeline: view()) {
-    .faro-reveal {
+    .faro-reveal:not(.faro-motion .faro-reveal) {
       animation: faro-reveal linear both;
       animation-timeline: view();
       animation-range: entry 0% entry 55%;
@@ -38,4 +38,78 @@
 .faro-grid-bg {
   background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   background-size: 48px 48px;
+}
+
+/* Full-screen sections (InViewSection): parts animate once the section enters the viewport (data-inview). */
+@media (prefers-reduced-motion: no-preference) {
+  .faro-motion .faro-reveal,
+  .faro-motion .m-up {
+    transition: opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1), transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+    transition-delay: var(--d, 0ms);
+  }
+  .faro-motion[data-inview="false"] .faro-reveal,
+  .faro-motion[data-inview="false"] .m-up {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+
+  /* Timeline: connector draws down, step circles light up in turn. */
+  .faro-motion .m-line {
+    transform-origin: top;
+    transition: transform 0.9s cubic-bezier(0.6, 0, 0.2, 1);
+    transition-delay: calc(var(--d, 0ms) + 250ms);
+  }
+  .faro-motion[data-inview="false"] .m-line { transform: scaleY(0); }
+  .faro-motion[data-inview="true"] .m-dot { animation: faro-dot 0.9s ease-out both; animation-delay: var(--d, 0ms); }
+
+  /* Funnel: each stage slides in narrower than the last. */
+  .faro-motion .m-funnel {
+    transition: opacity 0.8s ease, transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition-delay: var(--d, 0ms);
+  }
+  .faro-motion[data-inview="false"] .m-funnel { opacity: 0; transform: translateX(48px) scale(0.96); }
+  .faro-motion[data-inview="true"] .m-glow { animation: faro-breathe 5s ease-in-out infinite; }
+
+  /* Bars grow from the left. */
+  .faro-motion .m-bar {
+    transform-origin: left center;
+    transition: transform 1.1s cubic-bezier(0.6, 0, 0.2, 1);
+    transition-delay: var(--d, 300ms);
+  }
+  .faro-motion[data-inview="false"] .m-bar { transform: scaleX(0); }
+
+  /* Phone rises, then floats; chips pop in after it. */
+  .faro-motion .m-phone { transition: opacity 0.9s ease, transform 1s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .faro-motion[data-inview="false"] .m-phone { opacity: 0; transform: translateY(60px) rotate(-3deg); }
+  .faro-motion[data-inview="true"] .m-phone { animation: faro-float 6s ease-in-out 1.2s infinite; }
+  .faro-motion .m-pop { transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.3, 1.6, 0.5, 1); transition-delay: 1.3s; }
+  .faro-motion .m-pop-late { transition-delay: 2.1s; }
+  .faro-motion[data-inview="false"] .m-pop { opacity: 0; transform: scale(0.7) translateY(12px); }
+  .faro-motion[data-inview="true"] .m-ping { animation: faro-ping 1.8s ease-out 1.6s infinite; }
+  .faro-motion[data-inview="true"] .m-cta { animation: faro-glowpulse 2.6s ease-in-out 1.8s infinite; }
+
+  /* Compliance: the big zero lands. */
+  .faro-motion .m-zero { transition: opacity 0.9s ease, transform 1.1s cubic-bezier(0.2, 0.9, 0.2, 1); transition-delay: 200ms; }
+  .faro-motion[data-inview="false"] .m-zero { opacity: 0; transform: scale(1.35); filter: blur(8px); }
+}
+
+@keyframes faro-dot {
+  0% { box-shadow: 0 0 0 0 rgba(203, 232, 80, 0.55); border-color: #cbe850; color: #cbe850; }
+  100% { box-shadow: 0 0 0 14px rgba(203, 232, 80, 0); }
+}
+@keyframes faro-breathe {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+@keyframes faro-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+@keyframes faro-ping {
+  0% { box-shadow: 0 0 0 0 rgba(203, 232, 80, 0.7); }
+  80%, 100% { box-shadow: 0 0 0 10px rgba(203, 232, 80, 0); }
+}
+@keyframes faro-glowpulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(203, 232, 80, 0); }
+  50% { box-shadow: 0 0 28px 2px rgba(203, 232, 80, 0.35); }
 }
