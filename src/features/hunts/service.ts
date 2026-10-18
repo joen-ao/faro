@@ -4,6 +4,7 @@ import { companies, companySources, contactPoints, costEntries, events, fitAsses
 import type { AppDb } from "@/db/types";
 import { dedupeAndPersist, type DedupeProgress } from "@/features/dedupe/dedupe";
 import type { MergedPair } from "@/features/dedupe/plan";
+import { areaLabel, cityLabel, criteriaForCity, huntCities, normalizeCities } from "@/features/icp/presets";
 import { DEFAULT_THRESHOLD, IcpCriteria } from "@/features/icp/schema";
 import { HuntOffer } from "@/features/offer/schema";
 import { scoreFit, type ScoreCompany } from "@/features/scoring/fit";
@@ -12,7 +13,7 @@ import { computeCounters, toPointStatus } from "./counters";
 import { OSM_LICENSE } from "@/integrations/overpass/types";
 import { SOCRATA_LICENSE } from "@/integrations/socrata/types";
 import { fetchBatch, type SourceDeps } from "./sources";
-import type { Counters, HuntSource, HuntSourcesProgress, SourceProgress, StatusUpdate, StreamPoint, StreamResponse } from "./types";
+import type { CityProgress, Counters, HuntSource, HuntSourcesProgress, SourceProgress, StatusUpdate, StreamPoint, StreamResponse } from "./types";
 
 export class HuntError extends Error {
   constructor(
@@ -38,7 +39,7 @@ export interface CreateHuntInput {
 
 /** Workspace + ICP profile + hunt with per-source progress. Real hunts only (demo has its own seeder). */
 export async function createHunt(db: AppDb, input: CreateHuntInput): Promise<{ huntId: string; icpProfileId: string; sources: HuntSourcesProgress }> {
-  const criteria = IcpCriteria.parse(input.criteria);
+  const criteria = normalizeCities(IcpCriteria.parse(input.criteria));
   const offer = input.offer == null ? null : (JSON.parse(JSON.stringify(HuntOffer.parse(input.offer))) as Record<string, unknown>);
   return db.transaction(async (tx) => {
     const t = tx as unknown as AppDb;
@@ -122,8 +123,14 @@ export async function scoreLeadsDeterministic(db: AppDb, leadIds: readonly strin
 export interface RunBatchResult {
   source: HuntSource;
   state: SourceProgress["state"];
+  /** City index this batch ran on (0 on single-city hunts). */
+  city: number;
+  /** City index to send as `city` next time (moves on once a city is exhausted). */
+  nextCity: number;
   cursor: number;
+  /** Offset inside `nextCity`. */
   nextCursor: number;
+  /** The source finished every city. */
   done: boolean;
   total: number | null;
   fetched: number;
@@ -139,8 +146,8 @@ const slugOf = () => randomBytes(6).toString("base64url").toLowerCase().replace(
  * One resumable unit of work: fetch a batch from `source` at `cursor`, dedupe + persist, create leads, score them.
  * Idempotent: replaying a cursor inserts nothing new (dedupe by `(channel, external_id)`, one lead per company+hunt).
  */
-export function runBatch(db: AppDb, huntId: string, source: HuntSource, cursor: number | undefined, deps: SourceDeps): Promise<RunBatchResult> {
-  return runBatchInner(db, huntId, source, cursor, deps);
+export function runBatch(db: AppDb, huntId: string, source: HuntSource, cursor: number | undefined, deps: SourceDeps, city?: number): Promise<RunBatchResult> {
+  return runBatchInner(db, huntId, source, cursor, deps, city);
 }
 
 /**
@@ -175,7 +182,7 @@ async function writeSource(db: AppDb, huntId: string, source: HuntSource, patch:
 
 const addLog = (p: SourceProgress, text: string): SourceProgress["log"] => [...p.log, { at: nowIso(), text }].slice(-LOG_MAX);
 
-async function runBatchInner(db: AppDb, huntId: string, source: HuntSource, cursorParam: number | undefined, deps: SourceDeps): Promise<RunBatchResult> {
+async function runBatchInner(db: AppDb, huntId: string, source: HuntSource, cursorParam: number | undefined, deps: SourceDeps, cityParam?: number): Promise<RunBatchResult> {
   const [row] = await db
     .select({ hunt: hunts, icp: icpProfiles })
     .from(hunts)
@@ -191,6 +198,14 @@ async function runBatchInner(db: AppDb, huntId: string, source: HuntSource, curs
   if (!parsed.success) throw new HuntError("Los criterios guardados no son válidos", 400);
   const criteria = parsed.data;
   const cursor = Math.max(0, Math.trunc(cursorParam ?? sp.cursor));
+  // Multi-city: each source walks the hunt cities in sequence (Overpass rate limits); the cursor is an offset
+  // inside the current city. Single-city hunts (and every older hunt) have one city and the exact old behaviour.
+  const cities = huntCities(criteria);
+  const multi = cities.length > 1;
+  const cityIdx = Math.trunc(cityParam ?? sp.city ?? 0);
+  if (!Number.isFinite(cityIdx) || cityIdx < 0 || cityIdx >= cities.length) throw new HuntError("Ciudad fuera de la búsqueda", 400);
+  const isLastCity = cityIdx === cities.length - 1;
+  const cityName = cityLabel(cities[cityIdx].name);
 
   await locked(db, huntId, (tx) =>
     writeSource(tx, huntId, source, (p) => ({ ...p, state: "running", error: undefined }), { status: "running", startedAt: row.hunt.startedAt ?? new Date() }),
@@ -198,15 +213,20 @@ async function runBatchInner(db: AppDb, huntId: string, source: HuntSource, curs
 
   let batch;
   try {
-    batch = await fetchBatch(huntId, source, criteria, cursor, deps);
+    batch = await fetchBatch(huntId, source, multi ? criteriaForCity(criteria, cities[cityIdx]) : criteria, cursor, deps, undefined, cityIdx);
   } catch (e) {
     const message = e instanceof Error ? e.message.slice(0, 200) : "Error desconocido";
-    await locked(db, huntId, (tx) => writeSource(tx, huntId, source, (p) => ({ ...p, state: "error", error: message, log: addLog(p, `Error: ${message}`) })));
+    const where = multi ? `${cityName}: ` : "";
+    await locked(db, huntId, (tx) => writeSource(tx, huntId, source, (p) => ({ ...p, state: "error", error: message, log: addLog(p, `${where}Error: ${message}`) })));
     throw new HuntError(`Falló la fuente ${source}: ${message}`, 502);
   }
 
-  const nextCursor = batch.nextCursor;
   const fetchedNow = batch.companies.length;
+  // City exhausted -> the source moves on to the next city at offset 0; done only after the last one.
+  const advance = batch.done && !isLastCity;
+  const sourceDone = batch.done && isLastCity;
+  const nextCity = advance ? cityIdx + 1 : cityIdx;
+  const nextCursor = advance ? 0 : batch.nextCursor;
   const { dedupe, created, fit, finished } = await locked(db, huntId, async (tx) => {
     const dedupe = await dedupeAndPersist(tx, huntId, batch.companies);
 
@@ -258,34 +278,53 @@ async function runBatchInner(db: AppDb, huntId: string, source: HuntSource, curs
     const toScore = [...created.map((l) => l.id), ...mergedLeadIds];
     const fit = await scoreLeadsDeterministic(tx, toScore, criteria, row.icp.id, row.icp.threshold);
 
-    const nextCursor = batch.nextCursor;
-    const fetchedNow = batch.companies.length;
     const { finished } = await writeSource(tx, huntId, source, (p) => {
       const text =
+        (multi ? `${cityName}: ` : "") +
         `${fetchedNow} registros procesados · ${created.length} empresas nuevas` +
         (dedupe.merged ? ` · ${dedupe.merged} duplicados fusionados` : "") +
         (batch.excluded ? ` · ${batch.excluded} posibles personas naturales excluidas` : "");
-      return {
-        ...p,
+      const tail = sourceDone ? " · fuente completa" : advance ? ` · ${cityName} completa` : "";
+      const common = { ...p, state: sourceDone ? ("done" as const) : ("running" as const), cursor: nextCursor, isMock: batch.isMock, error: undefined, log: addLog(p, text + tail) };
+      if (!multi) {
+        return {
+          ...common,
+          total: batch.total ?? p.total ?? (batch.done ? batch.nextCursor : null),
+          fetched: p.fetched + fetchedNow,
+          // Batch 0 reports the whole exclusion count: assign (not add) so a replayed batch 0 stays idempotent.
+          excludedPersonal: cursor === 0 ? batch.excluded : (p.excludedPersonal ?? 0) + batch.excluded,
+        };
+      }
+      const list: CityProgress[] = cities.map((c, i) => p.cities?.[i] ?? { name: c.name, state: "pending", total: null, fetched: 0, excluded: 0 });
+      const cur = list[cityIdx];
+      list[cityIdx] = {
+        ...cur,
         state: batch.done ? "done" : "running",
-        cursor: nextCursor,
-        total: batch.total ?? p.total ?? (batch.done ? nextCursor : null),
-        fetched: p.fetched + fetchedNow,
-        // Batch 0 reports the whole exclusion count: assign (not add) so a replayed batch 0 stays idempotent.
-        excludedPersonal: cursor === 0 ? batch.excluded : (p.excludedPersonal ?? 0) + batch.excluded,
-        isMock: batch.isMock,
-        error: undefined,
-        log: addLog(p, batch.done ? `${text} · fuente completa` : text),
+        total: batch.total ?? cur.total ?? (batch.done ? batch.nextCursor : null),
+        fetched: cur.fetched + fetchedNow,
+        excluded: cursor === 0 ? batch.excluded : cur.excluded + batch.excluded,
+      };
+      const totals = list.map((x) => x.total);
+      return {
+        ...common,
+        city: nextCity,
+        cities: list,
+        // Known once every city reported its size; the UI shows per-city progress meanwhile.
+        total: totals.every((t) => t !== null) ? totals.reduce<number>((a, t) => a + (t ?? 0), 0) : null,
+        fetched: list.reduce((a, x) => a + x.fetched, 0),
+        excludedPersonal: list.reduce((a, x) => a + x.excluded, 0),
       };
     });
     return { dedupe, created, fit, finished };
   });
   return {
     source,
-    state: batch.done ? "done" : "running",
+    state: sourceDone ? "done" : "running",
+    city: cityIdx,
+    nextCity,
     cursor,
     nextCursor,
-    done: batch.done,
+    done: sourceDone,
     total: batch.total,
     fetched: fetchedNow,
     newLeads: created.length,
@@ -375,6 +414,7 @@ export async function getStream(db: AppDb, huntId: string, opts: StreamOptions =
   }
 
   const criteria = row.icp.criteria as Partial<IcpCriteria>;
+  const storedCities = Array.isArray(criteria.cities) && criteria.cities.length ? criteria.cities : criteria.city ? [{ name: criteria.city, ...(criteria.bbox ? { bbox: criteria.bbox } : {}) }] : [];
   const points: StreamPoint[] = rows.map((r) => ({
     id: r.id,
     lat: r.lat,
@@ -390,6 +430,8 @@ export async function getStream(db: AppDb, huntId: string, opts: StreamOptions =
     isDemo: Boolean((row.hunt.progress as { isDemo?: boolean }).isDemo),
     prompt: row.icp.prompt,
     city: String(criteria.city ?? ""),
+    cities: storedCities.map((c) => ({ name: c.name, ...(c.bbox ? { bbox: c.bbox } : {}) })),
+    area: areaLabel(criteria) ?? "",
     sector: String(criteria.sector ?? ""),
     cursor,
     hasMore,

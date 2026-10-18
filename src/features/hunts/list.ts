@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { hunts, icpProfiles, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
+import { areaLabel } from "@/features/icp/presets";
 
 export interface HuntSourceCount {
   source: string;
@@ -14,6 +15,8 @@ export interface HuntSummary {
   prompt: string;
   sector: string | null;
   city: string | null;
+  /** "Bogotá", "Bogotá +2" or "Colombia (5 ciudades)". */
+  area: string | null;
   isDemo: boolean;
   leads: number;
   fit: number;
@@ -72,7 +75,7 @@ export async function listHunts(db: AppDb, limit = 50): Promise<HuntSummary[]> {
     .groupBy(leads.huntId, leads.primarySource, leads.isDemo);
 
   return rows.map((r) => {
-    const c = (r.criteria ?? {}) as { sector?: unknown; city?: unknown };
+    const c = (r.criteria ?? {}) as { sector?: unknown; city?: unknown; cities?: unknown; scope?: unknown; country?: unknown };
     const m = byHunt.get(r.id);
     const isDemo = r.total === 0 && r.demo > 0;
     const bySource = src
@@ -87,6 +90,7 @@ export async function listHunts(db: AppDb, limit = 50): Promise<HuntSummary[]> {
       prompt: r.prompt,
       sector: typeof c.sector === "string" ? c.sector : null,
       city: typeof c.city === "string" ? c.city : null,
+      area: areaLabel(c),
       isDemo,
       leads: isDemo ? r.demo : r.total,
       fit: isDemo ? r.demoFit : r.fit,

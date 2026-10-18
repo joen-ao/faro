@@ -1,4 +1,4 @@
-import { findSector } from "@/features/icp/presets";
+import { findSector, huntCities } from "@/features/icp/presets";
 import type { IcpCriteria } from "@/features/icp/schema";
 import { HUNT_SOURCES, type HuntSource, type HuntSourcesProgress, type SourceProgress } from "./types";
 
@@ -12,7 +12,7 @@ export interface SourcePlan {
 }
 
 /** Which sources can answer this ICP (RUES/REPS only cover Colombia; REPS only health). */
-export function planSources(c: Pick<IcpCriteria, "osmTags" | "ciiu" | "country" | "sector" | "city" | "bbox">): Record<HuntSource, SourcePlan> {
+export function planSources(c: Pick<IcpCriteria, "osmTags" | "ciiu" | "country" | "sector" | "city" | "bbox" | "cities">): Record<HuntSource, SourcePlan> {
   const co = c.country.toUpperCase() === "CO";
   const health = findSector(c.sector)?.sector === "dental";
   return {
@@ -22,7 +22,7 @@ export function planSources(c: Pick<IcpCriteria, "osmTags" | "ciiu" | "country" 
   };
 }
 
-const freshSource = (plan: SourcePlan): SourceProgress => ({
+const freshSource = (plan: SourcePlan, cities: string[]): SourceProgress => ({
   state: plan.applicable ? "pending" : "skipped",
   cursor: 0,
   total: null,
@@ -30,11 +30,14 @@ const freshSource = (plan: SourcePlan): SourceProgress => ({
   isMock: false,
   reason: plan.reason,
   log: [],
+  // Multi-city: the source walks the cities in order; `cursor` is the offset inside `cities[city]`.
+  ...(cities.length > 1 && plan.applicable ? { city: 0, cities: cities.map((name) => ({ name, state: "pending" as const, total: null, fetched: 0, excluded: 0 })) } : {}),
 });
 
 export function initialSourcesProgress(c: Parameters<typeof planSources>[0]): HuntSourcesProgress {
   const plan = planSources(c);
-  return { osm: freshSource(plan.osm), rues: freshSource(plan.rues), reps: freshSource(plan.reps) };
+  const cities = huntCities(c).map((x) => x.name);
+  return { osm: freshSource(plan.osm, cities), rues: freshSource(plan.rues, cities), reps: freshSource(plan.reps, cities) };
 }
 
 export interface BatchSlice<T> {
@@ -52,10 +55,10 @@ export function sliceBatch<T>(list: readonly T[], cursor: number, size = BATCH_S
 }
 
 /** Next unit of work to resume a hunt: first applicable source that is not done. */
-export function nextWork(progress: Partial<HuntSourcesProgress> | undefined): { source: HuntSource; cursor: number } | null {
+export function nextWork(progress: Partial<HuntSourcesProgress> | undefined): { source: HuntSource; cursor: number; city?: number } | null {
   for (const s of HUNT_SOURCES) {
     const p = progress?.[s];
-    if (p && (p.state === "pending" || p.state === "running" || p.state === "error")) return { source: s, cursor: p.cursor };
+    if (p && (p.state === "pending" || p.state === "running" || p.state === "error")) return { source: s, cursor: p.cursor, ...(p.city !== undefined ? { city: p.city } : {}) };
   }
   return null;
 }

@@ -127,9 +127,13 @@ export const HEALTH_SERVICE_KEYWORDS = { dental: DENTAL_NAME_KEYWORDS } as const
  * Independiente`) and non-NIT ids are excluded. Dental is detected by name keywords because REPS
  * lists providers/sites, not services, in this dataset.
  */
-export function repsWhere(opts: { municipio: string; nameKeywords?: readonly string[] }): string {
+export function repsWhere(opts: { municipio: string; municipioCode?: string; nameKeywords?: readonly string[] }): string {
+  // A DANE code (5 digits) is exact; the name LIKE is the fallback for cities without a preset code.
+  if (opts.municipioCode !== undefined && !/^\d{5}$/.test(opts.municipioCode)) throw new Error("Invalid DANE municipio code");
   const parts = [
-    `upper(municipiosededesc) like ${soql(`%${accentInsensitive(requireText("municipio", opts.municipio))}%`)}`,
+    opts.municipioCode
+      ? `municipiosede=${soql(opts.municipioCode)}`
+      : `upper(municipiosededesc) like ${soql(`%${accentInsensitive(requireText("municipio", opts.municipio))}%`)}`,
     `claseprestador like 'Instituciones Prestadoras%'`,
     `tipoid='NI'`,
   ];

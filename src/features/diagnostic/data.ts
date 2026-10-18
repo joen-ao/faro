@@ -12,7 +12,7 @@ import { normalizeName } from "./normalize";
 import type { ContactInput } from "./contact";
 import type { Tracking } from "./params";
 import { isEnrichedSite, signalsOf, siteFactsFrom, type CompanyInput, type SiteFacts, type SourceInput } from "./findings";
-import type { PeerSite } from "./benchmark";
+import { resolveHuntCity, storedHuntCities, type PeerSite } from "./benchmark";
 
 const g = globalThis as unknown as { __faroDiagReady?: Promise<Awaited<ReturnType<typeof readyConn>>> };
 
@@ -33,6 +33,8 @@ export interface Diagnostic {
   site: SiteFacts;
   /** Peers of the same hunt with an enriched website (real data only, never names). */
   peers: PeerSite[];
+  /** City of the lead inside its hunt (the benchmark compares against peers of this city first). */
+  benchCity: string | null;
   /** Services the hunt offers (or the team catalog): feeds "Cómo le ayudamos" and the final block. */
   offer: EffectiveOffer;
 }
@@ -42,8 +44,15 @@ export interface Diagnostic {
  * excluding the company itself. Returns aggregates-ready rows without names.
  */
 export async function peerSites(db: AppDb, huntId: string, excludeCompanyId: string): Promise<PeerSite[]> {
+  const [hunt] = await db
+    .select({ criteria: icpProfiles.criteria })
+    .from(hunts)
+    .innerJoin(icpProfiles, eq(icpProfiles.id, hunts.icpProfileId))
+    .where(eq(hunts.id, huntId))
+    .limit(1);
+  const cities = storedHuntCities(hunt?.criteria);
   const rows = await db
-    .selectDistinctOn([companySources.companyId], { companyId: companySources.companyId, raw: companySources.raw })
+    .selectDistinctOn([companySources.companyId], { companyId: companySources.companyId, raw: companySources.raw, city: companies.city, lat: companies.lat, lng: companies.lng })
     .from(leads)
     .innerJoin(companies, eq(companies.id, leads.companyId))
     .innerJoin(companySources, and(eq(companySources.companyId, companies.id), eq(companySources.sourceChannel, "website")))
@@ -71,6 +80,7 @@ export async function peerSites(db: AppDb, huntId: string, excludeCompanyId: str
       whatsapp: mine.some((c) => c.type === "whatsapp"),
       form: sig.hasContactForm === true || mine.some((c) => c.type === "web_form"),
       copyrightYear: typeof sig.copyrightYear === "number" ? sig.copyrightYear : null,
+      city: resolveHuntCity(r, cities),
     };
   });
 }
@@ -99,7 +109,7 @@ export async function getDiagnostic(slug: string): Promise<Diagnostic | null> {
   const peers = row.lead.huntId ? await peerSites(db as unknown as AppDb, row.lead.huntId, row.company.id) : [];
   const [icp] = row.lead.huntId
     ? await db
-        .select({ offer: icpProfiles.offer })
+        .select({ offer: icpProfiles.offer, criteria: icpProfiles.criteria })
         .from(hunts)
         .innerJoin(icpProfiles, eq(icpProfiles.id, hunts.icpProfileId))
         .where(eq(hunts.id, row.lead.huntId))
@@ -113,6 +123,7 @@ export async function getDiagnostic(slug: string): Promise<Diagnostic | null> {
     sources,
     site: siteFactsFrom(sources, contacts),
     peers,
+    benchCity: resolveHuntCity(row.company, storedHuntCities(icp?.criteria)),
     offer,
   };
 }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { IcpCriteria } from "@/features/icp/schema";
 import { DEFAULT_THRESHOLD } from "@/features/icp/schema";
+import { huntCities, sameCity } from "@/features/icp/presets";
 import { complete, type AnthropicAdapter, type CallRecorder, type Usage } from "@/integrations/anthropic";
 
 export interface ScoreSource {
@@ -180,8 +181,11 @@ export async function scoreFit(company: ScoreCompany, criteria: IcpCriteria, opt
     ),
   );
 
-  const cityOk = !!company.city && norm(company.city) === norm(criteria.city);
-  out.push(crit(`Ciudad: ${criteria.city}`, WEIGHTS.city, cityOk, `Ciudad registrada: ${company.city}`, firstUrl(company)));
+  // Met when the company is in ANY of the hunt cities. Preset aliases count (RUES stores the chamber,
+  // e.g. "Medellin Para Antioquia"; OSM may say "Bogotá D.C.").
+  const cityNames = huntCities(criteria).map((c) => c.name);
+  const cityOk = !!company.city && cityNames.some((c) => norm(company.city!) === norm(c) || sameCity(company.city, c));
+  out.push(crit(`Ciudad: ${cityNames.join(", ")}`, WEIGHTS.city, cityOk, `Ciudad registrada: ${company.city}`, firstUrl(company)));
 
   let whyNow = "";
   let model: string | null = null;

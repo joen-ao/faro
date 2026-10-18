@@ -18,6 +18,10 @@ export interface HuntStreamState {
   isDemo: boolean;
   prompt: string;
   city: string;
+  /** All the cities of the hunt (map framing); one entry on single-city hunts. */
+  cities: StreamResponse["cities"];
+  /** "Bogotá", "Bogotá +2" or "Colombia (5 ciudades)". */
+  area: string;
   sector: string;
   points: StreamPoint[];
   counters: Counters | null;
@@ -32,6 +36,7 @@ export interface HuntStreamState {
   retry: () => void;
 }
 
+const EMPTY_CITIES: StreamResponse["cities"] = [];
 const LIVE_MS = 1200;
 const IDLE_MS = 4500;
 /** Batches larger than this are the initial load, not "live arrivals": no per-point animation. */
@@ -130,6 +135,8 @@ export function useHuntStream(huntId: string): HuntStreamState {
     isDemo: data?.isDemo ?? false,
     prompt: data?.prompt ?? "",
     city: data?.city ?? "",
+    cities: data?.cities ?? EMPTY_CITIES,
+    area: data?.area ?? "",
     sector: data?.sector ?? "",
     points,
     counters: data?.counters ?? null,
@@ -188,17 +195,19 @@ export function useHuntRunner(huntId: string, enabled: boolean, sources: Partial
       setOn(source, true);
       void (async () => {
         let cursor: number | undefined = undefined;
+        let city: number | undefined = undefined;
         let attempts = 0;
         try {
           while (alive.current) {
-            const url = `/api/hunts/${huntId}/run?source=${source}${cursor !== undefined ? `&cursor=${cursor}` : ""}`;
+            const url = `/api/hunts/${huntId}/run?source=${source}${cursor !== undefined ? `&cursor=${cursor}` : ""}${city !== undefined ? `&city=${city}` : ""}`;
             const res = await fetch(url, { method: "POST" });
             if (res.ok) {
-              const r = (await res.json()) as { nextCursor: number; done: boolean };
+              const r = (await res.json()) as { nextCursor: number; nextCity?: number; done: boolean };
               attempts = 0;
               setErrors((e) => ({ ...e, [source]: undefined }));
               if (r.done) break;
               cursor = r.nextCursor;
+              city = r.nextCity;
               continue;
             }
             const body = (await res.json().catch(() => ({}))) as { error?: string };

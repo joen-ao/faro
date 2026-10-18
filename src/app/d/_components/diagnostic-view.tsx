@@ -2,6 +2,7 @@ import { ChevronDown, CircleCheck, CircleHelp, MessageCircle, TriangleAlert } fr
 import { Attribution } from "@/components/attribution";
 import { getEnv } from "@/lib/env";
 import { cn } from "@/lib/utils";
+import { cityLabel } from "@/features/icp/presets";
 import { BENCHMARK_MIN_N, type Benchmark, type BenchmarkRow } from "@/features/diagnostic/benchmark";
 import { whatsappDisplay, whatsappHref } from "@/features/diagnostic/cta";
 import type { Finding, FindingStatus, RegistryNote } from "@/features/diagnostic/findings";
@@ -183,14 +184,19 @@ function BenchRow({ r }: { r: BenchmarkRow }) {
 
 function BenchmarkBlock({ b }: { b: Benchmark }) {
   const peers = Math.max(0, ...b.rows.map((r) => r.n));
+  const city = b.city ? cityLabel(b.city) : null;
+  // "hunt": fewer than 5 reviewed clinics in their city, so the comparison uses the whole search (and says so).
+  const wide = b.scope === "hunt";
   const title =
-    peers >= BENCHMARK_MIN_N ? `Usted frente a ${peers} clínicas${b.city ? ` de ${b.city}` : ""}` : "Usted frente a su competencia";
+    peers < BENCHMARK_MIN_N ? "Usted frente a su competencia" : wide ? `Usted frente a ${peers} clínicas revisadas en su búsqueda` : `Usted frente a ${peers} clínicas${city ? ` de ${city}` : ""}`;
   return (
     <section aria-labelledby="comparacion" className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
         <h2 id="comparacion" className="text-2xl font-semibold sm:text-[1.75rem]">{title}</h2>
         <p className="max-w-2xl text-pretty text-faro-text-3">
-          Comparamos su sitio con los de otras clínicas de la misma búsqueda pública. Solo mostramos totales, nunca nombres.
+          {wide
+            ? `Clínicas revisadas en su búsqueda${city ? `: en ${city} aún hay menos de ${BENCHMARK_MIN_N} con sitio revisado, así que comparamos con todas las de la búsqueda` : ""}. Solo mostramos totales, nunca nombres.`
+            : `Comparamos su sitio con los de otras clínicas${city ? ` de ${city}` : ""} de la misma búsqueda pública. Solo mostramos totales, nunca nombres.`}
         </p>
       </div>
       <ul data-testid="benchmark" className="divide-y divide-white/8 rounded-card border border-white/10 bg-faro-surface-1 px-5 sm:px-6">

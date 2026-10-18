@@ -6,7 +6,7 @@ import { setWorkerUrl, type ExpressionSpecification, type GeoJSONSource, type St
 import { Crosshair } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MapGL, { AttributionControl, Layer, NavigationControl, Popup, Source, type LayerProps, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
-import { boundsOf, hasLocation, toFeatureCollection } from "../geojson";
+import { boundsOf, hasLocation, toFeatureCollection, unionBounds } from "../geojson";
 import type { StreamPoint } from "../types";
 import { prefersReducedMotion } from "./use-count-up";
 import type { ArrivalBatch } from "./use-hunt-stream";
@@ -113,6 +113,8 @@ export interface MapViewProps {
   padding: { top: number; right: number; bottom: number; left: number };
   /** Re-fit the viewport when this changes. */
   fitKey: string;
+  /** Multi-city hunts: [west, south, east, north] of all the cities, so the frame covers every city from the start. */
+  area?: [number, number, number, number] | null;
 }
 
 interface Ring {
@@ -123,7 +125,7 @@ interface Ring {
 
 const EMPTY = { type: "FeatureCollection" as const, features: [] };
 
-export default function MapView({ points, arrival, selectedId, onSelect, fly, padding, fitKey }: MapViewProps) {
+export default function MapView({ points, arrival, selectedId, onSelect, fly, padding, fitKey, area = null }: MapViewProps) {
   const mapRef = useRef<MapRef>(null);
   const [loaded, setLoaded] = useState(false);
   const [style, setStyle] = useState<string | StyleSpecification>(MAP_STYLE);
@@ -194,7 +196,7 @@ export default function MapView({ points, arrival, selectedId, onSelect, fly, pa
     (animate: boolean) => {
       const map = mapRef.current?.getMap();
       if (!map) return;
-      const b = boundsOf(points);
+      const b = unionBounds(boundsOf(points), area);
       if (!b) return;
       map.fitBounds(
         [
@@ -204,15 +206,15 @@ export default function MapView({ points, arrival, selectedId, onSelect, fly, pa
         { padding: paddingRef.current, duration: animate ? 900 : 0, maxZoom: 14.5 },
       );
     },
-    [points],
+    [points, area],
   );
 
   // First fit once there are located points, and again when the view context (filters) changes.
   useEffect(() => {
-    if (!loaded || located === 0 || fittedFor.current === fitKey) return;
+    if (!loaded || (located === 0 && !area) || fittedFor.current === fitKey) return;
     fittedFor.current = fitKey;
     fit(fitKey !== "initial");
-  }, [loaded, located, fitKey, fit]);
+  }, [loaded, located, area, fitKey, fit]);
 
   useEffect(() => {
     if (!fly || !loaded) return;

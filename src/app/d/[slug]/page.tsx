@@ -51,7 +51,7 @@ export default async function DiagnosticPage({
       company={{ name: d.company.name, isDemo: d.isDemo }}
       findings={findings}
       offer={offer}
-      benchmark={computeBenchmark(d.site, d.peers, { city: d.company.city, websiteKnown: !!safeHttpUrl(d.company.website), now })}
+      benchmark={computeBenchmark(d.site, d.peers, { city: d.benchCity, websiteKnown: !!safeHttpUrl(d.company.website), now })}
       registry={registryNote(d.sources)}
       optOutHref={optOutHref(d.leadId)}
     />
