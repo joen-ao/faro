@@ -6,6 +6,11 @@ import { handleOfferAngles, handleServicesSuggest } from "@/features/offer/api";
 import { howWeHelp, recommendService, suggestionLine, type FindingLike } from "@/features/offer/match";
 import { effectiveOffer } from "@/features/offer/resolve";
 import { CatalogSetting, cleanOfferText, HuntOffer, parseHuntOffer, Service, ServiceCatalog } from "@/features/offer/schema";
+import { eq } from "drizzle-orm";
+import { icpProfiles } from "@/db/schema";
+import { createHunt } from "@/features/hunts/service";
+import { ICP_EXAMPLES } from "@/features/icp/presets";
+import { loadEffectiveOffer } from "@/features/offer/resolve";
 import { generateMessage } from "@/features/outreach/generate";
 import { defaultCatalog, getServiceCatalog, saveServiceCatalog } from "@/features/settings/services";
 import { offerContext } from "@/integrations/dapta/leads";
@@ -248,5 +253,20 @@ describe("services setting storage", () => {
     const saved = await getServiceCatalog(db);
     expect(saved.origin).toBe("panel");
     expect(saved.services.map((s) => s.id)).toEqual(["wa"]);
+  });
+
+  it("a hunt stores its offer; older hunts fall back to the catalog", async () => {
+    const criteria = ICP_EXAMPLES[0]!.criteria;
+    const offer = { serviceIds: ["agentes-ia"], services: mokub.slice(0, 1), angles: [{ text: "Clínicas sin WhatsApp pierden pacientes → Agentes", serviceId: "agentes-ia", signal: "whatsapp" }] };
+    const { icpProfileId } = await createHunt(db, { prompt: "Clinicas dentales en Bogota", criteria, offer });
+    const [row] = await db.select().from(icpProfiles).where(eq(icpProfiles.id, icpProfileId));
+    const eff = await loadEffectiveOffer(db, row!.offer);
+    expect(eff.origin).toBe("hunt");
+    expect(eff.services.map((s) => s.id)).toEqual(["agentes-ia"]);
+    expect(eff.angles).toHaveLength(1);
+    const legacy = await createHunt(db, { prompt: "Clinicas dentales en Bogota", criteria });
+    const [old] = await db.select().from(icpProfiles).where(eq(icpProfiles.id, legacy.icpProfileId));
+    expect(old!.offer).toBeNull();
+    expect((await loadEffectiveOffer(db, old!.offer)).origin).toBe("catalog");
   });
 });

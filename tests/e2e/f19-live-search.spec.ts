@@ -35,6 +35,40 @@ test("new profile: conversation, editable chips and source cards", async ({ page
   await page.getByPlaceholder("Añadir señal").press("Enter");
   await page.waitForTimeout(700);
   await page.screenshot({ path: `artifacts/screens/F07-new-${widthOf(info)}.png`, fullPage: true });
+
+  // Step 2: the search needs at least one service (inline validation), then Claude proposes value angles.
+  const step = page.getByTestId("offer-step");
+  await expect(step.getByRole("heading", { name: "¿Qué valor les llevas?" })).toBeVisible();
+  await launch.click();
+  await expect(page.getByTestId("offer-error")).toContainText("Elige al menos un servicio");
+  await page.getByTestId("service-pick-agentes-ia").click();
+  await page.getByTestId("service-pick-landing-webs").click();
+  await expect(page.getByTestId("offer-error")).toBeHidden();
+  const angles = page.getByTestId("angle-card");
+  await expect(angles.first()).toBeVisible({ timeout: 15_000 });
+  expect(await angles.count()).toBeGreaterThanOrEqual(2);
+  await expect(angles.first()).toContainText("→");
+  await angles.first().getByTestId("angle-accept").click();
+  await expect(angles.first()).toHaveAttribute("data-state", "accepted");
+  await angles.nth(1).getByTestId("angle-dismiss").click();
+  await expect(page.getByTestId("refinement-card").first()).toBeVisible();
+  await expect(page.getByTestId("offer-preview")).toContainText("Agentes de IA y automatización");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await step.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `artifacts/screens/F07-new-oferta-${widthOf(info)}.png`, fullPage: true });
+
+  // The search is created with the offer (chosen services + accepted angle). The request is answered with the demo hunt so
+  // this spec does not add real data that later specs expect to be empty (storage is covered by unit tests).
+  let sent: { offer?: { serviceIds: string[]; angles: unknown[] } } = {};
+  await page.route("**/api/hunts", async (route) => {
+    sent = route.request().postDataJSON();
+    await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ huntId: "demo" }) });
+  });
+  await launch.click();
+  await expect(page).toHaveURL(/\/app\/hunts\/demo$/, { timeout: 20_000 });
+  expect(sent.offer?.serviceIds).toEqual(["agentes-ia", "landing-webs"]);
+  expect(sent.offer?.angles).toHaveLength(1);
 });
 
 test("live hunt (DEMO 2.000 points): map, virtual list, filters and lead drawer", async ({ page }, info) => {
