@@ -94,6 +94,8 @@ export const icpProfiles = pgTable("icp_profiles", {
   /** sector, CIIU[], tags OSM[], tipos Places[], ciudad, bbox, tamaño, señales[], exclusiones[] */
   criteria: jsonb("criteria").$type<Record<string, unknown>>().notNull().default({}),
   threshold: integer("threshold").notNull().default(60),
+  /** What this hunt offers: chosen service ids, a snapshot of those services and the accepted value angles. Null on older hunts. */
+  offer: jsonb("offer").$type<Record<string, unknown>>(),
   version: integer("version").notNull().default(1),
   createdAt: createdAt(),
 });
