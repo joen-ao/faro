@@ -431,7 +431,7 @@ export function NewProfile() {
         <div className="faro-sheet-in fixed inset-x-0 bottom-0 z-30 border-t border-white/[0.14] bg-black/90 backdrop-blur-sm" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <div className="mx-auto flex max-w-[880px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4 sm:px-6">
             <div className="min-w-0 flex-1 basis-56">
-              <p className="truncate text-[14.5px] font-medium">
+              <p className="line-clamp-2 text-[14.5px] font-medium" data-testid="launch-summary">
                 {applicable.length} {applicable.length === 1 ? "fuente" : "fuentes"} · {criteria.sector} en {areaList(criteria)}
               </p>
               <p className="text-[12.5px] text-faro-text-3">{totalEstimate > 0

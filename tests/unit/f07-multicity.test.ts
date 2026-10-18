@@ -6,6 +6,7 @@ import { benchmarkPeers, computeBenchmark, resolveHuntCity, type PeerSite } from
 import { siteFactsFrom } from "@/features/diagnostic/findings";
 import { initialSourcesProgress, nextWork } from "@/features/hunts/batch";
 import { estimateSources } from "@/features/hunts/estimates";
+import { listHunts } from "@/features/hunts/list";
 import { areaBounds, unionBounds } from "@/features/hunts/geojson";
 import { createHunt, getStream, runBatch } from "@/features/hunts/service";
 import type { SourceDeps } from "@/features/hunts/sources";
@@ -225,6 +226,7 @@ describe("runBatch over several cities", () => {
     expect(s.counters.bySource.osm.found).toBe(275);
     expect(s.cities.map((c) => c.name)).toEqual(["Bogota", "Medellin", "Cali"]);
     expect(s.area).toBe("Bogotá +2");
+    expect((await listHunts(db)).find((x) => x.id === huntId)).toMatchObject({ city: "Bogota", area: "Bogotá +2" });
     await expect(runBatch(db, huntId, "osm", 0, deps, 3)).rejects.toMatchObject({ status: 400 });
   });
 
