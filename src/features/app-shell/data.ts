@@ -27,7 +27,7 @@ export interface AppShellData {
   huntCount: number | null;
   /** Real queued messages across hunts; null when the DB is unavailable. */
   queued: number | null;
-  /** Contact view of the newest hunt with queued messages, else the hunt list. */
+  /** Contact view of the newest hunt with queued messages, else of the newest real hunt, else the hunt list. */
   contactHref: string;
   recent: RecentHunt[];
   send: SendStatus;
@@ -99,7 +99,8 @@ export async function getAppShellData(db: AppDb | null, env: Record<string, stri
     return {
       huntCount: rows[0]?.total ?? 0,
       queued: queue.reduce((a, q) => a + q.n, 0),
-      contactHref: queue[0]?.huntId ? `/app/hunts/${queue[0].huntId}/outreach` : "/app/hunts",
+      // Queued messages first; otherwise the newest real hunt; the hunt list only when there is none.
+      contactHref: queue[0]?.huntId ? `/app/hunts/${queue[0].huntId}/outreach` : rows[0]?.id ? `/app/hunts/${rows[0].id}/outreach` : "/app/hunts",
       recent: rows.map((r) => {
         const c = (r.criteria ?? {}) as { sector?: unknown; city?: unknown; cities?: unknown; scope?: unknown; country?: unknown };
         return {
