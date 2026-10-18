@@ -14,6 +14,10 @@ export interface DaptaLeadRecord {
   diagnosticUrl: string;
   notes: string;
   isDemo: boolean;
+  /** "Servicio sugerido: X · porque …" for this lead (deterministic), or "". */
+  suggestedService?: string;
+  /** What we offer, as context for the Dapta agent: service, outcome and entry offer. */
+  offer?: string;
 }
 
 export type PushStatus = "sent" | "simulated" | "skipped" | "failed";

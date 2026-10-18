@@ -1,7 +1,15 @@
-import { desc, eq, ne, and } from "drizzle-orm";
-import { companies, contactPoints, leads, suppression } from "@/db/schema";
+import { desc, eq, ne, and, inArray } from "drizzle-orm";
+import { companies, companySources, contactPoints, hunts, icpProfiles, leads, suppression } from "@/db/schema";
 import type { AppDb } from "@/db/types";
+import { suggestionLine, type Recommendation } from "@/features/offer/match";
+import { loadEffectiveOffer, recommendForLead, type EffectiveOffer } from "@/features/offer/resolve";
 import type { DaptaLeadRecord } from "./types";
+
+/** "Agentes de IA — menos trabajo manual… · Llamada de descubrimiento gratuita…": the offer as agent context. */
+export function offerContext(r: Recommendation | null): string {
+  if (!r) return "";
+  return [`${r.service.name} — ${r.service.outcome}`, r.service.entryOffer].filter(Boolean).join(" · ");
+}
 
 const MAX_LEADS = 500;
 
@@ -29,6 +37,19 @@ export async function selectLeadsForDapta(
   const byCompany = new Map<string, typeof contacts>();
   for (const c of contacts) byCompany.set(c.companyId, [...(byCompany.get(c.companyId) ?? []), c]);
 
+  const companyIds = [...new Set(rows.map((r) => r.company.id))];
+  const sources = companyIds.length ? await db.select().from(companySources).where(inArray(companySources.companyId, companyIds)) : [];
+  const huntIds = [...new Set(rows.map((r) => r.lead.huntId).filter((h): h is string => !!h))];
+  const huntOffers = huntIds.length
+    ? await db.select({ huntId: hunts.id, offer: icpProfiles.offer }).from(hunts).innerJoin(icpProfiles, eq(icpProfiles.id, hunts.icpProfileId)).where(inArray(hunts.id, huntIds))
+    : [];
+  const offers = new Map<string, EffectiveOffer>();
+  const offerOf = async (huntId: string | null) => {
+    const key = huntId ?? "-";
+    if (!offers.has(key)) offers.set(key, await loadEffectiveOffer(db, huntOffers.find((h) => h.huntId === huntId)?.offer ?? null));
+    return offers.get(key)!;
+  };
+
   const base = opts.appUrl.replace(/\/$/, "");
   const out: DaptaLeadRecord[] = [];
   for (const { lead, company } of rows) {
@@ -43,6 +64,12 @@ export async function selectLeadsForDapta(
       (phone && suppressed.has(phone)) ||
       (domain && suppressed.has(domain));
     if (isBlocked) continue;
+    const rec = recommendForLead(
+      company,
+      sources.filter((x) => x.companyId === company.id).map((x) => ({ sourceChannel: x.sourceChannel, sourceUrl: x.sourceUrl, license: x.license, isMock: x.isMock, raw: x.raw as Record<string, unknown> })),
+      cps.map((c) => ({ type: c.type, sourceChannel: c.sourceChannel })),
+      await offerOf(lead.huntId),
+    );
     out.push({
       leadId: lead.id,
       slug: lead.slug,
@@ -54,6 +81,8 @@ export async function selectLeadsForDapta(
       diagnosticUrl: `${base}/d/${lead.slug}`,
       notes: lead.fitScore != null ? `fit ${lead.fitScore}` : "",
       isDemo: lead.isDemo,
+      suggestedService: suggestionLine(rec) ?? "",
+      offer: offerContext(rec),
     });
   }
   return out;

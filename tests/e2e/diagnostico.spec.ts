@@ -14,6 +14,11 @@ test("diagnostic page: findings, opt-out button, event registered, contact form,
   await expect(page.locator('[data-testid="finding"][data-status="ok"]')).toHaveCount(2);
   await expect(findings.first()).toContainText("Por qué importa");
   await expect(findings.first()).toContainText("Recomendación");
+  // "Cómo le ayudamos" under each opportunity, from the team's services (initial Mokub catalog here).
+  await expect(page.getByTestId("how-we-help")).toHaveCount(3);
+  await expect(page.getByTestId("how-we-help").first()).toContainText("Cómo le ayudamos");
+  await expect(page.getByTestId("offer-cta")).toContainText("Agentes de IA y automatización");
+  await expect(page.getByTestId("offer-cta")).toContainText("Llamada de descubrimiento gratuita");
   // Benchmark: the demo lead has no real peers, so no percentage is shown.
   await expect(page.getByTestId("bench-booking")).toContainText("Usted: no");
   await expect(page.getByTestId("benchmark")).toContainText("Aún no hay suficientes datos para comparar");

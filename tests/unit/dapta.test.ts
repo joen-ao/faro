@@ -126,7 +126,7 @@ describe("csv", () => {
     expect(csvCell("a,b")).toBe('"a,b"');
     expect(csvCell("line\nbreak")).toBe('"line\nbreak"');
     const out = buildCsv([rec({ company: "=cmd|' /C calc'!A0", notes: "@SUM(1)" })]);
-    expect(out.csv.split("\r\n")[0]).toBe("empresa,telefono,correo_generico,ciudad,fuente,slug,url_diagnostico,notas");
+    expect(out.csv.split("\r\n")[0]).toBe("empresa,telefono,correo_generico,ciudad,fuente,slug,url_diagnostico,notas,servicio_sugerido,oferta");
     expect(out.csv).toContain("'=cmd");
     expect(out.csv).toContain("'@SUM(1)");
     expect(out.csv).not.toMatch(/(^|,)=cmd/m);

@@ -28,6 +28,8 @@ export function buildPushBody(leads: DaptaLeadRecord[], env: Pick<Env, "NEXT_PUB
       source: l.source,
       diagnostic_url: l.diagnosticUrl,
       notes: l.notes || undefined,
+      servicio_sugerido: l.suggestedService || undefined,
+      oferta: l.offer || undefined,
     })),
   };
 }

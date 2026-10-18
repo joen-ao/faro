@@ -5,6 +5,7 @@ import type { AppDb } from "@/db/types";
 import { dedupeAndPersist, type DedupeProgress } from "@/features/dedupe/dedupe";
 import type { MergedPair } from "@/features/dedupe/plan";
 import { DEFAULT_THRESHOLD, IcpCriteria } from "@/features/icp/schema";
+import { HuntOffer } from "@/features/offer/schema";
 import { scoreFit, type ScoreCompany } from "@/features/scoring/fit";
 import { allDone, initialSourcesProgress, isHuntSource } from "./batch";
 import { computeCounters, toPointStatus } from "./counters";
@@ -29,18 +30,21 @@ export interface CreateHuntInput {
   prompt: string;
   criteria: IcpCriteria;
   threshold?: number;
+  /** What this hunt offers (icp_profiles.offer); null/absent -> the team catalog is used later. */
+  offer?: unknown;
 }
 
 /** Workspace + ICP profile + hunt with per-source progress. Real hunts only (demo has its own seeder). */
 export async function createHunt(db: AppDb, input: CreateHuntInput): Promise<{ huntId: string; icpProfileId: string; sources: HuntSourcesProgress }> {
   const criteria = IcpCriteria.parse(input.criteria);
+  const offer = input.offer == null ? null : (JSON.parse(JSON.stringify(HuntOffer.parse(input.offer))) as Record<string, unknown>);
   return db.transaction(async (tx) => {
     const t = tx as unknown as AppDb;
     let [ws] = await t.select().from(workspaces).where(eq(workspaces.name, "Mi espacio")).limit(1);
     if (!ws) [ws] = await t.insert(workspaces).values({ name: "Mi espacio", country: criteria.country }).returning();
     const [icp] = await t
       .insert(icpProfiles)
-      .values({ workspaceId: ws.id, prompt: input.prompt, criteria, threshold: input.threshold ?? DEFAULT_THRESHOLD })
+      .values({ workspaceId: ws.id, prompt: input.prompt, criteria, threshold: input.threshold ?? DEFAULT_THRESHOLD, offer })
       .returning();
     const sources = initialSourcesProgress(criteria);
     const [hunt] = await t.insert(hunts).values({ icpProfileId: icp.id, status: "pending", progress: { sources } }).returning();

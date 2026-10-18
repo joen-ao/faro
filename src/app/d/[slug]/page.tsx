@@ -5,6 +5,7 @@ import { computeBenchmark } from "@/features/diagnostic/benchmark";
 import { getDiagnostic } from "@/features/diagnostic/data";
 import { buildFindings, registryNote, safeHttpUrl } from "@/features/diagnostic/findings";
 import { parseTracking } from "@/features/diagnostic/params";
+import { howWeHelp, recommendService } from "@/features/offer/match";
 import { DiagnosticView } from "../_components/diagnostic-view";
 
 export const dynamic = "force-dynamic";
@@ -33,12 +34,23 @@ export default async function DiagnosticPage({
   if (!d) notFound();
   const tracking = parseTracking(await searchParams);
   const now = new Date();
+  const findings = buildFindings(d.company, d.site, now);
+  // Deterministic, no AI on the page: one template per finding kind naming the service and its outcome.
+  const rec = recommendService(findings, d.offer.services, d.offer.angles);
+  const help: Record<string, string> = {};
+  for (const f of findings) {
+    if (f.status === "ok") continue;
+    const line = howWeHelp(f.id, d.offer.services, d.offer.angles, rec?.service);
+    if (line) help[f.id] = line;
+  }
+  const offer = rec ? { help, service: { name: rec.service.name, outcome: rec.service.outcome, entryOffer: rec.service.entryOffer ?? null } } : undefined;
   return (
     <DiagnosticView
       slug={slug}
       tracking={tracking}
       company={{ name: d.company.name, isDemo: d.isDemo }}
-      findings={buildFindings(d.company, d.site, now)}
+      findings={findings}
+      offer={offer}
       benchmark={computeBenchmark(d.site, d.peers, { city: d.company.city, websiteKnown: !!safeHttpUrl(d.company.website), now })}
       registry={registryNote(d.sources)}
       optOutHref={optOutHref(d.leadId)}

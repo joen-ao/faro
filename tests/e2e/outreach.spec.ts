@@ -18,6 +18,8 @@ test("outreach view: banner, compliance blocks, preview and screenshot", async (
   // Explained blocks are visible in the list.
   await expect(page.getByText("Persona natural o profesional independiente")).toBeVisible();
   await expect(page.getByText("lista de supresión")).toBeVisible();
+  // Each row says which service fits the lead and why (deterministic, from its website findings).
+  await expect(page.getByTestId("suggested-service").first()).toContainText("Servicio sugerido:");
 
   await page.getByRole("button", { name: "Dental Norte Demo SAS" }).click();
   await expect(page.getByTestId("body")).toContainText("30X Hackathon", { timeout: 20_000 });

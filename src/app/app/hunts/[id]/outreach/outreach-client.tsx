@@ -40,6 +40,7 @@ export interface RowView {
   assessment: Assessment;
   latest: { id: string; status: string; channel: string; blockedByRule: string | null; subject: string | null; recipient: string | null } | null;
   formUrl: string | null;
+  suggestion?: string | null;
 }
 export interface QueueItem {
   id: string;
@@ -436,6 +437,11 @@ export function OutreachClient(props: {
                             {r.city ?? "—"} · {SOURCE_LABEL[r.source] ?? r.source}
                             <span className="md:hidden"> · encaje {r.fitScore ?? "—"}</span>
                           </p>
+                          {r.suggestion && (
+                            <p data-testid="suggested-service" className="mt-1 text-xs text-faro-text-2">
+                              {r.suggestion}
+                            </p>
+                          )}
                           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                             <button type="button" onClick={() => open(r)} className={cn(focusRing, "rounded text-faro-accent underline-offset-2 hover:underline")}>
                               {ch === "web_form" ? "Modo asistido" : "Vista previa"}
