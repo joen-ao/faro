@@ -17,6 +17,8 @@ import { evaluateOutreach, type BlockRule, type OutreachContact } from "@/featur
 import { isSuppressed } from "@/features/compliance/suppression";
 import { checkSendWindow, type Country, type SendWindowSetting } from "@/features/compliance/windows";
 import { getSendWindow } from "@/features/settings/send-window";
+import { suggestionLine, type Recommendation } from "@/features/offer/match";
+import { loadEffectiveOffer, recommendForLead, type EffectiveOffer } from "@/features/offer/resolve";
 import { dbCallRecorder, loadAiRates, recordAiCost } from "@/features/scoring/cost";
 import { AiError, type AnthropicAdapter } from "@/integrations/anthropic";
 import { EmailSendError, type EmailAdapter } from "@/integrations/email";
@@ -102,6 +104,16 @@ export async function loadLeadContext(db: AppDb, leadId: string): Promise<LeadCo
     legalVerified: sources.some((s) => s.sourceChannel === "rues" || s.sourceChannel === "reps"),
     allowUnverifiedLegal: criteria.allowUnverifiedLegal === true,
   };
+}
+
+/** Service recommended for the lead from its website findings and the hunt's offer (or the team catalog). */
+export function leadPitch(ctx: LeadContext, offer: EffectiveOffer): Recommendation | null {
+  return recommendForLead(
+    { name: ctx.company.name, address: ctx.company.address, city: ctx.company.city, website: ctx.company.website },
+    ctx.sources.map((x) => ({ sourceChannel: x.sourceChannel, sourceUrl: x.sourceUrl, license: x.license, isMock: x.isMock, raw: x.raw as Record<string, unknown> })),
+    ctx.contacts.map((c) => ({ type: c.type, sourceChannel: c.sourceChannel })),
+    offer,
+  );
 }
 
 function channelOpts(ctx: LeadContext, env: Env) {
@@ -263,8 +275,9 @@ export async function previewOutreach(
   let isMockAi = false;
   if (input.generate !== false && channel && recipient) {
     if (!ctx.icp || !ctx.workspace) throw new OutreachError("El lead no pertenece a una búsqueda con ICP y workspace", 422);
-    // Draft cache per lead/channel/recipient: repeated previews do not spend AI again.
-    const cacheKey = `${ctx.lead.id}|${channel}|${recipient}|${ctx.company.name}|${ctx.workspace.offerDescription ?? ""}`;
+    const pitch = leadPitch(ctx, await loadEffectiveOffer(db, ctx.icp.offer));
+    // Draft cache per lead/channel/recipient/pitch: repeated previews do not spend AI again.
+    const cacheKey = `${ctx.lead.id}|${channel}|${recipient}|${ctx.company.name}|${ctx.workspace.offerDescription ?? ""}|${pitch ? `${pitch.service.id}:${pitch.service.name}:${pitch.service.entryOffer ?? ""}:${pitch.finding ?? ""}` : ""}`;
     const hit = previewCache.get(cacheKey);
     if (hit && !input.refresh && Date.now() - hit.at < PREVIEW_TTL_MS) {
       message = hit.message;
@@ -275,7 +288,7 @@ export async function previewOutreach(
         { name: ctx.company.name, city: ctx.company.city },
         { criteria: ctx.icp.criteria },
         { name: ctx.workspace.name, offerDescription: ctx.workspace.offerDescription, senderEmail: ctx.workspace.senderEmail, country: ctx.workspace.country },
-        { ai: deps.ai, channel, recipient, env, recorder: dbCallRecorder(db, ctx.hunt?.id) },
+        { ai: deps.ai, channel, recipient, env, recorder: dbCallRecorder(db, ctx.hunt?.id), pitch },
       );
       await recordAiCost(db, {
         leadId: ctx.lead.id,
@@ -701,6 +714,8 @@ export interface OutreachRow {
   assessment: Assessment;
   latest: { status: string; channel: string; blockedByRule: string | null; subject: string | null; recipient: string | null; id: string } | null;
   formUrl: string | null;
+  /** "Servicio sugerido: X · porque su sitio no tiene WhatsApp" (deterministic), or null without services. */
+  suggestion: string | null;
 }
 
 export async function listOutreachRows(db: AppDb, huntId: string, env: Env, now: Date): Promise<OutreachRow[]> {
@@ -714,8 +729,11 @@ export async function listOutreachRows(db: AppDb, huntId: string, env: Env, now:
     .limit(60);
   const out: OutreachRow[] = [];
   const window = (await getSendWindow(db)).setting;
+  const offers = new Map<string, EffectiveOffer>();
   for (const { lead: leadId } of rows) {
     const ctx = await loadLeadContext(db, leadId);
+    const offerKey = ctx.icp?.id ?? "-";
+    if (!offers.has(offerKey)) offers.set(offerKey, await loadEffectiveOffer(db, ctx.icp?.offer));
     const opts = channelOpts(ctx, env);
     const options = channelOptions(ctx.contacts, opts);
     const { channel, option } = resolveChannel(ctx, env);
@@ -736,6 +754,7 @@ export async function listOutreachRows(db: AppDb, huntId: string, env: Env, now:
         ? { id: latest.id, status: latest.status, channel: latest.contactChannel, blockedByRule: latest.blockedByRule, subject: latest.subject, recipient: latest.recipient }
         : null,
       formUrl: ctx.contacts.find((c) => c.type === "web_form")?.value ?? null,
+      suggestion: suggestionLine(leadPitch(ctx, offers.get(offerKey)!)),
     });
   }
   return out;
