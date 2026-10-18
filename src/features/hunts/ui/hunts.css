@@ -72,6 +72,11 @@
 @media (max-width: 767px) {
   .faro-map-fit { bottom: calc(var(--faro-sheet-h, 0px) + 126px); transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
 }
+/* Desktop: the legend sits bottom-left (20px), so map controls and the fit button stack above it. */
+@media (min-width: 768px) {
+  .faro-map .maplibregl-ctrl-bottom-left { left: 20px; bottom: 70px; }
+  .faro-map-fit { left: 20px; bottom: 188px; }
+}
 .faro-map-note {
   position: absolute;
   left: 50%;

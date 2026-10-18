@@ -34,7 +34,7 @@ test("new profile: conversation, editable chips and source cards", async ({ page
   await page.getByPlaceholder("Añadir señal").fill("agenda en linea");
   await page.getByPlaceholder("Añadir señal").press("Enter");
   await page.waitForTimeout(700);
-  await page.screenshot({ path: `artifacts/screens/F19-new-${widthOf(info)}.png`, fullPage: true });
+  await page.screenshot({ path: `artifacts/screens/F07-new-${widthOf(info)}.png`, fullPage: true });
 });
 
 test("live hunt (DEMO 2.000 points): map, virtual list, filters and lead drawer", async ({ page }, info) => {
@@ -65,7 +65,7 @@ test("live hunt (DEMO 2.000 points): map, virtual list, filters and lead drawer"
 
   const noHScroll = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
   expect(noHScroll).toBe(true);
-  await page.screenshot({ path: `artifacts/screens/F19-hunt-${width}.png` });
+  await page.screenshot({ path: `artifacts/screens/F19-mapa-${width}.png` });
 
   // filter by status narrows the list
   await page.getByRole("button", { name: /^Calificada/ }).click();

@@ -57,12 +57,12 @@ export function EnrichButton({ huntId, onFinished }: { huntId: string; onFinishe
 
   const pct = progress && progress.total ? Math.round((progress.at / progress.total) * 100) : 0;
   return (
-    <div className="px-4 pb-3" data-testid="enrich">
+    <div data-testid="enrich">
       <button
         type="button"
         onClick={run}
         disabled={running}
-        className="flex h-10 w-full items-center justify-center gap-2 rounded-[10px] border border-white/20 px-3 text-[13px] font-semibold text-white transition-colors hover:border-faro-accent disabled:cursor-wait disabled:opacity-70"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-faro-accent/50 bg-faro-accent/[0.08] px-3 text-[14px] font-bold text-faro-accent transition-colors hover:border-faro-accent hover:bg-faro-accent/[0.14] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-faro-accent disabled:cursor-wait disabled:opacity-70"
       >
         <Globe className="size-4" aria-hidden />
         {running ? `Enriqueciendo… ${progress ? `${progress.at} de ${progress.total}` : ""}` : "Enriquecer sitios web (Apify)"}
