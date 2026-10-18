@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { FiguresBand } from "@/components/landing/figures";
 import { PaidVsFree } from "@/components/landing/paid-vs-free";
 import { buildLandingStats, describeComparison, formatCount, formatUsd } from "@/features/metrics/landing";
 import type { PublicMetrics } from "@/features/metrics/public";
@@ -52,13 +53,36 @@ describe("buildLandingStats", () => {
     expect(ready({ fit: 0, costUsd: 0, cpl: null }, { fit: 5, costUsd: 10, cpl: 2 })).toContain("Aún no hay datos suficientes");
   });
   it("renders the ready state with valid dl order (dt before dd) and es-CO numbers", () => {
-    const html = renderToStaticMarkup(createElement(PaidVsFree, { stats: buildLandingStats({ ...base, leadsFound: 12345 }) }));
+    const stats = buildLandingStats({ ...base, leadsFound: 12345 });
+    const bySource = [
+      { source: "osm", fit: 30, costUsd: 1.5, cpl: 0.05, free: true },
+      { source: "meta_ads", fit: 5, costUsd: 10, cpl: 2, free: false },
+    ];
+    const html = renderToStaticMarkup(createElement(PaidVsFree, { stats, bySource }));
     expect(html).toContain('data-testid="metrics-ready"');
     expect(html).not.toContain("metrics-empty");
-    expect(html).toContain("12.345");
     expect(html).toContain("veces menos");
+    expect(html).toContain("OpenStreetMap");
     expect(html.indexOf("<dt")).toBeLessThan(html.indexOf("<dd"));
     expect(html.match(/<dt/g)?.length).toBe(html.match(/<dd/g)?.length);
+
+    const band = renderToStaticMarkup(
+      createElement(FiguresBand, {
+        data: { stats, cpl: 0.3, bySource, mergedDuplicates: 8, excludedPersons: 35, naturalPersonsContacted: 0, sites: null },
+      }),
+    );
+    expect(band).toContain("12.345");
+    expect(band).toContain("8 duplicados fusionados");
+    expect(band.indexOf("<dt")).toBeLessThan(band.indexOf("<dd"));
+  });
+  it("renders honest empty figures without invented numbers", () => {
+    const band = renderToStaticMarkup(
+      createElement(FiguresBand, {
+        data: { stats: buildLandingStats(null), cpl: null, bySource: [], mergedDuplicates: null, excludedPersons: null, naturalPersonsContacted: null, sites: null },
+      }),
+    );
+    expect(band).toContain("Sin datos aún");
+    expect(band).not.toMatch(/\d+ duplicados/);
   });
   it("renders the honest empty state", () => {
     const html = renderToStaticMarkup(createElement(PaidVsFree, { stats: buildLandingStats(null) }));

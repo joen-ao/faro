@@ -1,27 +1,30 @@
-import Link from "next/link";
 import { Attribution } from "@/components/attribution";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { ArrowIcon, PrimaryLink } from "./ui";
+
+export function FinalCta() {
+  return (
+    <section aria-labelledby="cta-title" className="mx-auto max-w-[1240px] px-4 pb-28 pt-[72px] sm:px-6">
+      <div className="faro-reveal relative flex flex-col items-center gap-6 overflow-hidden rounded-3xl border border-faro-accent/35 bg-[linear-gradient(90deg,rgba(203,232,80,0.16)_0%,rgba(0,0,0,0)_100%),#0f0f0f] px-6 py-16 text-center sm:px-8 sm:py-[72px]">
+        <h2 id="cta-title" className="max-w-[760px] font-display text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-[52px]">
+          Escribe a quién le quieres vender. Faro hace el resto.
+        </h2>
+        <PrimaryLink className="h-14 px-7 text-[17px]">
+          Encontrar mis clientes
+          <ArrowIcon />
+        </PrimaryLink>
+      </div>
+    </section>
+  );
+}
 
 export function Footer() {
   return (
-    <footer className="relative overflow-hidden border-t border-faro-border">
-      <div aria-hidden className="absolute inset-x-0 top-0 h-px" style={{ background: "var(--faro-gradient-brand)" }} />
-      <div className="mx-auto flex max-w-6xl flex-col items-start gap-8 px-6 py-20">
-        <div className="flex w-full flex-col justify-between gap-6 md:flex-row md:items-center">
-          <p className="max-w-xl font-display text-2xl font-semibold leading-snug sm:text-3xl">
-            Deja de adivinar dónde buscar. Mide cuánto cuesta cada cliente.
-          </p>
-          <Link href="/app/new" className={cn(buttonVariants({ size: "lg" }), "h-14 px-8 text-base font-semibold")}>
-            Encontrar mis clientes
-          </Link>
-        </div>
-        <div className="flex w-full flex-col gap-3 border-t border-faro-border pt-8 text-sm text-faro-text-3">
-          <Attribution />
-          <p>
-            <span className="font-display font-semibold text-white">Faro</span> · Integrado con Dapta · Proyecto del 30X Hackathon
-          </p>
-        </div>
+    <footer className="border-t border-white/[0.08]">
+      <div className="mx-auto flex max-w-[1240px] flex-col justify-between gap-4 px-4 py-10 text-sm text-faro-text-3 sm:px-6 md:flex-row md:items-start">
+        <p>
+          <span className="font-display font-semibold text-white">Faro</span> · Proyecto del 30X Hackathon · Integrado con Dapta
+        </p>
+        <Attribution className="text-sm md:text-right" />
       </div>
     </footer>
   );

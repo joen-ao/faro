@@ -1,12 +1,15 @@
 import { test, expect } from "@playwright/test";
 
 test("landing: hero, lazy demo video, honest metrics, compliance and attributions", async ({ page }, info) => {
+  await page.emulateMedia({ reducedMotion: "reduce" }); // deterministic screenshots: entrance animations off
   await page.goto("/");
   const width = info.project.use.viewport?.width ?? 1440;
 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("¿Dónde están tus próximos clientes y cuánto te cuestan?");
   const cta = page.getByRole("link", { name: "Encontrar mis clientes" }).first();
   await expect(cta).toHaveAttribute("href", "/app/new");
+  await expect(page.getByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/app/login");
+  await expect(page.getByText("30X Hackathon · Reto Dapta · Integrado con Dapta")).toBeVisible();
 
   const video = page.locator("video");
   await expect(video).toHaveAttribute("poster", "/demo/poster.jpg");
@@ -25,6 +28,13 @@ test("landing: hero, lazy demo video, honest metrics, compliance and attribution
   await expect(page.getByTestId("metrics-ready")).toHaveCount(0);
 
   await expect(page.locator("#cumplimiento")).toContainText("robots.txt");
+
+  // Sections 5-8 fill the screen (min-h-dvh).
+  const vh = await page.evaluate(() => window.innerHeight);
+  for (const id of ["como-funciona", "pauta", "diagnostico", "cumplimiento"]) {
+    const h = await page.locator(`#${id}`).evaluate((el) => el.getBoundingClientRect().height);
+    expect(h, id).toBeGreaterThanOrEqual(vh - 1);
+  }
   const footer = page.locator("footer");
   await expect(footer).toContainText("ODbL");
   await expect(footer).toContainText("CC BY-SA 4.0");
