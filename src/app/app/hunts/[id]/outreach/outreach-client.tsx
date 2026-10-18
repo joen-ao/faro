@@ -490,7 +490,7 @@ export function OutreachClient(props: {
           )}
         </section>
 
-        <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-16">
+        <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6">
           <section aria-label="Vista previa" aria-live="polite" className="rounded-card border border-white/10 bg-faro-surface-1 p-5" data-testid="preview-panel">
             {!active ? (
               <div className="py-6 text-center">
