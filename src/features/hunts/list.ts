@@ -1,6 +1,11 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { hunts, icpProfiles, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
+
+export interface HuntSourceCount {
+  source: string;
+  leads: number;
+}
 
 export interface HuntSummary {
   id: string;
@@ -16,6 +21,10 @@ export interface HuntSummary {
   sent: number;
   responded: number;
   qualified: number;
+  /** Leads per primary source, biggest first. Real leads only; on a DEMO hunt, its own demo leads (never mixed). */
+  bySource: HuntSourceCount[];
+  /** Merged duplicate pairs stored by dedupe (mock pairs excluded); 0 on DEMO hunts. */
+  mergedDuplicates: number;
 }
 
 /** Every hunt, newest first, with real-only lead and outreach counts (demo leads never mix in). */
@@ -25,11 +34,13 @@ export async function listHunts(db: AppDb, limit = 50): Promise<HuntSummary[]> {
       id: hunts.id,
       status: hunts.status,
       createdAt: hunts.createdAt,
+      progress: hunts.progress,
       prompt: icpProfiles.prompt,
       criteria: icpProfiles.criteria,
       total: sql<number>`count(${leads.id}) filter (where ${leads.isDemo} = false)`.mapWith(Number),
       demo: sql<number>`count(${leads.id}) filter (where ${leads.isDemo} = true)`.mapWith(Number),
       fit: sql<number>`count(${leads.id}) filter (where ${leads.isDemo} = false and ${leads.status} <> 'found' and ${leads.status} <> 'disqualified')`.mapWith(Number),
+      demoFit: sql<number>`count(${leads.id}) filter (where ${leads.isDemo} = true and ${leads.status} <> 'found' and ${leads.status} <> 'disqualified')`.mapWith(Number),
       responded: sql<number>`count(${leads.id}) filter (where ${leads.isDemo} = false and ${leads.status} in ('responded', 'qualified'))`.mapWith(Number),
       qualified: sql<number>`count(${leads.id}) filter (where ${leads.isDemo} = false and ${leads.status} = 'qualified')`.mapWith(Number),
     })
@@ -39,6 +50,8 @@ export async function listHunts(db: AppDb, limit = 50): Promise<HuntSummary[]> {
     .groupBy(hunts.id, icpProfiles.id)
     .orderBy(desc(hunts.createdAt))
     .limit(limit);
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
 
   const msgs = await db
     .select({
@@ -48,13 +61,25 @@ export async function listHunts(db: AppDb, limit = 50): Promise<HuntSummary[]> {
     })
     .from(messages)
     .innerJoin(leads, eq(leads.id, messages.leadId))
-    .where(eq(leads.isDemo, false))
+    .where(and(eq(leads.isDemo, false), inArray(leads.huntId, ids)))
     .groupBy(leads.huntId);
   const byHunt = new Map(msgs.map((m) => [m.huntId, m]));
+
+  const src = await db
+    .select({ huntId: leads.huntId, source: sql<string>`${leads.primarySource}::text`, isDemo: leads.isDemo, n: sql<number>`count(*)`.mapWith(Number) })
+    .from(leads)
+    .where(inArray(leads.huntId, ids))
+    .groupBy(leads.huntId, leads.primarySource, leads.isDemo);
 
   return rows.map((r) => {
     const c = (r.criteria ?? {}) as { sector?: unknown; city?: unknown };
     const m = byHunt.get(r.id);
+    const isDemo = r.total === 0 && r.demo > 0;
+    const bySource = src
+      .filter((x) => x.huntId === r.id && x.isDemo === isDemo)
+      .map((x) => ({ source: x.source, leads: x.n }))
+      .sort((a, b) => b.leads - a.leads || a.source.localeCompare(b.source));
+    const pairs = ((r.progress ?? {}) as { dedupe?: { pairs?: { isMock?: boolean }[] } }).dedupe?.pairs ?? [];
     return {
       id: r.id,
       status: r.status,
@@ -62,13 +87,15 @@ export async function listHunts(db: AppDb, limit = 50): Promise<HuntSummary[]> {
       prompt: r.prompt,
       sector: typeof c.sector === "string" ? c.sector : null,
       city: typeof c.city === "string" ? c.city : null,
-      isDemo: r.total === 0 && r.demo > 0,
-      leads: r.total || r.demo,
-      fit: r.fit,
+      isDemo,
+      leads: isDemo ? r.demo : r.total,
+      fit: isDemo ? r.demoFit : r.fit,
       queued: m?.queued ?? 0,
       sent: m?.sent ?? 0,
       responded: r.responded,
       qualified: r.qualified,
+      bySource,
+      mergedDuplicates: isDemo ? 0 : pairs.filter((p) => p.isMock !== true).length,
     };
   });
 }

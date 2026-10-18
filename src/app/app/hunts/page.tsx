@@ -3,14 +3,99 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { getReadyDb } from "@/db/client";
 import type { AppDb } from "@/db/types";
-import { listHunts } from "@/features/hunts/list";
-import { fmtDate, fmtInt, prettyCity } from "@/features/hunts/ui/format";
+import { fmtInt, sourceLabel } from "@/features/dashboard/format";
+import { listHunts, type HuntSummary } from "@/features/hunts/list";
+import { fmtDate, prettyCity } from "@/features/hunts/ui/format";
 import { requireAppAccess } from "@/lib/app-access";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Búsquedas · Faro", robots: { index: false, follow: false } };
 
-const STATUS: Record<string, string> = { pending: "En cola", running: "Buscando", paused: "En pausa", completed: "Terminada", failed: "Con error" };
+const STATUS: Record<string, { label: string; tone: string }> = {
+  pending: { label: "En cola", tone: "bg-faro-surface-3 text-white" },
+  running: { label: "Buscando", tone: "bg-faro-warn/15 text-faro-warn" },
+  paused: { label: "En pausa", tone: "bg-faro-surface-3 text-white" },
+  completed: { label: "Terminada", tone: "bg-faro-accent/15 text-faro-accent" },
+  failed: { label: "Con error", tone: "bg-destructive/15 text-destructive" },
+};
+
+const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-faro-accent focus-visible:ring-offset-2 focus-visible:ring-offset-black";
+const BTN = cn("inline-flex min-h-11 items-center justify-center rounded-button px-[18px] text-sm", FOCUS);
+const BTN_PRIMARY = cn(BTN, "bg-faro-accent font-bold text-faro-accent-ink hover:brightness-110");
+const BTN_GHOST = cn(BTN, "border border-white/20 text-white hover:border-faro-accent");
+
+const title = (x: HuntSummary) => `${x.sector ? x.sector.charAt(0).toUpperCase() + x.sector.slice(1) : "Búsqueda"}${x.city ? ` · ${prettyCity(x.city)}` : ""}`;
+
+function Metrics({ items }: { items: [string, number, boolean?][] }) {
+  return (
+    <dl className="grid min-w-0 flex-[2_1_520px] grid-cols-[repeat(auto-fit,minmax(90px,1fr))] gap-2">
+      {items.map(([k, v, accent]) => (
+        <div key={k} className="rounded-[10px] bg-faro-surface-2 px-3 py-2.5">
+          <dt className="text-xs text-faro-text-3">{k}</dt>
+          <dd className={cn("mt-0.5 font-display text-[22px] font-bold tabular-nums", accent ? "text-faro-accent" : "text-white")}>{fmtInt(v)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function HuntCard({ x }: { x: HuntSummary }) {
+  if (x.isDemo) {
+    return (
+      <li className="flex flex-wrap items-center gap-x-8 gap-y-5 rounded-card border border-dashed border-white/20 bg-faro-surface-1 p-5 sm:p-6">
+        <div className="min-w-0 flex-[1_1_280px]">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h2 className="font-display text-xl font-semibold sm:text-[22px]">{title(x)}</h2>
+            <span className="rounded-full bg-faro-surface-3 px-2.5 py-0.5 text-xs font-bold text-white">DEMO</span>
+          </div>
+          <p className="mt-1.5 text-sm text-faro-text-3">Búsqueda de demostración · fuera de los totales reales</p>
+        </div>
+        <Metrics items={[["Leads", x.leads], ["Del perfil", x.fit]]} />
+        <div className="flex-none">
+          <Link href={`/app/hunts/${x.id}`} className={BTN_GHOST}>
+            Ver demo
+          </Link>
+        </div>
+      </li>
+    );
+  }
+  const st = STATUS[x.status] ?? { label: x.status, tone: "bg-faro-surface-3 text-white" };
+  const sources = x.bySource.map((s) => `${sourceLabel(s.source)} ${fmtInt(s.leads)}`);
+  if (x.mergedDuplicates > 0) sources.push(`${fmtInt(x.mergedDuplicates)} ${x.mergedDuplicates === 1 ? "duplicado fusionado" : "duplicados fusionados"}`);
+  return (
+    <li className="flex flex-wrap items-center gap-x-8 gap-y-5 rounded-card border border-white/[0.12] bg-faro-surface-1 p-5 sm:p-6">
+      <div className="min-w-0 flex-[1_1_280px]">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h2 className="font-display text-xl font-semibold sm:text-[22px]">{title(x)}</h2>
+          <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-bold", st.tone)}>{st.label}</span>
+        </div>
+        <p className="mt-1.5 line-clamp-3 text-pretty text-sm text-faro-text-3">
+          “{x.prompt}” · <span className="whitespace-nowrap">{fmtDate(x.createdAt)}</span>
+        </p>
+        <p className="mt-2.5 text-[13px] text-faro-text-2">{sources.length ? sources.join(" · ") : "Aún sin leads reales"}</p>
+      </div>
+      <Metrics
+        items={[
+          ["Leads", x.leads],
+          ["Del perfil", x.fit, true],
+          ["En cola", x.queued],
+          ["Enviados", x.sent],
+          ["Respondieron", x.responded],
+          ["Calificados", x.qualified],
+        ]}
+      />
+      <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:flex-none sm:flex-col">
+        <Link href={`/app/hunts/${x.id}/outreach`} className={cn(BTN_PRIMARY, "flex-1 sm:flex-none")}>
+          Contactar
+        </Link>
+        <Link href={`/app/hunts/${x.id}`} className={cn(BTN_GHOST, "flex-1 sm:flex-none")}>
+          Ver mapa y leads
+        </Link>
+      </div>
+    </li>
+  );
+}
 
 export default async function HuntsPage() {
   const h = await headers();
@@ -25,68 +110,27 @@ export default async function HuntsPage() {
   const items = await listHunts((await getReadyDb()) as unknown as AppDb);
 
   return (
-    <main className="relative isolate min-h-dvh px-4 py-10 sm:px-8 sm:py-12">
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[360px]" style={{ background: "var(--faro-glow-violet)" }} />
-      <div className="mx-auto max-w-[1240px]">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-faro-text-3">Faro · búsquedas</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Lo que ya buscamos</h1>
-            <p className="mt-2 text-sm text-faro-text-2">Cada búsqueda con sus leads, los del perfil y cómo va el contacto. Solo datos reales.</p>
-          </div>
-          <Link href="/app/new" className="inline-flex h-11 items-center self-start rounded-button bg-faro-accent px-5 text-sm font-semibold text-faro-accent-ink hover:brightness-110">
-            Nueva búsqueda
-          </Link>
-        </header>
+    <main className="mx-auto max-w-[1280px] px-4 pb-16 pt-8 sm:px-6 sm:pb-[72px] sm:pt-9">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[13px] uppercase tracking-[0.2em] text-faro-text-3">Búsquedas</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-[-0.03em] sm:text-[40px]">Lo que ya buscamos</h1>
+          <p className="mt-2 text-faro-text-2">Cada búsqueda con sus leads y cómo va el contacto. Solo datos reales.</p>
+        </div>
+        <Link href="/app/new" className={cn(BTN_PRIMARY, "min-h-12 gap-2 px-5")}>
+          <span aria-hidden>+</span> Nueva búsqueda
+        </Link>
+      </header>
 
-        {items.length === 0 ? (
-          <p className="mt-10 rounded-card border border-border bg-card p-8 text-center text-faro-text-2">Aún no hay búsquedas. Crea la primera desde “Nueva búsqueda”.</p>
-        ) : (
-          <ul className="mt-8 grid gap-4 md:grid-cols-2" data-testid="hunt-list">
-            {items.map((x) => (
-              <li key={x.id} className="flex flex-col gap-4 rounded-card border border-border bg-card p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h2 className="truncate font-display text-lg font-semibold">
-                      {x.sector ? x.sector.charAt(0).toUpperCase() + x.sector.slice(1) : "Búsqueda"}
-                      {x.city ? ` · ${prettyCity(x.city)}` : ""}
-                    </h2>
-                    <p className="mt-1 line-clamp-2 text-xs text-faro-text-3">{x.prompt}</p>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1 text-xs">
-                    <span className="rounded-full border border-border px-2 py-0.5 text-faro-text-2">{STATUS[x.status] ?? x.status}</span>
-                    {x.isDemo && <span className="rounded-full bg-faro-surface-2 px-2 py-0.5 text-faro-text-3">DEMO</span>}
-                    <span className="text-faro-text-3">{fmtDate(x.createdAt)}</span>
-                  </div>
-                </div>
-                <dl className="grid grid-cols-3 gap-2 text-center sm:grid-cols-6">
-                  {[
-                    ["Leads", x.leads],
-                    ["Del perfil", x.fit],
-                    ["En cola", x.queued],
-                    ["Enviados", x.sent],
-                    ["Respondieron", x.responded],
-                    ["Calificados", x.qualified],
-                  ].map(([k, v]) => (
-                    <div key={k as string} className="rounded-button bg-faro-surface-1 px-2 py-2">
-                      <dt className="text-[11px] text-faro-text-3">{k}</dt>
-                      <dd className="font-display text-lg font-semibold">{fmtInt(v as number)}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <div className="flex flex-wrap gap-2">
-                  <Link href={`/app/hunts/${x.id}`} className="inline-flex h-9 items-center rounded-button border border-border px-3 text-sm hover:border-faro-accent">
-                    Ver mapa y leads
-                  </Link>
-                  <Link href={`/app/hunts/${x.id}/outreach`} className="inline-flex h-9 items-center rounded-button bg-faro-accent px-3 text-sm font-semibold text-faro-accent-ink hover:brightness-110">
-                    Contactar
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {items.length === 0 ? (
+        <p className="mt-8 rounded-card border border-white/[0.12] bg-faro-surface-1 p-8 text-center text-faro-text-2">Aún no hay búsquedas. Crea la primera desde “Nueva búsqueda”.</p>
+      ) : (
+        <ul className="mt-8 flex flex-col gap-3.5" data-testid="hunt-list">
+          {items.map((x) => (
+            <HuntCard key={x.id} x={x} />
+          ))}
+        </ul>
+      )}
     </main>
   );
 }
