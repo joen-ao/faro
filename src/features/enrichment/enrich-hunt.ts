@@ -20,7 +20,7 @@ export const DIRECT_CONCURRENCY = 4;
 /** Website discovery (web search) per call and per hunt: the best-scored companies without a site or company email. */
 export const DISCOVER_BATCH = 15;
 export const DISCOVER_RUNS = 4;
-export const DISCOVER_MAX = 150;
+export const DISCOVER_MAX = 1000;
 
 /** Own domain deducible from a generic company mailbox (`info@clinica.co` -> `clinica.co`); undefined for free/shared hosts. */
 export function deduceWebsite(emails: readonly string[]): string | undefined {

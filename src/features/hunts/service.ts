@@ -373,6 +373,7 @@ export async function getStream(db: AppDb, huntId: string, opts: StreamOptions =
       name: companies.name,
       lat: companies.lat,
       lng: companies.lng,
+      city: companies.city,
       ts: tsMs,
     })
     .from(leads)
@@ -420,6 +421,7 @@ export async function getStream(db: AppDb, huntId: string, opts: StreamOptions =
     id: r.id,
     lat: r.lat,
     lng: r.lng,
+    approx: r.lat == null || r.lng == null ? approxSpot(r.id, r.city, storedCities) : null,
     status: toPointStatus(r.status),
     source: r.source,
     name: r.name,
@@ -521,3 +523,22 @@ export async function getLeadDetail(db: AppDb, huntId: string, leadId: string) {
 }
 
 export { isHuntSource };
+
+const foldCity = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
+
+/**
+ * Deterministic spot inside the inner part of the company's city area (bbox [s, w, n, e]) for leads without coordinates
+ * (RUES/REPS). Same id -> same spot, so points do not jump between polls. Null when no city area is known.
+ */
+export function approxSpot(id: string, city: string | null, cities: ReadonlyArray<{ name: string; bbox?: readonly number[] }>): { lat: number; lng: number } | null {
+  const withBox = cities.filter((c) => Array.isArray(c.bbox) && c.bbox.length === 4);
+  if (!withBox.length) return null;
+  const key = city ? foldCity(city) : "";
+  const match = withBox.find((c) => key && (key.includes(foldCity(c.name)) || foldCity(c.name).includes(key))) ?? withBox[0]!;
+  const [s, w, n, e] = match.bbox as [number, number, number, number];
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  const u = ((h >>> 0) % 10000) / 10000;
+  const v = ((Math.imul(h, 2654435761) >>> 0) % 10000) / 10000;
+  return { lat: s + (n - s) * (0.2 + 0.6 * u), lng: w + (e - w) * (0.2 + 0.6 * v) };
+}

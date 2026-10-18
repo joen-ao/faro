@@ -76,7 +76,7 @@ const pointLayer: LayerProps = {
   paint: {
     "circle-color": ["match", ["get", "status"], "qualified", LIME, "contacted", "#ffffff", "fit", LIME, FOUND],
     "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, radiusAt(2.2, 3, 3.6), 13, radiusAt(4, 5.5, 6), 17, radiusAt(7, 9, 10)],
-    "circle-opacity": ["match", ["get", "status"], "found", 0.7, 1],
+    "circle-opacity": ["*", ["match", ["get", "status"], "found", 0.7, 1], ["case", ["boolean", ["get", "approx"], false], 0.55, 1]],
     "circle-stroke-width": ["match", ["get", "status"], "qualified", 1.6, "contacted", 1.2, 0],
     "circle-stroke-color": ["match", ["get", "status"], "qualified", "#ffffff", "contacted", "rgba(203,232,80,0.9)", "transparent"],
   },

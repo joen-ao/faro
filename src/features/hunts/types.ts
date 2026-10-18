@@ -53,6 +53,8 @@ export interface StreamPoint {
   id: string;
   lat: number | null;
   lng: number | null;
+  /** Approximate spot inside the company's city area when the source has no coordinates (drawn faded, never as exact). */
+  approx?: { lat: number; lng: number } | null;
   status: PointStatus;
   source: string;
   name: string;
