@@ -32,6 +32,8 @@ export interface CreateHuntInput {
   threshold?: number;
   /** What this hunt offers (icp_profiles.offer); null/absent -> the team catalog is used later. */
   offer?: unknown;
+  /** Enrich the websites (Apify) automatically once every source finished. */
+  autoEnrich?: boolean;
 }
 
 /** Workspace + ICP profile + hunt with per-source progress. Real hunts only (demo has its own seeder). */
@@ -47,7 +49,7 @@ export async function createHunt(db: AppDb, input: CreateHuntInput): Promise<{ h
       .values({ workspaceId: ws.id, prompt: input.prompt, criteria, threshold: input.threshold ?? DEFAULT_THRESHOLD, offer })
       .returning();
     const sources = initialSourcesProgress(criteria);
-    const [hunt] = await t.insert(hunts).values({ icpProfileId: icp.id, status: "pending", progress: { sources } }).returning();
+    const [hunt] = await t.insert(hunts).values({ icpProfileId: icp.id, status: "pending", progress: { sources, ...(input.autoEnrich ? { autoEnrich: true } : {}) } }).returning();
     return { huntId: hunt.id, icpProfileId: icp.id, sources };
   });
 }
@@ -355,7 +357,7 @@ export async function getStream(db: AppDb, huntId: string, opts: StreamOptions =
     .from(leads)
     .where(eq(leads.huntId, huntId))
     .groupBy(leads.primarySource, leads.status, leads.isDemo);
-  const progress = row.hunt.progress as { sources?: HuntSourcesProgress; dedupe?: DedupeProgress };
+  const progress = row.hunt.progress as { sources?: HuntSourcesProgress; dedupe?: DedupeProgress; autoEnrich?: boolean; enrichedAt?: string };
   const pairs: MergedPair[] = progress.dedupe?.pairs ?? [];
   const counters = countersFromGroups(grouped, pairs, Boolean((row.hunt.progress as { isDemo?: boolean }).isDemo));
   const rev = grouped
@@ -395,6 +397,7 @@ export async function getStream(db: AppDb, huntId: string, opts: StreamOptions =
     updates,
     counters,
     sources: progress.sources ?? {},
+    enrich: { auto: progress.autoEnrich === true, doneAt: typeof progress.enrichedAt === "string" ? progress.enrichedAt : null },
     duplicates: { merged: pairs.filter((x) => !x.isMock).length, mock: pairs.filter((x) => x.isMock).length },
     rev,
   };

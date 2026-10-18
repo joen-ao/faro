@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { hunts } from "@/db/schema";
 import { z } from "zod";
 import { EnrichInputError, enrichHunt } from "@/features/enrichment";
 import { UUID } from "@/features/hunts/http";
@@ -37,6 +39,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         fetch: getWebsiteFetch(),
         apify: getApify(),
       });
+      if (summary.done && useApify) {
+        // Remembered so an automatic enrichment (chosen at creation) never runs twice for the same hunt.
+        const [h] = await db.select({ progress: hunts.progress }).from(hunts).where(eq(hunts.id, id)).limit(1);
+        if (h) await db.update(hunts).set({ progress: { ...(h.progress ?? {}), enrichedAt: new Date().toISOString() } }).where(eq(hunts.id, id));
+      }
       return NextResponse.json(summary);
     } catch (e) {
       if (e instanceof EnrichInputError) return NextResponse.json({ error: e.message }, { status: e.status });

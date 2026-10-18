@@ -16,6 +16,8 @@ const Body = z.object({
   threshold: z.number().int().min(0).max(100).optional(),
   /** Chosen services (snapshot) and accepted value angles; optional for API callers, required by the UI. */
   offer: HuntOffer.optional(),
+  /** Run website enrichment (Apify) automatically when the search finishes. */
+  autoEnrich: z.boolean().optional(),
 });
 
 /** Creates the ICP profile and the hunt (state `pending`); the client then drives `POST /api/hunts/[id]/run`. */

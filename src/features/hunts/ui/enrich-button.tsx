@@ -1,7 +1,7 @@
 "use client";
 
 import { Globe } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Batch {
   revisados: number;
@@ -19,13 +19,27 @@ type Totals = Pick<Batch, "revisados" | "enriquecidos" | "conAgenda" | "conWhats
 const ZERO: Totals = { revisados: 0, enriquecidos: 0, conAgenda: 0, conWhatsapp: 0, contactosNuevos: 0, costoApifyUsd: 0, promovidosAFit: 0 };
 
 /** Loops POST /api/hunts/[id]/enrich (nextCursor/done) so the whole hunt is enriched in <55 s batches. */
-export function EnrichButton({ huntId, onFinished }: { huntId: string; onFinished?: () => void }) {
+export function EnrichButton({ huntId, auto = false, onFinished }: { huntId: string; auto?: boolean; onFinished?: () => void }) {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<{ at: number; total: number } | null>(null);
   const [totals, setTotals] = useState<Totals>(ZERO);
   const [error, setError] = useState<string | null>(null);
   const [finished, setFinished] = useState(false);
   const stop = useRef(false);
+  const autoStarted = useRef(false);
+  const [autoMode, setAutoMode] = useState(false);
+
+  // Chosen at creation: starts once, as soon as every source finished (the server remembers when it is done).
+  useEffect(() => {
+    if (!auto || autoStarted.current) return;
+    autoStarted.current = true;
+    const t = setTimeout(() => {
+      setAutoMode(true);
+      void run();
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when auto turns on
+  }, [auto]);
 
   async function run() {
     setRunning(true);
@@ -65,7 +79,7 @@ export function EnrichButton({ huntId, onFinished }: { huntId: string; onFinishe
         className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-faro-accent/50 bg-faro-accent/[0.08] px-3 text-[14px] font-bold text-faro-accent transition-colors hover:border-faro-accent hover:bg-faro-accent/[0.14] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-faro-accent disabled:cursor-wait disabled:opacity-70"
       >
         <Globe className="size-4" aria-hidden />
-        {running ? `Enriqueciendo… ${progress ? `${progress.at} de ${progress.total}` : ""}` : "Enriquecer sitios web (Apify)"}
+        {running ? `${autoMode ? "Enriqueciendo automáticamente" : "Enriqueciendo"}… ${progress ? `${progress.at} de ${progress.total}` : ""}` : finished ? "Volver a enriquecer sitios web (Apify)" : "Enriquecer sitios web (Apify)"}
       </button>
       {(running || finished) && progress && (
         <div className="mt-2" aria-live="polite">

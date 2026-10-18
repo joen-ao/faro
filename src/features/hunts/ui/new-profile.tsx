@@ -167,6 +167,7 @@ export function NewProfile() {
   const resultRef = useRef<HTMLDivElement>(null);
   const [offer, setOffer] = useState<OfferSelection>({ services: [], angles: [], refinements: [] });
   const [offerError, setOfferError] = useState<string | null>(null);
+  const [autoEnrich, setAutoEnrich] = useState(true);
   const onOffer = useCallback((o: OfferSelection) => {
     setOffer(o);
     if (o.services.length) setOfferError(null);
@@ -238,6 +239,7 @@ export function NewProfile() {
           prompt: submitted,
           criteria,
           offer: { serviceIds: offer.services.map((s) => s.id), services: offer.services, angles: offer.angles, refinements: offer.refinements },
+          autoEnrich,
         }),
       });
       const body = (await res.json().catch(() => ({}))) as { huntId?: string; error?: string };
@@ -435,6 +437,10 @@ export function NewProfile() {
               </p>
               <p className="text-[12.5px] text-faro-text-3">{totalEstimate > 0 ? `~${fmtInt(totalEstimate)} registros por revisar, en lotes y en vivo` : "Se buscará en lotes y verás el avance en vivo"}</p>
             </div>
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] text-white/80" data-testid="auto-enrich">
+              <input type="checkbox" checked={autoEnrich} onChange={(e) => setAutoEnrich(e.target.checked)} className="size-4 accent-[#cbe850]" />
+              Al terminar, enriquecer sitios web con Apify
+            </label>
             {error && (
               <p role="alert" className="basis-full text-[13px] text-[var(--faro-danger)]">
                 {error}

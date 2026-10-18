@@ -85,6 +85,8 @@ export interface StreamResponse {
   updates: StatusUpdate[];
   counters: Counters;
   sources: Partial<HuntSourcesProgress>;
+  /** Automatic website enrichment (Apify) chosen when the hunt was created, and when it finished. */
+  enrich: { auto: boolean; doneAt: string | null };
   duplicates: { merged: number; mock: number };
 }
 

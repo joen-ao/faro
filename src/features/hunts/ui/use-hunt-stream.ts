@@ -22,6 +22,8 @@ export interface HuntStreamState {
   points: StreamPoint[];
   counters: Counters | null;
   sources: Partial<HuntSourcesProgress>;
+  /** Automatic website enrichment chosen at creation (null while loading). */
+  enrich: StreamResponse["enrich"] | null;
   mergedDuplicates: number;
   /** Increments when points/statuses change (cheap memo key for the map). */
   version: number;
@@ -132,6 +134,7 @@ export function useHuntStream(huntId: string): HuntStreamState {
     points,
     counters: data?.counters ?? null,
     sources: data?.sources ?? {},
+    enrich: data?.enrich ?? null,
     mergedDuplicates: (data?.duplicates.merged ?? 0) + (data?.duplicates.mock ?? 0),
     version,
     arrival,

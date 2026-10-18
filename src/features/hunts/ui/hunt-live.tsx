@@ -172,6 +172,7 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
       tab={tab}
       onTab={setTab}
       loading={stream.loading}
+      autoEnrich={!stream.isDemo && stream.status === "completed" && !unfinished && stream.enrich?.auto === true && !stream.enrich.doneAt}
       compact={mobile}
     />
   );

@@ -116,3 +116,12 @@ describe("review r1 fixes", () => {
     for (const s of ["fit", "contacted", "qualified"]) expect(rows.some((r) => r.status === s)).toBe(true);
   });
 });
+
+describe("automatic website enrichment", () => {
+  it("is remembered on the hunt and exposed by the stream until it ran", async () => {
+    const auto = await createHunt(db, { prompt: ICP_EXAMPLES[0].prompt, criteria, autoEnrich: true });
+    const manual = await createHunt(db, { prompt: ICP_EXAMPLES[0].prompt, criteria });
+    expect((await getStream(db, auto.huntId)).enrich).toEqual({ auto: true, doneAt: null });
+    expect((await getStream(db, manual.huntId)).enrich).toEqual({ auto: false, doneAt: null });
+  });
+});

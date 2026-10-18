@@ -37,6 +37,8 @@ export interface PanelProps {
   tab: PanelTab;
   onTab: (t: PanelTab) => void;
   loading: boolean;
+  /** Start the website enrichment (Apify) by itself: chosen at creation and the search just finished. */
+  autoEnrich?: boolean;
   /** Phone layout: sources collapse to one row of pills so the list keeps room. */
   compact?: boolean;
 }
@@ -238,7 +240,7 @@ export function HuntPanel(p: PanelProps) {
           </button>
         )}
 
-        {!p.loading && <EnrichButton huntId={p.huntId} />}
+        {!p.loading && <EnrichButton huntId={p.huntId} auto={p.autoEnrich === true} />}
       </div>
 
       <div role="tablist" aria-label="Detalle de la búsqueda" className="faro-scroll flex gap-1.5 overflow-x-auto border-b border-white/[0.08] px-4 py-3 md:px-5">
