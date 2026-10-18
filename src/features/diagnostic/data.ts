@@ -10,7 +10,7 @@ import { demoToolsEnabled } from "./limits";
 import { normalizeName } from "./normalize";
 import type { ContactInput } from "./contact";
 import type { Tracking } from "./params";
-import type { CompanyInput, SourceInput } from "./findings";
+import type { CompanyInput, FindingContext, SourceInput } from "./findings";
 
 const g = globalThis as unknown as { __faroDiagReady?: Promise<Awaited<ReturnType<typeof readyConn>>> };
 
@@ -28,6 +28,7 @@ export interface Diagnostic {
   isDemo: boolean;
   company: CompanyInput & { id: string };
   sources: SourceInput[];
+  context: FindingContext;
 }
 
 export async function getDiagnostic(slug: string): Promise<Diagnostic | null> {
@@ -41,7 +42,25 @@ export async function getDiagnostic(slug: string): Promise<Diagnostic | null> {
     .limit(1);
   if (!row) return null;
   const sources = await db.select().from(companySources).where(eq(companySources.companyId, row.company.id));
+  // Aggregate context only: how many peers the same public search found, and whether the site shows WhatsApp.
+  let peers: FindingContext["peers"] = null;
+  if (row.lead.huntId) {
+    const [p] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(leads)
+      .where(and(eq(leads.huntId, row.lead.huntId), eq(leads.isDemo, row.lead.isDemo)));
+    peers = { count: Number(p?.n ?? 0), city: row.company.city };
+  }
+  const hasSite = sources.some((s) => s.sourceChannel === "website");
+  const [wa] = hasSite
+    ? await db
+        .select({ id: contactPoints.id })
+        .from(contactPoints)
+        .where(and(eq(contactPoints.companyId, row.company.id), eq(contactPoints.type, "whatsapp"), eq(contactPoints.sourceChannel, "website")))
+        .limit(1)
+    : [];
   return {
+    context: { peers, whatsappOnSite: hasSite ? !!wa : undefined },
     leadId: row.lead.id,
     isDemo: row.lead.isDemo || row.company.isDemo,
     company: { id: row.company.id, name: row.company.name, address: row.company.address, city: row.company.city, website: row.company.website },

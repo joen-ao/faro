@@ -7,7 +7,7 @@ test("diagnostic page: findings, opt-out button, event registered, contact form,
   await expect(page.getByTestId("diag-title")).toContainText("Sonrisa Norte");
   await expect(page.getByTestId("demo-badge")).toHaveText("Ejemplo");
   const findings = page.getByTestId("finding");
-  expect(await findings.count()).toBeLessThanOrEqual(3);
+  expect(await findings.count()).toBeLessThanOrEqual(5);
   expect(await findings.count()).toBeGreaterThan(0);
   await expect(page.getByTestId("widget-placeholder")).toContainText("no configurado");
   await expect(page.getByTestId("sender")).toContainText("30X Hackathon");

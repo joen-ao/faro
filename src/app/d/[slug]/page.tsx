@@ -36,7 +36,7 @@ export default async function DiagnosticPage({
       slug={slug}
       tracking={tracking}
       company={{ name: d.company.name, isDemo: d.isDemo }}
-      findings={buildFindings(d.company, d.sources)}
+      findings={buildFindings(d.company, d.sources, d.context)}
       optOutHref={optOutHref(d.leadId)}
     />
   );

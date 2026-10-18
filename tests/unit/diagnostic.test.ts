@@ -34,17 +34,33 @@ const src = (sourceChannel: string, extra: Partial<SourceInput> = {}): SourceInp
 const company = { name: "Clínica X SAS", address: "Calle 1 # 2-3", city: "Bogotá", website: null };
 
 describe("buildFindings", () => {
-  it("returns at most 3 findings, each with an http(s) source", () => {
-    const f = buildFindings(company, [src("osm"), src("reps"), src("rues"), src("google_places", { raw: { userRatingCount: 42 } }), src("website", { raw: { hasBookingForm: false } })]);
-    expect(f).toHaveLength(3);
+  const regs = [src("reps", { sourceUrl: "https://www.datos.gov.co/resource/c36g-9fc2" }), src("rues")];
+  it("returns at most 5 findings, each with an http(s) source, registry first", () => {
+    const f = buildFindings(company, [src("osm"), ...regs, src("google_places", { raw: { userRatingCount: 42 } }), src("website", { raw: { signals: { noAppointmentForm: true, copyrightYear: 2019 } } })], { peers: { count: 1809, city: "Bogotá" }, whatsappOnSite: false, now: new Date("2026-10-18") });
+    expect(f).toHaveLength(5);
     expect(f.every((x) => /^https?:\/\//.test(x.sourceUrl))).toBe(true);
     expect(f[0].text).toContain("REPS");
   });
-  it("describes reviews, booking form and OSM address from stored data", () => {
-    const f = buildFindings(company, [src("google_places", { raw: { userRatingCount: 42 } }), src("website", { raw: { hasBookingForm: false } }), src("osm")]);
+  it("reads the website signals stored by enrichment (booking, WhatsApp, stale footer)", () => {
+    const site = src("website", { sourceUrl: "https://clinica.example/", raw: { fetchedPages: 2, signals: { noAppointmentForm: true, hasContactForm: true, copyrightYear: 2019 } } });
+    const f = buildFindings({ ...company, website: "https://clinica.example" }, [site], { whatsappOnSite: false, now: new Date("2026-10-18") });
+    expect(f.map((x) => x.id)).toEqual(["web-booking", "web-whatsapp", "web-year"]);
+    expect(f[0].text).toContain("no permite agendar citas en línea");
+    expect(f[2].text).toContain("© 2019");
+    const booking = buildFindings(company, [src("website", { raw: { signals: { onlineBooking: true } } })]);
+    expect(booking[0].text).toBe("Su sitio web ya permite agendar citas en línea.");
+  });
+  it("says when no website was found and how many peers the search found", () => {
+    const f = buildFindings(company, regs, { peers: { count: 1809, city: "Bogotá" } });
+    const ids = f.map((x) => x.id);
+    expect(ids).toContain("no-website");
+    expect(f.find((x) => x.id === "peers")?.text).toContain("1.809 empresas de su mismo sector en Bogotá");
+  });
+  it("keeps the legacy hasBookingForm shape and describes reviews and OSM address", () => {
+    const f = buildFindings({ ...company, website: "https://x.example" }, [src("google_places", { raw: { userRatingCount: 42 } }), src("website", { raw: { hasBookingForm: false } }), src("osm")]);
     expect(f.map((x) => x.text)).toEqual([
+      "Su sitio web no permite agendar citas en línea ni tiene formulario: los pacientes nuevos tienen que llamar o escribir.",
       "Tiene 42 reseñas públicas en Google Maps.",
-      "Su sitio web no muestra un formulario para agendar citas.",
       "Está registrada en OpenStreetMap en Calle 1 # 2-3.",
     ]);
   });
