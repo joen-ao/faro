@@ -7,7 +7,7 @@ const STATUS: Record<ChallengeStatus, { label: string; glyph: string; badge: str
   pending: { label: "Pendiente", glyph: "×", badge: "border-2 border-faro-text-3 text-faro-text-3 text-sm" },
 };
 
-const LINK_LABEL: Record<string, string> = { dashboard: "Ver CPL por canal", "public-data": "Ver panel de cumplimiento" };
+const LINK_LABEL: Record<string, string> = { dashboard: "Ver CPL por canal", "public-data": "Ver bajas y horarios respetados" };
 
 function StatusBadge({ status, className }: { status: ChallengeStatus; className?: string }) {
   const s = STATUS[status];
