@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseContact } from "@/features/diagnostic/contact";
 import { computeBenchmark, type PeerSite } from "@/features/diagnostic/benchmark";
-import { whatsappHref } from "@/features/diagnostic/cta";
+import { whatsappDisplay, whatsappHref } from "@/features/diagnostic/cta";
 import { buildFindings, registryNote, safeHttpUrl, siteFactsFrom, type SourceInput } from "@/features/diagnostic/findings";
 import { buildWidgetDoc, DAPTA_CONTAINER_ID, openOnLoadSrc } from "@/features/diagnostic/widget";
 import { parseTracking } from "@/features/diagnostic/params";
@@ -173,6 +173,10 @@ describe("whatsappHref", () => {
     expect(text).toContain("Clínica Sonrisa SAS");
     expect(text).toContain("demo-clinica");
     expect(whatsappHref("+57 300 111 2233", undefined, "icp:clinicas")).toMatch(/^https:\/\/wa\.me\/573001112233\?text=.*clinicas/);
+  });
+  it("formats the number for display", () => {
+    expect(whatsappDisplay(undefined)).toBe("+57 301 473 4934");
+    expect(whatsappDisplay("+1 (305) 555-0100")).toBe("+13055550100");
   });
 });
 

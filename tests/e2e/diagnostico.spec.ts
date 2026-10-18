@@ -16,7 +16,7 @@ test("diagnostic page: findings, opt-out button, event registered, contact form,
   await expect(findings.first()).toContainText("Recomendación");
   // Benchmark: the demo lead has no real peers, so no percentage is shown.
   await expect(page.getByTestId("bench-booking")).toContainText("Usted: no");
-  await expect(page.getByTestId("benchmark")).toContainText("aún no hay suficientes datos para comparar");
+  await expect(page.getByTestId("benchmark")).toContainText("Aún no hay suficientes datos para comparar");
   await expect(page.getByTestId("benchmark")).not.toContainText("%");
   // Registry data is only the "why we wrote" note, with its source link.
   await expect(page.getByTestId("why-we-wrote")).toContainText("REPS");
@@ -61,6 +61,8 @@ test("diagnostic page: findings, opt-out button, event registered, contact form,
   const bad = await page.request.post("/api/contact", { data: { slug: "demo-clinica", company: "X SAS", email: "juan.perez@gmail.com", message: "hola hola", consent: true } });
   expect(bad.status()).toBe(422);
 
+  // The company form is the secondary option, folded under the WhatsApp CTA.
+  await page.getByText("Prefiero dejar un mensaje como empresa").click();
   await page.getByLabel("Correo de la empresa").fill("citas@sonrisa-norte.example");
   await page.getByLabel("¿Qué necesitan?").fill("Queremos conocer cómo funciona.");
   await page.getByLabel(/Acepto el/).check();
