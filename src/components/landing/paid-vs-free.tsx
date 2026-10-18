@@ -16,13 +16,13 @@ function Side({ label, note, side, accent }: { label: string; note: string; side
   return (
     <div
       data-testid={accent ? "free-side" : "paid-side"}
-      className={cn("min-w-0 flex-1 py-10 sm:py-12", accent ? "border-b border-white/[0.12] md:border-b-0 md:border-r md:pr-12" : "md:pl-12")}
+      className={cn("min-w-0 flex-1 py-10 sm:py-12 max-sm:py-8", accent ? "border-b border-white/[0.12] md:border-b-0 md:border-r md:pr-12" : "md:pl-12")}
     >
       <h3 className="text-[15px] font-normal tracking-normal text-white/60" style={{ fontFamily: "var(--font-sans)" }}>
         {label}
       </h3>
       <p className={cn("mt-3 font-display font-bold leading-[0.95] tracking-[-0.05em]", accent ? "text-faro-accent" : "text-white/90")}>
-        <Usd value={side.cpl} className="text-[64px] sm:text-[96px] lg:text-[128px]" emptyClassName="block py-4 text-3xl tracking-[-0.02em] sm:text-4xl" />
+        <Usd value={side.cpl} className="text-[64px] sm:text-[96px] lg:text-[128px]" emptyClassName="block py-4 text-3xl tracking-[-0.02em] sm:text-4xl max-sm:py-1 max-sm:text-2xl" />
       </p>
       <p className="mt-4 leading-relaxed text-white/60">{note}</p>
       <p className="mt-2 text-sm text-faro-text-3">
@@ -60,7 +60,7 @@ export function PaidVsFree({ stats, bySource = [] }: { stats: LandingStats; bySo
   return (
     <ScreenSection id="pauta" labelledBy="pauta-title" className="bg-[#050505]">
       <div aria-hidden className="absolute -left-[10%] top-[10%] h-[80%] w-[70%] bg-[radial-gradient(50%_50%_at_50%_50%,rgba(203,232,80,0.14)_0%,rgba(0,0,0,0)_70%)]" />
-      <div className="relative mx-auto w-full max-w-[1240px] px-4 py-24 sm:px-6">
+      <div className="relative mx-auto w-full max-w-[1240px] px-4 py-24 sm:px-6 max-sm:py-16">
         <div className="faro-reveal">
           <Eyebrow>Pauta vs. fuentes gratuitas</Eyebrow>
           <h2 id="pauta-title" className="mt-4 max-w-[900px] font-display text-4xl font-bold leading-[1.02] tracking-[-0.04em] sm:text-5xl lg:text-[68px]">
@@ -76,7 +76,7 @@ export function PaidVsFree({ stats, bySource = [] }: { stats: LandingStats; bySo
             </p>
           </div>
         ) : (
-          <div data-testid="metrics-ready" className="faro-reveal mt-16">
+          <div data-testid="metrics-ready" className="faro-reveal mt-16 max-sm:mt-10">
             <div className="flex flex-col border-y border-white/[0.12] md:flex-row">
               <Side label="Fuentes públicas · CPL del perfil" note="OpenStreetMap, RUES y REPS: solo cuesta la IA y las consultas." side={stats.free} accent />
               <Side label="Pauta en Meta · CPL del perfil" note="Mismo perfil, medido con los leads que llegaron por la campaña." side={stats.paid} accent={false} />

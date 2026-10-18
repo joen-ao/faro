@@ -3,7 +3,7 @@ import { ArrowIcon, PrimaryLink } from "./ui";
 
 export function FinalCta() {
   return (
-    <section aria-labelledby="cta-title" className="mx-auto max-w-[1240px] px-4 pb-28 pt-[72px] sm:px-6">
+    <section aria-labelledby="cta-title" className="mx-auto max-w-[1240px] px-4 pb-28 pt-[72px] sm:px-6 max-sm:pb-20 max-sm:pt-12">
       <div className="faro-reveal relative flex flex-col items-center gap-6 overflow-hidden rounded-3xl border border-faro-accent/35 bg-[linear-gradient(90deg,rgba(203,232,80,0.16)_0%,rgba(0,0,0,0)_100%),#0f0f0f] px-6 py-16 text-center sm:px-8 sm:py-[72px]">
         <h2 id="cta-title" className="max-w-[760px] font-display text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-[52px]">
           Escribe a quién le quieres vender. Faro hace el resto.

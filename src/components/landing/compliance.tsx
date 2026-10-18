@@ -55,7 +55,7 @@ export function Compliance({
   const zero = naturalPersonsContacted === 0;
   return (
     <ScreenSection id="cumplimiento" labelledBy="comp-title">
-      <div className="mx-auto w-full max-w-[1240px] px-4 py-24 sm:px-6">
+      <div className="mx-auto w-full max-w-[1240px] px-4 py-24 sm:px-6 max-sm:py-16">
         <div className="faro-reveal flex flex-col gap-8 md:flex-row md:items-end md:justify-between md:gap-16">
           <div className="min-w-0 flex-1">
             <Eyebrow>Cumplimiento</Eyebrow>
@@ -64,25 +64,25 @@ export function Compliance({
             </h2>
             <p className="mt-5 max-w-lg leading-relaxed text-white/60">Diseñado para cumplir la Ley 1581 (habeas data). Un máximo de un mensaje por empresa, sin seguimientos automáticos.</p>
           </div>
-          <div className="md:text-right">
+          <div className="md:text-right max-sm:flex max-sm:items-end max-sm:gap-4">
             <p
               className={cn(
                 "m-zero font-display font-bold leading-[0.85] tracking-[-0.06em]",
-                naturalPersonsContacted === null ? "py-4 text-3xl tracking-normal text-faro-text-3" : "text-[96px] sm:text-[140px] lg:text-[200px]",
+                naturalPersonsContacted === null ? "py-4 text-3xl tracking-normal text-faro-text-3" : "text-[96px] sm:text-[140px] lg:text-[200px] max-sm:text-[80px]",
                 zero ? "text-faro-accent" : naturalPersonsContacted !== null && "text-faro-warn",
               )}
             >
               {naturalPersonsContacted === null ? EMPTY : formatCount(naturalPersonsContacted)}
             </p>
-            <p className="mt-3 text-white/60">personas naturales contactadas</p>
+            <p className="mt-3 text-white/60 max-sm:mt-0 max-sm:pb-2">personas naturales contactadas</p>
           </div>
         </div>
-        <ul className="mt-16 grid grid-cols-1 border-t border-white/[0.12] sm:grid-cols-2 lg:mt-[72px] lg:grid-cols-4">
+        <ul className="mt-16 max-sm:mt-10 grid grid-cols-1 border-t border-white/[0.12] sm:grid-cols-2 lg:mt-[72px] lg:grid-cols-4">
           {items.map((it, i) => (
-            <li key={it.t} style={{ ["--d" as string]: `${300 + i * 140}ms` }} className="m-up border-b border-white/[0.12] py-8 sm:pr-8">
+            <li key={it.t} style={{ ["--d" as string]: `${300 + i * 140}ms` }} className="m-up border-b border-white/[0.12] py-8 sm:pr-8 max-sm:grid max-sm:grid-cols-[28px_1fr] max-sm:items-center max-sm:gap-x-3 max-sm:py-5">
               {it.icon}
-              <h3 className="mt-5 font-display text-xl font-semibold">{it.t}</h3>
-              <p className="mt-2.5 leading-relaxed text-white/60">{it.d}</p>
+              <h3 className="mt-5 max-sm:mt-0 font-display text-xl font-semibold max-sm:text-lg">{it.t}</h3>
+              <p className="mt-2.5 leading-relaxed text-white/60 max-sm:col-span-2 max-sm:mt-2 max-sm:text-[15px]">{it.d}</p>
             </li>
           ))}
         </ul>

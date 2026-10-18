@@ -32,7 +32,7 @@ export function InViewSection({ id, labelledBy, className, children }: { id?: st
       id={id}
       aria-labelledby={labelledBy}
       data-inview="pending"
-      className={cn("faro-motion relative flex min-h-dvh scroll-mt-0 items-center overflow-hidden border-t border-white/[0.08]", className)}
+      className={cn("faro-motion relative flex min-h-dvh max-sm:min-h-0 scroll-mt-0 items-center overflow-hidden border-t border-white/[0.08]", className)}
     >
       {children}
     </section>

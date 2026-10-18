@@ -22,8 +22,8 @@ export function SourcesStrip() {
 function Figure({ value, label, accent }: { value: React.ReactNode; label: string; accent?: boolean }) {
   return (
     <div className="faro-reveal flex flex-col-reverse justify-end">
-      <dt className="mt-1.5 text-white/60">{label}</dt>
-      <dd className={`font-display text-4xl font-bold tracking-[-0.03em] sm:text-5xl ${accent ? "text-faro-accent" : "text-white"}`}>{value}</dd>
+      <dt className="mt-1.5 text-white/60 max-sm:text-[13px] max-sm:leading-snug">{label}</dt>
+      <dd className={`font-display text-4xl font-bold tracking-[-0.03em] sm:text-5xl max-sm:text-[32px] ${accent ? "text-faro-accent" : "text-white"}`}>{value}</dd>
     </div>
   );
 }
@@ -40,8 +40,8 @@ export function FiguresBand({ data }: { data: LandingData }) {
   ].filter(Boolean);
   return (
     <section id="resultados" aria-label="Resultados en vivo" className="scroll-mt-6 border-y border-white/[0.08] bg-faro-surface-1">
-      <div className="mx-auto max-w-[1240px] px-4 py-14 sm:px-6">
-        <dl className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mx-auto max-w-[1240px] px-4 py-14 sm:px-6 max-sm:py-10">
+        <dl className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 max-sm:grid-cols-2 max-sm:gap-x-5 max-sm:gap-y-7">
           <Figure value={ready ? formatCount(s.leadsFound) : <Empty />} label="empresas encontradas en búsquedas reales" />
           <Figure value={ready ? formatCount(s.leadsFit) : <Empty />} label="encajan con el perfil y tienen contacto de empresa" accent />
           <Figure
@@ -50,7 +50,7 @@ export function FiguresBand({ data }: { data: LandingData }) {
           />
           <Figure value={data.naturalPersonsContacted === null ? <Empty /> : formatCount(data.naturalPersonsContacted)} label="personas naturales contactadas" />
         </dl>
-        <p className="mt-8 text-sm text-faro-text-3">
+        <p className="mt-8 text-sm text-faro-text-3 max-sm:mt-6 max-sm:text-[13px]">
           {notes.length ? `${notes.join(" · ")}. ` : ""}Totales del evento, solo datos reales; se actualizan solos.
         </p>
       </div>

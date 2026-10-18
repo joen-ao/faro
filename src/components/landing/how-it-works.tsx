@@ -20,18 +20,18 @@ const FUNNEL = [
 export function HowItWorks({ stats }: { stats: LandingStats }) {
   return (
     <ScreenSection id="como-funciona" labelledBy="how-title">
-      <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-16 px-4 py-24 sm:px-6 lg:flex-row lg:items-center">
+      <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-16 px-4 py-24 sm:px-6 lg:flex-row lg:items-center max-sm:gap-10 max-sm:py-16">
         <div className="faro-reveal min-w-0 flex-1">
           <Eyebrow>Cómo funciona</Eyebrow>
-          <h2 id="how-title" className="mt-4 font-display text-4xl font-bold leading-[1.02] tracking-[-0.04em] sm:text-5xl lg:text-[60px]">
+          <h2 id="how-title" className="mt-4 font-display text-4xl font-bold leading-[1.02] tracking-[-0.04em] sm:text-5xl lg:text-[60px] max-sm:text-[36px]">
             De una frase a clientes calificados.
           </h2>
           <p className="mt-5 max-w-[460px] text-lg leading-relaxed text-white/60">Cuatro pasos, cada uno con su costo registrado.</p>
-          <ol className="mt-12 flex flex-col">
+          <ol className="mt-12 flex flex-col max-sm:mt-8">
             {STEPS.map((s, i) => {
               const last = i === STEPS.length - 1;
               return (
-                <li key={s.n} className={cn("m-up relative flex gap-5 sm:gap-7", !last && "pb-8")} style={{ ["--d" as string]: `${250 + i * 180}ms` }}>
+                <li key={s.n} className={cn("m-up relative flex gap-5 sm:gap-7", !last && "pb-8 max-sm:pb-6")} style={{ ["--d" as string]: `${250 + i * 180}ms` }}>
                   {!last && (
                     <span
                       aria-hidden

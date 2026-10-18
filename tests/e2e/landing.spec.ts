@@ -29,12 +29,15 @@ test("landing: hero, lazy demo video, honest metrics, compliance and attribution
 
   await expect(page.locator("#cumplimiento")).toContainText("robots.txt");
 
-  // Sections 5-8 fill the screen (min-h-dvh).
-  const vh = await page.evaluate(() => window.innerHeight);
+  // Sections 5-8 fill the screen (min-h-dvh) from 640 px; on phones they size to content (specs/landing-mobile.md).
+  const { vh, vw } = await page.evaluate(() => ({ vh: window.innerHeight, vw: window.innerWidth }));
   for (const id of ["como-funciona", "pauta", "diagnostico", "cumplimiento"]) {
     const h = await page.locator(`#${id}`).evaluate((el) => el.getBoundingClientRect().height);
-    expect(h, id).toBeGreaterThanOrEqual(vh - 1);
+    if (vw >= 640) expect(h, id).toBeGreaterThanOrEqual(vh - 1);
+    else expect(h, id).toBeGreaterThan(0);
   }
+  // Phones never scroll sideways.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   const footer = page.locator("footer");
   await expect(footer).toContainText("ODbL");
   await expect(footer).toContainText("CC BY-SA 4.0");

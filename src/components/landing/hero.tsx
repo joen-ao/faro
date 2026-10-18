@@ -22,14 +22,17 @@ export function Nav() {
           </a>
         ))}
       </nav>
-      <div className="ml-auto flex items-center gap-2 sm:gap-2.5">
+      <div className="ml-auto flex items-center gap-2 sm:gap-2.5 max-sm:gap-1.5">
         <Link
           href="/app/login"
           className="inline-flex h-10 items-center rounded-button border border-faro-border px-3.5 text-sm text-white transition-colors hover:border-white/40 sm:h-11 sm:px-[18px] sm:text-[15px]"
         >
           Entrar
         </Link>
-        <PrimaryLink className="h-10 px-3.5 text-sm sm:h-11 sm:px-5 sm:text-[15px]">Encontrar mis clientes</PrimaryLink>
+        <PrimaryLink className="h-10 px-3.5 text-sm sm:h-11 sm:px-5 sm:text-[15px]">
+          <span className="max-sm:hidden">Encontrar mis clientes</span>
+          <span className="sm:hidden">Empezar</span>
+        </PrimaryLink>
       </div>
     </div>
   );
