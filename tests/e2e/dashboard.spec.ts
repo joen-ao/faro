@@ -9,6 +9,14 @@ test("dashboard: empty real state, then demo toggle shows separated DEMO data", 
   const noHScroll = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 
   await page.goto("/app/dashboard");
+  // "Reto Dapta" panel first: every brief requirement, honest statuses from real data only (none in e2e).
+  const challenge = page.getByTestId("challenge-panel");
+  await expect(challenge.getByRole("heading", { name: "Reto Dapta: cumplimiento en vivo" })).toBeVisible();
+  await expect(challenge.locator("li[data-status]")).toHaveCount(9);
+  await expect(page.getByTestId("challenge-outreach")).toHaveAttribute("data-status", "pending");
+  await expect(page.getByTestId("challenge-public-data")).toHaveAttribute("data-status", "done");
+  await expect(page.getByTestId("challenge-summary")).toContainText("de 6 obligatorios");
+  await challenge.screenshot({ path: `artifacts/screens/F14-reto-dapta-${width}.png` });
   await expect(page.getByRole("heading", { name: /Todavía no hay datos reales/ })).toBeVisible();
   await expect(page.getByRole("link", { name: "Encontrar mis clientes" })).toHaveAttribute("href", "/app/new");
   await expect(page.getByText("Panel de cumplimiento")).toBeVisible();
