@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { complete, type AnthropicAdapter, type CallRecorder, type Usage } from "@/integrations/anthropic";
 import { countryCities, findCity, findCountry, findSector, normalizeCities, placesInText, withCities } from "./presets";
 import { DEFAULT_THRESHOLD, IcpCriteria } from "./schema";
@@ -11,11 +12,25 @@ export function buildIcpPrompt(userInput: string): string {
     "Convert the sales prospect description below into an ICP (ideal customer profile) JSON object with exactly these keys:",
     '{"sector": string, "ciiu": string[], "osmTags": string[] ("key=value"), "placesTypes": string[], "city": string, "cities"?: [{"name": string, "bbox"?: [south, west, north, east]}], "scope"?: "cities" | "country", "country": ISO-3166 alpha-2, "bbox"?: [south, west, north, east], "size"?: string, "signals": string[], "exclusions": string[], "language": "es" | "en"}',
     "Use only what the description supports; leave arrays empty rather than guessing. Never include person names.",
+    `If no city is mentioned use "${DEFAULT_CITY}" and country "${DEFAULT_COUNTRY}" (the team edits it before searching).`,
     'Location: "city" is the first (or only) city. When the description names several cities, also return "cities" with all of them in order (at most 5). When it asks for a whole country (e.g. "Colombia", "todo el país") without naming cities, set "scope": "country", "country" to its code and "city" to its capital.',
     "USER_INPUT:",
     userInput,
   ].join("\n");
 }
+
+/** A prompt without a place ("clínicas dermatológicas o spas") searches Bogotá, CO by default; the city chip changes it. */
+export const DEFAULT_CITY = "Bogota";
+export const DEFAULT_COUNTRY = "CO";
+
+const filled = (v: unknown, fallback: string) => (typeof v === "string" && v.trim() ? v : fallback);
+
+/** Model reply -> criteria: an empty city or country falls back to the default instead of failing the whole profile. */
+export const IcpReply = z.preprocess((v) => {
+  if (!v || typeof v !== "object") return v;
+  const o = v as Record<string, unknown>;
+  return { ...o, city: filled(o.city, DEFAULT_CITY), country: filled(o.country, DEFAULT_COUNTRY) };
+}, IcpCriteria);
 
 export interface ParsedIcp {
   criteria: IcpCriteria;
@@ -62,7 +77,7 @@ export async function parseIcp(
   adapter: AnthropicAdapter,
   opts: { recorder?: CallRecorder } = {},
 ): Promise<ParsedIcp> {
-  const res = await complete(adapter, buildIcpPrompt(prompt), IcpCriteria, { task: "icp_parse", recorder: opts.recorder });
+  const res = await complete(adapter, buildIcpPrompt(prompt), IcpReply, { task: "icp_parse", recorder: opts.recorder });
   return {
     criteria: enrichCriteria(res.data, prompt),
     threshold: DEFAULT_THRESHOLD,
