@@ -4,7 +4,7 @@ import type { MetricsBucket } from "@/features/metrics/channels";
 import { recommendNextBudget, simulateBandit } from "@/features/bandit";
 import { BanditCard } from "./bandit-card";
 import { MatrixPanel } from "./matrix-panel";
-import { CplBars, EmptyState, Funnel, KpiRow, PaidVsFree, Panel, RecommendationCard } from "./panels";
+import { CplBars, CplTable, EmptyState, Funnel, KpiRow, PaidVsFree, Panel, RecommendationCard, TotalsFunnel } from "./panels";
 
 /** All charts for one world. `demo` buckets are labelled DEMO and never summed into the real ones. */
 export function DashboardBody({ bucket, demo = false, demoBucket = null }: { bucket: MetricsBucket; demo?: boolean; demoBucket?: MetricsBucket | null }) {
@@ -30,7 +30,10 @@ export function DashboardBody({ bucket, demo = false, demoBucket = null }: { buc
         </p>
       )}
       <KpiRow bucket={bucket} />
-      <RecommendationCard rec={rec} demo={demo} />
+      <div className="flex flex-wrap gap-4">
+        <TotalsFunnel bucket={bucket} id={`${p}-funnel-total`} />
+        <CplTable bucket={bucket} rec={rec} demo={demo} id={demo ? "d-cpl" : "cpl"} />
+      </div>
       {!demo && <BanditCard real={recommendNextBudget({ real: bucket }, 100)} simulation={simulateBandit()} />}
       <Panel id={`${p}-matrix`} title="Matriz fuente × canal" hint="Toca una celda para ver sus leads y abrir el recibo de cada uno.">
         <MatrixPanel bucket={bucket} demo={demo} />

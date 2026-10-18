@@ -14,6 +14,8 @@ export interface ChallengeItem {
   group: "required" | "desired";
   /** Requirement as written in the brief (SPEC §1, 08). */
   requirement: string;
+  /** Short card title (design: "≥ 2 fuentes públicas y gratuitas"). */
+  title: string;
   status: ChallengeStatus;
   /** The live number, short. */
   value: string;
@@ -91,6 +93,7 @@ export function buildChallenge(f: ChallengeFacts, real: MetricsBucket, c: Compli
   return [
     {
       id: "sources",
+      title: "≥ 2 fuentes públicas y gratuitas",
       group: "required",
       requirement: "Buscar leads en al menos 2 fuentes públicas y gratuitas",
       status: free.length >= 2 ? "done" : free.length === 1 ? "progress" : "pending",
@@ -101,6 +104,7 @@ export function buildChallenge(f: ChallengeFacts, real: MetricsBucket, c: Compli
     },
     {
       id: "dedupe",
+      title: "Un solo lugar, sin duplicados",
       group: "required",
       requirement: "Guardar todo en un solo lugar y quitar duplicados",
       status: f.uniqueCompanies > 0 ? "done" : "pending",
@@ -109,6 +113,7 @@ export function buildChallenge(f: ChallengeFacts, real: MetricsBucket, c: Compli
     },
     {
       id: "icp",
+      title: "Filtro por perfil de cliente",
       group: "required",
       requirement: "Filtrar los leads que encajan con el perfil de cliente ideal",
       status: t.fit > 0 ? "done" : t.found > 0 ? "progress" : "pending",
@@ -117,6 +122,7 @@ export function buildChallenge(f: ChallengeFacts, real: MetricsBucket, c: Compli
     },
     {
       id: "outreach",
+      title: "Primer mensaje y respuesta registrada",
       group: "required",
       requirement: "Enviar un primer mensaje y registrar la respuesta",
       status: t.contacted > 0 && t.responded > 0 ? "done" : t.contacted > 0 ? "progress" : "pending",
@@ -125,6 +131,7 @@ export function buildChallenge(f: ChallengeFacts, real: MetricsBucket, c: Compli
     },
     {
       id: "dashboard",
+      title: "Tablero con leads y CPL por canal",
       group: "required",
       requirement: "Mostrar un tablero con leads y CPL por canal",
       status: t.found > 0 && channelsWithCpl.length > 0 ? "done" : t.found > 0 ? "progress" : "pending",
@@ -132,10 +139,11 @@ export function buildChallenge(f: ChallengeFacts, real: MetricsBucket, c: Compli
       detail: channelsWithCpl.length
         ? channelsWithCpl.map((r) => `${contactLabel(r.contact)} ${fmtUsd(r.cpl)}`).join(" · ")
         : "El CPL aparece cuando un canal tiene leads del perfil y costo",
-      href: "#r-matrix",
+      href: t.found > 0 ? "#cpl" : undefined,
     },
     {
       id: "public-data",
+      title: "Solo datos públicos de empresas",
       group: "required",
       requirement: "Usar solo datos públicos de empresas, respetando términos y ley",
       status: c.naturalPersonsContacted === 0 ? "done" : "pending",
@@ -145,6 +153,7 @@ export function buildChallenge(f: ChallengeFacts, real: MetricsBucket, c: Compli
     },
     {
       id: "dapta",
+      title: "Calificación con Dapta",
       group: "desired",
       requirement: "Enviar los leads al agente de Dapta para que los califique",
       status: f.daptaEvaluated > 0 ? "done" : t.chatted > 0 || t.opened > 0 ? "progress" : "pending",
@@ -153,6 +162,7 @@ export function buildChallenge(f: ChallengeFacts, real: MetricsBucket, c: Compli
     },
     {
       id: "qualified-rate",
+      title: "% calificados por canal",
       group: "desired",
       requirement: "Comparar canales por CPL y por % de leads calificados",
       status: channelsQualified.length > 0 ? "done" : t.fit > 0 ? "progress" : "pending",
@@ -163,6 +173,7 @@ export function buildChallenge(f: ChallengeFacts, real: MetricsBucket, c: Compli
     },
     {
       id: "cplc",
+      title: "CPLC por canal",
       group: "desired",
       requirement: "Calcular el costo por lead calificado (CPLC) de cada canal",
       status: cplc.length > 0 ? "done" : t.costUsd > 0 ? "progress" : "pending",

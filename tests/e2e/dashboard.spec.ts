@@ -24,6 +24,9 @@ test("dashboard: empty real state, then demo toggle shows separated DEMO data", 
   await expect(page.getByText("DEMO", { exact: true })).toHaveCount(0);
   expect(await noHScroll()).toBe(true);
   if (width === 1440) await page.screenshot({ path: "artifacts/screens/F14-dashboard-empty-1440.png", fullPage: true });
+  // panel nav: Tablero is the current tab
+  await expect(page.getByRole("navigation", { name: "Panel" }).getByRole("link", { name: "Tablero" })).toHaveAttribute("aria-current", "page");
+  await page.screenshot({ path: `artifacts/screens/F14-tablero-${width}.png`, fullPage: true });
 
   await page.getByRole("switch", { name: /Incluir datos de prueba/ }).click();
   await page.waitForURL(/demo=1/);
@@ -34,6 +37,9 @@ test("dashboard: empty real state, then demo toggle shows separated DEMO data", 
   await expect(demoRegion.getByTestId("funnel-source")).toContainText("Abrieron diagnóstico");
   await expect(demoRegion.getByTestId("funnel-source")).toContainText("Conversaron con el agente");
   await expect(demoRegion.getByTestId("funnel-contact")).toContainText("Abrieron diagnóstico");
+  await expect(demoRegion.getByTestId("funnel-total")).toContainText("Conversaron con el agente");
+  await expect(demoRegion.getByRole("table", { name: /costo por lead calificado/ })).toContainText("CPLC");
+  await page.screenshot({ path: `artifacts/screens/F14-tablero-demo-${width}.png`, fullPage: true });
 
   // heatmap cell -> leads -> receipt
   await page.getByRole("button", { name: /^REPS por Correo/ }).click();
@@ -44,4 +50,28 @@ test("dashboard: empty real state, then demo toggle shows separated DEMO data", 
   await page.screenshot({ path: `artifacts/screens/F14-dashboard-${width}.png`, fullPage: true });
 
   expect((await page.request.get("/api/dashboard/cell?source=bad")).status()).toBe(400);
+});
+
+test("búsquedas: one horizontal card per hunt, nav underlines the active tab and hides on the live map", async ({ page }, info) => {
+  const width = info.project.use.viewport?.width ?? 1440;
+  await page.goto("/app/hunts");
+  await expect(page.getByRole("heading", { level: 1, name: "Lo que ya buscamos" })).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Panel" });
+  await expect(nav.getByRole("link", { name: "Búsquedas" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: /Nueva búsqueda/ }).last()).toHaveAttribute("href", "/app/new");
+  const list = page.getByTestId("hunt-list");
+  if (await list.count()) {
+    await expect(list.locator("> li").first()).toBeVisible();
+    // DEMO hunts are labelled and kept out of the real totals
+    for (const card of await list.locator("> li").all()) {
+      const isDemo = (await card.getByText("DEMO", { exact: true }).count()) > 0;
+      if (isDemo) await expect(card).toContainText("fuera de los totales reales");
+      else await expect(card.getByRole("link", { name: "Contactar" })).toBeVisible();
+    }
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: `artifacts/screens/F14-busquedas-${width}.png`, fullPage: true });
+
+  await page.goto("/app/hunts/demo");
+  await expect(page.getByTestId("app-nav")).toHaveCount(0);
 });
