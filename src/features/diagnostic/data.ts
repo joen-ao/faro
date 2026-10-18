@@ -11,9 +11,12 @@ import { demoToolsEnabled } from "./limits";
 import { normalizeName } from "./normalize";
 import type { ContactInput } from "./contact";
 import type { Tracking } from "./params";
-import { isEnrichedSite, signalsOf, siteFactsFrom, type CompanyInput, type SiteFacts, type SourceInput } from "./findings";
+import { buildFindings, isEnrichedSite, signalsOf, siteFactsFrom, type CompanyInput, type SiteFacts, type SourceInput } from "./findings";
 import { resolveHuntCity, storedHuntCities, type PeerSite } from "./benchmark";
 import { isHealthSector } from "./vocab";
+import { getAnthropic } from "@/integrations/anthropic";
+import { getOrCreateOpportunities, type Opportunity } from "./opportunities";
+import { localize } from "./vocab";
 
 const g = globalThis as unknown as { __faroDiagReady?: Promise<Awaited<ReturnType<typeof readyConn>>> };
 
@@ -40,6 +43,8 @@ export interface Diagnostic {
   offer: EffectiveOffer;
   /** Health search (clinics/patients copy); false -> generic "empresa"/"cliente" copy. */
   health: boolean;
+  /** Opportunities from the company's own site + the hunt's services (Claude, cached); null -> findings only. */
+  opportunities: Opportunity[] | null;
 }
 
 /**
@@ -119,6 +124,26 @@ export async function getDiagnostic(slug: string): Promise<Diagnostic | null> {
         .limit(1)
     : [];
   const offer = await loadEffectiveOffer(db as unknown as AppDb, icp?.offer ?? null);
+  const health = isHealthSector(icp?.criteria);
+  const site = siteFactsFrom(sources, contacts);
+  const crit = (icp?.criteria ?? {}) as { sector?: unknown };
+  const opportunities = await getOrCreateOpportunities(db as unknown as AppDb, getAnthropic(), {
+    leadId: row.lead.id,
+    huntId: row.lead.huntId,
+    companyId: row.company.id,
+    company: row.company.name,
+    sector: typeof crit.sector === "string" ? crit.sector : "",
+    city: row.company.city ?? "",
+    services: offer.services,
+    facts: buildFindings(
+      { name: row.company.name, address: row.company.address, city: row.company.city, website: row.company.website },
+      site,
+      new Date(),
+    )
+      .filter((f) => f.status !== "unknown")
+      .map((f) => localize(f.title, health)),
+    isDemo: row.lead.isDemo || row.company.isDemo,
+  });
   return {
     leadId: row.lead.id,
     isDemo: row.lead.isDemo || row.company.isDemo,
@@ -128,7 +153,8 @@ export async function getDiagnostic(slug: string): Promise<Diagnostic | null> {
     peers,
     benchCity: resolveHuntCity(row.company, storedHuntCities(icp?.criteria)),
     offer,
-    health: isHealthSector(icp?.criteria),
+    health,
+    opportunities,
   };
 }
 

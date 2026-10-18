@@ -11,6 +11,7 @@ import { buildWidgetDoc } from "@/features/diagnostic/widget";
 import { ContactForm } from "./contact-form";
 import { TrackOpen } from "./track-open";
 import { localize } from "@/features/diagnostic/vocab";
+import type { Opportunity } from "@/features/diagnostic/opportunities";
 
 export interface ViewProps {
   /** Page identity for tracking and the form: lead slug, or `icp:<icpSlug>`. */
@@ -30,6 +31,8 @@ export interface ViewProps {
   health?: boolean;
   /** The team's company that offers the services (signs the page; Faro is the tool). */
   seller?: string;
+  /** Opportunities from the company's own site + the seller's services (shown first when present). */
+  opportunities?: Opportunity[] | null;
   /** Lead pages with services: "Cómo le ayudamos" per finding id and the recommended service for the final block. */
   offer?: { help: Record<string, string>; service: { name: string; outcome: string; entryOffer: string | null } };
 }
@@ -231,7 +234,7 @@ function WhatsAppButton({ href, testId, className }: { href: string; testId: str
   );
 }
 
-export function DiagnosticView({ slug, tracking, company, findings, benchmark, registry, icp, optOutHref, offer, health = true, seller }: ViewProps) {
+export function DiagnosticView({ slug, tracking, company, findings, benchmark, registry, icp, optOutHref, offer, health = true, seller, opportunities: opps }: ViewProps) {
   const L = (text: string) => localize(text, health);
   const env = getEnv();
   const product = env.NEXT_PUBLIC_PRODUCT_NAME;
@@ -319,8 +322,37 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
           )}
         </section>
 
+        {!isIcp && opps && opps.length > 0 && (
+          <section aria-labelledby="oportunidades" data-testid="opportunities" className="flex scroll-mt-6 flex-col gap-5">
+            <div>
+              <h2 id="oportunidades" className="text-2xl font-semibold sm:text-[1.75rem]">Oportunidades para {company?.name ?? "su empresa"}</h2>
+              <p className="mt-1.5 text-sm text-faro-text-2">Leímos lo que dice su sitio web y lo cruzamos con lo que hacemos{seller ? ` en ${seller}` : ""}.</p>
+            </div>
+            <ol className="flex flex-col gap-3.5">
+              {opps.map((o, i) => (
+                <li key={`${o.serviceId}-${i}`} className="flex flex-col gap-5 rounded-card border border-faro-accent/30 bg-faro-surface-1 p-6 md:flex-row md:gap-8">
+                  <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+                    <span className="w-fit rounded-full bg-faro-accent/[0.12] px-2.5 py-0.5 text-xs font-bold text-faro-accent">Oportunidad {i + 1}</span>
+                    <h3 className="font-display text-xl font-semibold leading-snug">{o.title}</h3>
+                    <p className="leading-relaxed text-white/70">{o.why}</p>
+                    {o.evidence && (
+                      <blockquote className="border-l-2 border-white/20 pl-3 text-sm italic text-faro-text-2">
+                        En su sitio: «{o.evidence}»
+                      </blockquote>
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-1.5 rounded-xl bg-faro-surface-2 p-4 md:w-[42%]">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-faro-accent">Cómo le ayudamos · {o.serviceName}</p>
+                    <p className="text-sm leading-relaxed text-white/85">{o.howWeHelp}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+
         <section aria-labelledby="hallazgos" className="flex scroll-mt-6 flex-col gap-5">
-          <h2 id="hallazgos" className="text-2xl font-semibold sm:text-[1.75rem]">{isIcp ? "Qué revisamos" : "Lo que encontramos"}</h2>
+          <h2 id="hallazgos" className="text-2xl font-semibold sm:text-[1.75rem]">{isIcp ? "Qué revisamos" : opps?.length ? "Lo que vimos en su sitio" : "Lo que encontramos"}</h2>
           {isIcp ? (
             <ol className="grid gap-3.5 sm:grid-cols-3">
               {icp.points.map((p) => (

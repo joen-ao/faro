@@ -50,6 +50,8 @@ export function mockResponse(prompt: string): string {
     return JSON.stringify({ signals: results, why_now: found.length ? `Muestra senales de ${found.join(", ")}.` : "" });
   }
   if (task === "services_suggest") return mockServicesSuggest(after(prompt, "DESCRIPTION:"));
+  // Opportunities need the real model: the mock returns none, so pages fall back to the website findings.
+  if (task === "diagnostic_opportunities") return JSON.stringify({ opportunities: [] });
   if (task === "offer_angles") return mockOfferAngles(after(prompt, "PAYLOAD:").split("\n")[0] ?? "");
   if (task === "outreach_message") {
     let p: {

@@ -40,7 +40,7 @@ export default async function DiagnosticPage({
   const rec = recommendService(findings, d.offer.services, d.offer.angles);
   const help: Record<string, string> = {};
   const shown = new Set<string>();
-  for (const f of findings) {
+  for (const f of d.opportunities ? [] : findings) {
     if (f.status === "ok") continue;
     const full = howWeHelp(f.id, d.offer.services, d.offer.angles);
     if (!full) continue;
@@ -60,6 +60,7 @@ export default async function DiagnosticPage({
       registry={registryNote(d.sources)}
       optOutHref={optOutHref(d.leadId)}
       health={d.health}
+      opportunities={d.opportunities}
       seller={d.offer.company}
     />
   );
