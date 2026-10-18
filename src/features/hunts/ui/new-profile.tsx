@@ -292,6 +292,8 @@ export function NewProfile() {
               rows={3}
               maxLength={2000}
               placeholder="Clínicas odontológicas en Bogotá con sitio web y correo de empresa…"
+              // The form shows focus (focus-within border); the global :focus-visible outline would draw a second box.
+              style={{ outline: "none" }}
               className="block w-full resize-none bg-transparent px-4 pt-4 pb-2 text-[18px] leading-normal text-white placeholder:text-faro-text-3 focus:outline-none md:px-5 md:pt-[18px] md:text-[20px]"
             />
             <div className="flex flex-wrap items-center justify-between gap-3 px-2 pt-1 pb-2 md:pr-3 md:pl-5">
