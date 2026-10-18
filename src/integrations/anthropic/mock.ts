@@ -1,4 +1,5 @@
 import { mockIcpCriteria } from "@/features/icp/presets";
+import { mockOfferAngles, mockServicesSuggest } from "@/features/offer/angles";
 import type { AnthropicAdapter, Usage } from "./types";
 
 export const MOCK_MODEL = "mock-claude";
@@ -48,8 +49,18 @@ export function mockResponse(prompt: string): string {
     const found = results.filter((r) => r.found).map((r) => r.signal);
     return JSON.stringify({ signals: results, why_now: found.length ? `Muestra senales de ${found.join(", ")}.` : "" });
   }
+  if (task === "services_suggest") return mockServicesSuggest(after(prompt, "DESCRIPTION:"));
+  if (task === "offer_angles") return mockOfferAngles(after(prompt, "PAYLOAD:").split("\n")[0] ?? "");
   if (task === "outreach_message") {
-    let p: { company?: string; sector?: string; city?: string; offer?: string } = {};
+    let p: {
+      company?: string;
+      sector?: string;
+      city?: string;
+      offer?: string;
+      service?: { name?: string; outcome?: string };
+      finding?: string;
+      help?: string;
+    } = {};
     try {
       p = JSON.parse(after(prompt, "PAYLOAD:").split("\n")[0]);
     } catch {
@@ -58,6 +69,16 @@ export function mockResponse(prompt: string): string {
     const company = p.company || "su empresa";
     const where = p.city ? ` en ${p.city}` : "";
     const what = p.sector ? ` de ${p.sector}` : "";
+    if (p.service?.name && p.service.outcome) {
+      // One real finding -> one service, as the prompt asks.
+      return JSON.stringify({
+        subject: `Una idea para ${company}`.slice(0, 70),
+        opening: p.finding
+          ? `Revisamos la información pública de ${company}: ${p.finding}.`
+          : `Vimos que ${company} trabaja en el sector${what}${where} y quisimos escribirle con una idea concreta.`,
+        value: `${p.help ? `${p.help}, le proponemos` : "Le proponemos"} ${p.service.name}. ${p.service.outcome}`.slice(0, 300),
+      });
+    }
     return JSON.stringify({
       subject: `Una idea para ${company}`,
       opening: `Vimos que ${company} trabaja en el sector${what}${where} y quisimos escribirle con una idea concreta, sin compromiso.`,
