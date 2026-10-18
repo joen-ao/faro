@@ -124,10 +124,12 @@ const lcFirst = (s: string) => (s && !/^[A-ZÁÉÍÓÚÑ]{2}/.test(s) ? s.charAt
  * "Cómo le ayudamos" for one finding: a fixed template per finding kind that names the service and its outcome.
  * Null when there are no services (the page then stays as before).
  */
-export function howWeHelp(findingId: string, services: readonly Service[], angles: readonly Angle[] = []): string | null {
+export function howWeHelp(findingId: string, services: readonly Service[], angles: readonly Angle[] = [], opts: { short?: boolean } = {}): string | null {
   if (!services.length || !isFindingKind(findingId)) return null;
   // Only when a service really relates to the finding (a keyword or an accepted angle); never a forced match.
   const service = bestServiceFor(findingId, services, angles);
   if (!service || serviceScore(service, findingId, angles) < HELP_MIN_SCORE) return null;
+  // Short form when the page already showed this service's outcome on an earlier finding (no repeated paragraph).
+  if (opts.short) return `${LEAD_IN[findingId]}: ${service.name}.`;
   return `${LEAD_IN[findingId]}: ${service.name}. Resultado: ${sentence(lcFirst(service.outcome))}`;
 }

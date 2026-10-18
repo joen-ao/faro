@@ -39,10 +39,14 @@ export default async function DiagnosticPage({
   // Deterministic, no AI on the page: one template per finding kind naming the service and its outcome.
   const rec = recommendService(findings, d.offer.services, d.offer.angles);
   const help: Record<string, string> = {};
+  const shown = new Set<string>();
   for (const f of findings) {
     if (f.status === "ok") continue;
-    const line = howWeHelp(f.id, d.offer.services, d.offer.angles);
-    if (line) help[f.id] = line;
+    const full = howWeHelp(f.id, d.offer.services, d.offer.angles);
+    if (!full) continue;
+    const service = full.split(": ")[1]?.split(". Resultado")[0] ?? "";
+    help[f.id] = localize(shown.has(service) ? howWeHelp(f.id, d.offer.services, d.offer.angles, { short: true })! : full, d.health);
+    shown.add(service);
   }
   const offer = rec ? { help, service: { name: rec.service.name, outcome: rec.service.outcome, entryOffer: rec.service.entryOffer ?? null } } : undefined;
   return (

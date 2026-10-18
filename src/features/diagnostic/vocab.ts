@@ -9,6 +9,20 @@ export function isHealthSector(criteria: unknown): boolean {
 }
 
 const SWAPS: Array<[RegExp, string]> = [
+  // Appointment wording first (longest phrases before single words).
+  [/costándole citas/g, "costándole clientes"],
+  [/«Agendar cita»/g, "«Agendar asesoría»"],
+  [/«Hola, quiero pedir una cita»/g, "«Hola, quiero una asesoría»"],
+  [/agendar citas en línea/g, "agendar asesorías en línea"],
+  [/pide cita/g, "pide una asesoría"],
+  [/pida cita/g, "pida una asesoría"],
+  [/pedir cita/g, "pedir una asesoría"],
+  [/confirme la cita/g, "confirme la reunión"],
+  [/buscan cita/g, "buscan asesoría"],
+  [/recibir más citas/g, "recibir más clientes"],
+  [/conversaciones y citas/g, "conversaciones y reuniones"],
+  [/\bcitas\b/g, "reuniones"],
+  [/\bcita\b/g, "reunión"],
   [/captación de pacientes/g, "captación de clientes"],
   [/pacientes/g, "clientes"],
   [/Pacientes/g, "Clientes"],
