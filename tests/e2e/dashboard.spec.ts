@@ -24,8 +24,10 @@ test("dashboard: empty real state, then demo toggle shows separated DEMO data", 
   await expect(page.getByText("DEMO", { exact: true })).toHaveCount(0);
   expect(await noHScroll()).toBe(true);
   if (width === 1440) await page.screenshot({ path: "artifacts/screens/F14-dashboard-empty-1440.png", fullPage: true });
-  // panel nav: Tablero is the current tab
+  // panel nav (sidebar; a drawer under 1024 px): Tablero is the current item
+  if (width < 1024) await page.getByRole("button", { name: "Abrir menú" }).click();
   await expect(page.getByRole("navigation", { name: "Panel" }).getByRole("link", { name: "Tablero" })).toHaveAttribute("aria-current", "page");
+  if (width < 1024) await page.keyboard.press("Escape");
   await page.screenshot({ path: `artifacts/screens/F14-tablero-${width}.png`, fullPage: true });
 
   await page.getByRole("switch", { name: /Incluir datos de prueba/ }).click();
@@ -52,12 +54,14 @@ test("dashboard: empty real state, then demo toggle shows separated DEMO data", 
   expect((await page.request.get("/api/dashboard/cell?source=bad")).status()).toBe(400);
 });
 
-test("búsquedas: one horizontal card per hunt, nav underlines the active tab and hides on the live map", async ({ page }, info) => {
+test("búsquedas: one horizontal card per hunt, sidebar marks the active item and hides on the live map", async ({ page }, info) => {
   const width = info.project.use.viewport?.width ?? 1440;
   await page.goto("/app/hunts");
   await expect(page.getByRole("heading", { level: 1, name: "Lo que ya buscamos" })).toBeVisible();
+  if (width < 1024) await page.getByRole("button", { name: "Abrir menú" }).click();
   const nav = page.getByRole("navigation", { name: "Panel" });
   await expect(nav.getByRole("link", { name: "Búsquedas" })).toHaveAttribute("aria-current", "page");
+  if (width < 1024) await page.keyboard.press("Escape");
   await expect(page.getByRole("link", { name: /Nueva búsqueda/ }).last()).toHaveAttribute("href", "/app/new");
   const list = page.getByTestId("hunt-list");
   if (await list.count()) {
@@ -73,5 +77,5 @@ test("búsquedas: one horizontal card per hunt, nav underlines the active tab an
   await page.screenshot({ path: `artifacts/screens/F14-busquedas-${width}.png`, fullPage: true });
 
   await page.goto("/app/hunts/demo");
-  await expect(page.getByTestId("app-nav")).toHaveCount(0);
+  await expect(page.getByTestId("app-sidebar")).toHaveCount(0);
 });
