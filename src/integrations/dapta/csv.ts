@@ -1,6 +1,6 @@
 import { MAX_CSV_BYTES, type CsvResult, type DaptaLeadRecord } from "./types";
 
-export const CSV_HEADER = ["empresa", "telefono", "correo_generico", "ciudad", "fuente", "slug", "url_diagnostico", "notas"] as const;
+export const CSV_HEADER = ["empresa", "telefono", "correo_generico", "ciudad", "fuente", "slug", "url_diagnostico", "notas", "servicio_sugerido", "oferta"] as const;
 
 /** Neutralise spreadsheet formulas (=, +, -, @, tab, CR) and quote when needed. */
 export function csvCell(value: string): string {
@@ -22,7 +22,7 @@ export function buildCsv(leads: DaptaLeadRecord[], maxBytes: number = MAX_CSV_BY
   let rows = 0;
   let truncated = false;
   for (const l of leads) {
-    const line = [csvCell(l.company), phoneCell(l.phone), ...[l.email, l.city, l.source, l.slug, l.diagnosticUrl, l.notes].map(csvCell)].join(",");
+    const line = [csvCell(l.company), phoneCell(l.phone), ...[l.email, l.city, l.source, l.slug, l.diagnosticUrl, l.notes, l.suggestedService ?? "", l.offer ?? ""].map(csvCell)].join(",");
     const size = Buffer.byteLength(line) + 2;
     if (bytes + size > maxBytes) {
       truncated = true;
