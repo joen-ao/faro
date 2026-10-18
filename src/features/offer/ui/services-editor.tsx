@@ -12,6 +12,7 @@ interface Draft {
   description: string;
   outcome: string;
   entryOffer: string;
+  price: string;
   proof: string;
   keywords: string;
 }
@@ -23,10 +24,11 @@ const toDraft = (s: Service, i: number): Draft => ({
   description: s.description,
   outcome: s.outcome,
   entryOffer: s.entryOffer ?? "",
+  price: s.price ?? "",
   proof: s.proof ?? "",
   keywords: (s.keywords ?? []).join(", "),
 });
-const emptyDraft = (): Draft => ({ key: `new-${Math.random().toString(36).slice(2, 8)}`, name: "", description: "", outcome: "", entryOffer: "", proof: "", keywords: "" });
+const emptyDraft = (): Draft => ({ key: `new-${Math.random().toString(36).slice(2, 8)}`, name: "", description: "", outcome: "", entryOffer: "", price: "", proof: "", keywords: "" });
 
 const field =
   "w-full rounded-[12px] border border-white/14 bg-faro-surface-2 px-3.5 py-2.5 text-[15px] leading-normal text-white placeholder:text-faro-text-3 focus:border-faro-accent focus:outline-none";
@@ -56,6 +58,7 @@ const toPayload = (d: Draft) => ({
   description: d.description,
   outcome: d.outcome,
   entryOffer: d.entryOffer || undefined,
+  price: d.price || undefined,
   proof: d.proof || undefined,
   keywords: d.keywords
     .split(",")
@@ -66,6 +69,8 @@ const toPayload = (d: Draft) => ({
 export interface ServicesEditorProps {
   initial: Service[];
   note?: string;
+  /** Company that provides the services and signs the emails. */
+  company?: string;
   origin: "panel" | "default" | "empty";
   /** Label of the initial catalog's source, e.g. "mokub.co". */
   defaultSource?: string;
@@ -74,9 +79,10 @@ export interface ServicesEditorProps {
   suggestOpen?: boolean;
 }
 
-export function ServicesEditor({ initial, note: initialNote, origin, defaultSource, onSaved, suggestOpen }: ServicesEditorProps) {
+export function ServicesEditor({ initial, note: initialNote, company: initialCompany, origin, defaultSource, onSaved, suggestOpen }: ServicesEditorProps) {
   const [drafts, setDrafts] = useState<Draft[]>(() => (initial.length ? initial.map(toDraft) : [emptyDraft()]));
   const [note, setNote] = useState(initialNote ?? "");
+  const [company, setCompany] = useState(initialCompany ?? "");
   const [about, setAbout] = useState("");
   const [showSuggest, setShowSuggest] = useState(!!suggestOpen);
   const [busy, setBusy] = useState<"suggest" | "save" | null>(null);
@@ -116,7 +122,7 @@ export function ServicesEditor({ initial, note: initialNote, origin, defaultSour
       const res = await fetch("/api/settings/services", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ services: drafts.map(toPayload), note: note || undefined }),
+        body: JSON.stringify({ services: drafts.map(toPayload), note: note || undefined, company: company || undefined }),
       });
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; services?: Service[]; issues?: string[]; error?: string };
       if (!res.ok || !json.ok || !json.services) throw new Error(json.issues?.join(" · ") ?? json.error ?? `HTTP ${res.status}`);
@@ -206,6 +212,12 @@ export function ServicesEditor({ initial, note: initialNote, origin, defaultSour
                   <input id={id("entry")} value={d.entryOffer} maxLength={SERVICE_LIMITS.entryOffer} onChange={(ev) => patch(d.key, { entryOffer: ev.target.value })} placeholder="Ej.: Demo gratis de 15 minutos" className={field} />
                 </div>
                 <div>
+                  <label htmlFor={id("price")} className={lbl}>
+                    Precio de referencia <span className="text-faro-text-3">(opcional)</span>
+                  </label>
+                  <input id={id("price")} value={d.price} maxLength={SERVICE_LIMITS.price} onChange={(ev) => patch(d.key, { price: ev.target.value })} placeholder="Ej.: Desde USD 450" className={field} />
+                </div>
+                <div>
                   <label htmlFor={id("proof")} className={lbl}>
                     Prueba o caso <span className="text-faro-text-3">(opcional, sin nombres de personas)</span>
                   </label>
@@ -230,6 +242,13 @@ export function ServicesEditor({ initial, note: initialNote, origin, defaultSour
         <span className="text-[12.5px] text-faro-text-3">
           {drafts.length} de {SERVICE_LIMITS.max}
         </span>
+      </div>
+
+      <div>
+        <label htmlFor="catalog-company" className={lbl}>
+          Tu empresa <span className="text-faro-text-3">(firma los correos; Faro es la herramienta de envío)</span>
+        </label>
+        <input id="catalog-company" value={company} maxLength={SERVICE_LIMITS.company} onChange={(e) => setCompany(e.target.value)} placeholder="Ej.: Mokub" className={field} />
       </div>
 
       <div>

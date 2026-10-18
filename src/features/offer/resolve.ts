@@ -9,6 +9,8 @@ export interface EffectiveOffer {
   services: Service[];
   angles: Angle[];
   origin: "hunt" | "catalog";
+  /** The team's company that provides the services (signs the email). */
+  company?: string;
 }
 
 export function effectiveOffer(huntOfferRaw: unknown, catalog: Service[]): EffectiveOffer {
@@ -18,8 +20,9 @@ export function effectiveOffer(huntOfferRaw: unknown, catalog: Service[]): Effec
 }
 
 export async function loadEffectiveOffer(db: AppDb, huntOfferRaw: unknown): Promise<EffectiveOffer> {
-  if (parseHuntOffer(huntOfferRaw)) return effectiveOffer(huntOfferRaw, []);
-  return effectiveOffer(null, (await getServiceCatalog(db)).services);
+  const catalog = await getServiceCatalog(db);
+  const base = parseHuntOffer(huntOfferRaw) ? effectiveOffer(huntOfferRaw, []) : effectiveOffer(null, catalog.services);
+  return catalog.company ? { ...base, company: catalog.company } : base;
 }
 
 /** Recommended service for one lead from its stored website facts (deterministic, no AI). */

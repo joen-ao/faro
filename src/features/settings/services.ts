@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { appSettings } from "@/db/schema";
 import type { AppDb } from "@/db/types";
-import { DEFAULT_CATALOG_NOTE, DEFAULT_SERVICES } from "@/config/default-services";
+import { DEFAULT_CATALOG_NOTE, DEFAULT_COMPANY, DEFAULT_SERVICES } from "@/config/default-services";
 import { CatalogSetting, type Service } from "@/features/offer/schema";
 
 const KEY = "services";
@@ -9,6 +9,7 @@ const KEY = "services";
 export interface StoredCatalog {
   services: Service[];
   note?: string;
+  company?: string;
   /** "panel" when saved from /app/settings/oferta, "default" while the initial (mokub.co) catalog is in use. */
   origin: "panel" | "default";
   updatedAt: Date | null;
@@ -16,7 +17,7 @@ export interface StoredCatalog {
 
 /** The initial catalog, already validated (ids, cleaned text). */
 export function defaultCatalog(): StoredCatalog {
-  const parsed = CatalogSetting.parse({ services: DEFAULT_SERVICES, note: DEFAULT_CATALOG_NOTE });
+  const parsed = CatalogSetting.parse({ services: DEFAULT_SERVICES, note: DEFAULT_CATALOG_NOTE, company: DEFAULT_COMPANY.name });
   return { ...parsed, origin: "default", updatedAt: null };
 }
 

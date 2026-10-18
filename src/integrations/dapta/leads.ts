@@ -8,7 +8,7 @@ import type { DaptaLeadRecord } from "./types";
 /** "Agentes de IA — menos trabajo manual… · Llamada de descubrimiento gratuita…": the offer as agent context. */
 export function offerContext(r: Recommendation | null): string {
   if (!r) return "";
-  return [`${r.service.name} — ${r.service.outcome}`, r.service.entryOffer].filter(Boolean).join(" · ");
+  return [`${r.service.name} — ${r.service.outcome}`, r.service.entryOffer, r.service.price].filter(Boolean).join(" · ");
 }
 
 const MAX_LEADS = 500;

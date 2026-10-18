@@ -41,7 +41,8 @@ export const DEFAULT_SERVICES: ServiceInput[] = [
     description: "Aplicaciones y sistemas completos para casos que ninguna herramienta del mercado resuelve.",
     outcome: "Software hecho exactamente para cómo trabaja el negocio.",
     proof: "CRM B2B SaaS con agentes de IA integrados (Nirbound); sistema con 5 módulos de IA (KOS).",
-    entryOffer: "Desde USD 3.000 · propuesta gratuita en menos de 24 h.",
+    entryOffer: "Propuesta gratuita en menos de 24 h.",
+    price: "Desde USD 3.000",
     keywords: ["agenda", "pacientes", "seguimiento", "crm"],
   },
   {
@@ -49,7 +50,8 @@ export const DEFAULT_SERVICES: ServiceInput[] = [
     name: "Landing pages y webs",
     description: "Páginas rápidas, hechas a mano y diseñadas por una diseñadora UI/UX. Entrega en días, no en meses.",
     outcome: "Un sitio moderno que convierte visitas en clientes.",
-    entryOffer: "Desde USD 450.",
+    entryOffer: "Propuesta gratuita en menos de 24 h.",
+    price: "Desde USD 450",
     keywords: ["sin sitio web", "sitio desactualizado", "copyright viejo", "sin formulario", "sin agenda en línea"],
   },
 ];

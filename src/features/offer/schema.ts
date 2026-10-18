@@ -4,7 +4,7 @@ import { z } from "zod";
 export const FINDING_KINDS = ["no-website", "whatsapp", "booking", "form", "freshness", "social", "site-unreviewed"] as const;
 export type FindingKind = (typeof FINDING_KINDS)[number];
 
-export const SERVICE_LIMITS = { name: 80, description: 300, outcome: 200, entryOffer: 120, proof: 200, max: 8, keywords: 12, keyword: 40, note: 200 } as const;
+export const SERVICE_LIMITS = { name: 80, description: 300, outcome: 200, entryOffer: 120, price: 60, company: 80, proof: 200, max: 8, keywords: 12, keyword: 40, note: 200 } as const;
 
 // "Dra. Ana Gómez", "el señor Pérez": a title followed by capitalised words reads as a person -> masked.
 const TITLED_PERSON = /\b(?:[Dd]ra?|[Dd]octora?|[Oo]d|[Oo]dont[oó]log[oa]|[Ss]ra?|[Ss]e[nñ]ora?|[Dd]on|[Dd]o[nñ]a|[Ii]ng|[Ll]ic)\.?\s+(?:[A-ZÁÉÍÓÚÑ][\p{L}'-]+)(?:\s+(?:de\s+(?:la\s+|los\s+)?)?[A-ZÁÉÍÓÚÑ][\p{L}'-]+)*/gu;
@@ -63,6 +63,8 @@ export const Service = z.object({
   description: required(SERVICE_LIMITS.description, "La propuesta de valor"),
   outcome: required(SERVICE_LIMITS.outcome, "El resultado"),
   entryOffer: optional(SERVICE_LIMITS.entryOffer),
+  /** Reference price, shown apart from the entry offer ("Desde USD 450"). */
+  price: optional(SERVICE_LIMITS.price),
   proof: optional(SERVICE_LIMITS.proof),
   /** Words that tie the service to diagnostic findings ("whatsapp", "agenda", "sin sitio web"). */
   keywords: z
@@ -94,6 +96,8 @@ export const ServiceCatalog = z
 export const CatalogSetting = z.object({
   services: ServiceCatalog,
   note: optional(SERVICE_LIMITS.note),
+  /** The team's company that provides the services and signs the emails ("Mokub"). */
+  company: optional(SERVICE_LIMITS.company),
 });
 export type CatalogSetting = z.output<typeof CatalogSetting>;
 

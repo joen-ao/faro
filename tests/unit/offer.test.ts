@@ -11,7 +11,7 @@ import { icpProfiles } from "@/db/schema";
 import { createHunt } from "@/features/hunts/service";
 import { ICP_EXAMPLES } from "@/features/icp/presets";
 import { loadEffectiveOffer } from "@/features/offer/resolve";
-import { generateMessage } from "@/features/outreach/generate";
+import { generateMessage, senderSignature } from "@/features/outreach/generate";
 import { defaultCatalog, getServiceCatalog, saveServiceCatalog } from "@/features/settings/services";
 import { offerContext } from "@/integrations/dapta/leads";
 import { buildCsv } from "@/integrations/dapta/csv";
@@ -199,6 +199,28 @@ describe("first email with the suggested service", () => {
     expect(g.text.indexOf("primer paso")).toBeLessThan(g.text.indexOf("diagnóstico"));
   });
 
+  it("signs as the seller (sent with Faro), keeps the price apart and never repeats the sender", async () => {
+    const prompts: string[] = [];
+    const base = createMockAnthropic();
+    const spy: AnthropicAdapter = { ...base, completeRaw: (p) => (prompts.push(p), base.completeRaw(p)) };
+    const env2 = parseEnv({ NEXT_PUBLIC_APP_URL: "https://faro.test", EMAIL_REPLY_TO: "hola@faro.test", SENDER_ADDRESS: "Bogotá, Colombia", SENDER_LEGAL_NAME: "Faro - proyecto de 30x", SEND_ENABLED: "false" });
+    const pitch = recommendService(opp("no-website"), mokub);
+    expect(pitch?.service.price).toBe("Desde USD 450");
+    const g = await generateMessage(lead, { name: "Clínica Sonrisa Norte", city: "Bogotá" }, { criteria: { sector: "dental" } }, { name: "Mokub", country: "CO" }, { ai: spy, channel: "email", recipient: "info@sonrisa.co", env: env2, pitch, sellerName: "Mokub" });
+    expect(prompts[0]).toContain('"sender":"Mokub"');
+    expect(prompts[0]).toContain('Never present "Faro" as the provider');
+    expect(g.text).toContain("Si le interesa, el primer paso: Propuesta gratuita en menos de 24 h. Precio de referencia: desde USD 450.");
+    expect(g.text).toContain("Quién escribe: Mokub, con Faro (proyecto del 30X Hackathon).");
+    expect(g.text).toContain("Mokub · enviado con Faro · proyecto del 30X Hackathon · Bogotá, Colombia");
+    expect(g.text).not.toContain("Faro - proyecto de 30x");
+  });
+
+  it("senderSignature keeps a legal name that adds information", () => {
+    const env3 = parseEnv({ NEXT_PUBLIC_APP_URL: "https://faro.test", SENDER_LEGAL_NAME: "Mokub SAS" });
+    expect(senderSignature(env3)).toBe("Faro · proyecto del 30X Hackathon · Mokub SAS");
+    expect(senderSignature(env3, "Mokub")).toBe("Mokub · enviado con Faro · proyecto del 30X Hackathon");
+  });
+
   it("without services keeps the previous copy", async () => {
     const g = await generateMessage(lead, { name: "Clínica X" }, { criteria: {} }, { name: "P", offerDescription: "Agenda en línea para clínicas", country: "CO" }, { ai: createMockAnthropic(), channel: "email", env });
     expect(g.text).toContain("Agenda en línea para clínicas");
@@ -223,7 +245,7 @@ describe("Dapta context", () => {
       suggestedService: suggestionLine(rec)!,
       offer: offerContext(rec),
     };
-    expect(record.offer).toBe("Landing pages y webs — Un sitio moderno que convierte visitas en clientes. · Desde USD 450.");
+    expect(record.offer).toBe("Landing pages y webs — Un sitio moderno que convierte visitas en clientes. · Propuesta gratuita en menos de 24 h. · Desde USD 450");
     const csv = buildCsv([record]).csv.split("\r\n");
     expect(csv[0]!.endsWith(",servicio_sugerido,oferta")).toBe(true);
     expect(csv[1]).toContain("Servicio sugerido: Landing pages y webs · porque no encontramos un sitio web propio");

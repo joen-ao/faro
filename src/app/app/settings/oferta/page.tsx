@@ -39,7 +39,7 @@ export default async function OfferSettingsPage() {
           </p>
         )}
         <div className="mt-8">
-          <ServicesEditor initial={catalog.services} note={catalog.note} origin={catalog.origin} defaultSource={DEFAULT_CATALOG_SOURCE} />
+          <ServicesEditor initial={catalog.services} note={catalog.note} company={catalog.company} origin={catalog.origin} defaultSource={DEFAULT_CATALOG_SOURCE} />
         </div>
       </div>
     </main>

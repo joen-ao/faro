@@ -24,7 +24,7 @@ import { AiError, type AnthropicAdapter } from "@/integrations/anthropic";
 import { EmailSendError, type EmailAdapter } from "@/integrations/email";
 import { getEnv, type Env } from "@/lib/env";
 import { channelOptions, optionFor, selectChannel, type ChannelOption } from "./channel";
-import { buildLinks, generateMessage, textToHtml, type GeneratedMessage } from "./generate";
+import { buildLinks, generateMessage, senderSignature, textToHtml, type GeneratedMessage } from "./generate";
 
 export type OutreachRule = BlockRule | "legal_unverified" | "missing_unsubscribe" | "no_channel" | "channel_unavailable" | "sender_incomplete";
 
@@ -275,9 +275,11 @@ export async function previewOutreach(
   let isMockAi = false;
   if (input.generate !== false && channel && recipient) {
     if (!ctx.icp || !ctx.workspace) throw new OutreachError("El lead no pertenece a una búsqueda con ICP y workspace", 422);
-    const pitch = leadPitch(ctx, await loadEffectiveOffer(db, ctx.icp.offer));
+    const offer = await loadEffectiveOffer(db, ctx.icp.offer);
+    const pitch = leadPitch(ctx, offer);
+    const sellerName = offer.company ?? null;
     // Draft cache per lead/channel/recipient/pitch: repeated previews do not spend AI again.
-    const cacheKey = `${ctx.lead.id}|${channel}|${recipient}|${ctx.company.name}|${ctx.workspace.offerDescription ?? ""}|${pitch ? `${pitch.service.id}:${pitch.service.name}:${pitch.service.entryOffer ?? ""}:${pitch.finding ?? ""}` : ""}`;
+    const cacheKey = `${ctx.lead.id}|${channel}|${recipient}|${ctx.company.name}|${ctx.workspace.offerDescription ?? ""}|${pitch ? `${pitch.service.id}:${pitch.service.name}:${pitch.service.entryOffer ?? ""}:${pitch.service.price ?? ""}:${pitch.finding ?? ""}` : ""}|${sellerName ?? ""}`;
     const hit = previewCache.get(cacheKey);
     if (hit && !input.refresh && Date.now() - hit.at < PREVIEW_TTL_MS) {
       message = hit.message;
@@ -288,7 +290,7 @@ export async function previewOutreach(
         { name: ctx.company.name, city: ctx.company.city },
         { criteria: ctx.icp.criteria },
         { name: ctx.workspace.name, offerDescription: ctx.workspace.offerDescription, senderEmail: ctx.workspace.senderEmail, country: ctx.workspace.country },
-        { ai: deps.ai, channel, recipient, env, recorder: dbCallRecorder(db, ctx.hunt?.id), pitch },
+        { ai: deps.ai, channel, recipient, env, recorder: dbCallRecorder(db, ctx.hunt?.id), pitch, sellerName },
       );
       await recordAiCost(db, {
         leadId: ctx.lead.id,
@@ -344,7 +346,7 @@ export function ensureCompliantBody(body: string, ctx: LeadContext, recipient: s
   const { optOutUrl } = buildLinks({ id: ctx.lead.id, slug: ctx.lead.slug, primarySource: ctx.lead.primarySource }, "email", recipient, env);
   let out = body.trimEnd();
   if (!out.includes(optOutUrl)) out += `\n\nSi no desea recibir mensajes nuestros, darse de baja toma un clic: ${optOutUrl}`;
-  const who = [env.NEXT_PUBLIC_PRODUCT_NAME, "proyecto del 30X Hackathon", env.SENDER_LEGAL_NAME].filter(Boolean).join(" · ");
+  const who = senderSignature(env);
   const missingSender = !out.includes("30X Hackathon") || !out.includes(env.NEXT_PUBLIC_PRODUCT_NAME);
   const missingAddress = !!env.SENDER_ADDRESS && !out.includes(env.SENDER_ADDRESS);
   if (missingSender || missingAddress) out += `\n\n${[who, env.SENDER_ADDRESS].filter(Boolean).join(" · ")}`;
