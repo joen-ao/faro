@@ -299,7 +299,8 @@ async function runBatchInner(db: AppDb, huntId: string, source: HuntSource, curs
       const cur = list[cityIdx];
       list[cityIdx] = {
         ...cur,
-        state: batch.done ? "done" : "running",
+        // A replayed earlier batch of a finished city never reopens it.
+        state: batch.done || cur.state === "done" ? "done" : "running",
         total: batch.total ?? cur.total ?? (batch.done ? batch.nextCursor : null),
         fetched: cur.fetched + fetchedNow,
         excluded: cursor === 0 ? batch.excluded : cur.excluded + batch.excluded,
