@@ -45,3 +45,17 @@ export function boundsOf(points: Iterable<StreamPoint>): [number, number, number
   }
   return Number.isFinite(w) ? [w, s, e, n] : null;
 }
+
+/** [west, south, east, north] covering every city bbox ([south, west, north, east] each), or null when none has one. */
+export function areaBounds(cities: ReadonlyArray<{ bbox?: readonly [number, number, number, number] }>): [number, number, number, number] | null {
+  const boxes = cities.flatMap((c) => (c.bbox ? [c.bbox] : []));
+  if (!boxes.length) return null;
+  return [Math.min(...boxes.map((b) => b[1])), Math.min(...boxes.map((b) => b[0])), Math.max(...boxes.map((b) => b[3])), Math.max(...boxes.map((b) => b[2]))];
+}
+
+/** Smallest box containing both (either may be null). */
+export function unionBounds(a: [number, number, number, number] | null, b: [number, number, number, number] | null): [number, number, number, number] | null {
+  if (!a) return b;
+  if (!b) return a;
+  return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])];
+}

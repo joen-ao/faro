@@ -7,7 +7,7 @@ import type { MergedPair } from "@/features/dedupe/plan";
 import { cn } from "@/lib/utils";
 import type { Counters, HuntSource, HuntSourcesProgress, PointStatus, SourceProgress, StreamPoint } from "../types";
 import { POINT_STATUSES } from "../types";
-import { REASON_LABEL, SOURCE_LABEL, SOURCE_SHORT, STATUS_LABEL, fmtClock, fmtInt } from "./format";
+import { REASON_LABEL, SOURCE_LABEL, SOURCE_SHORT, STATUS_LABEL, fmtClock, fmtInt, prettyCity } from "./format";
 import { EnrichButton } from "./enrich-button";
 import { LeadList, StatusDot } from "./lead-list";
 import { useCountUp } from "./use-count-up";
@@ -62,16 +62,28 @@ function Big({ value, label, accent, loading }: { value: number; label: string; 
 function stateText(p: SourceProgress, active: boolean, error?: string): { text: string; tone: "ok" | "run" | "warn" | "mute" } {
   if (error || p.state === "error") return { text: error ?? p.error ?? "Error de la fuente", tone: "warn" };
   if (p.state === "skipped") return { text: p.reason ?? "No aplica a este perfil", tone: "mute" };
-  if (p.state === "done") return { text: `Completa · ${fmtInt(p.fetched)} registros`, tone: "ok" };
+  const n = p.cities?.length ?? 0;
+  if (p.state === "done") return { text: `Completa · ${fmtInt(p.fetched)} registros${n > 1 ? ` en ${n} ciudades` : ""}`, tone: "ok" };
+  if (n > 1 && (active || p.state === "running")) {
+    const i = Math.min(p.city ?? 0, n - 1);
+    const c = p.cities![i];
+    return { text: `${prettyCity(c.name)} (${i + 1} de ${n}) · ${c.total ? `${fmtInt(c.fetched)} de ${fmtInt(c.total)}` : "consultando…"}`, tone: "run" };
+  }
   if (active || p.state === "running") return { text: p.total ? `Trayendo ${fmtInt(p.fetched)} de ${fmtInt(p.total)}` : "Consultando la fuente…", tone: "run" };
   return { text: "En cola", tone: "mute" };
+}
+
+/** Multi-city progress: each city weighs the same (later cities' sizes are unknown until they start). */
+function citiesPct(cities: NonNullable<SourceProgress["cities"]>): number {
+  const per = cities.map((c) => (c.state === "done" ? 1 : c.total ? Math.min(1, c.fetched / c.total) : 0));
+  return (per.reduce((a, x) => a + x, 0) / cities.length) * 100;
 }
 
 function SourcePill({ id, p, counts, active, pressed, error, onToggle }: { id: HuntSource; p: SourceProgress; counts?: Counters["total"]; active: boolean; pressed: boolean; error?: string; onToggle: () => void }) {
   const skipped = p.state === "skipped";
   const running = active || p.state === "running";
   const st = stateText(p, active, error);
-  const pct = p.state === "done" ? 100 : p.total ? Math.min(100, (p.fetched / p.total) * 100) : 0;
+  const pct = p.state === "done" ? 100 : p.cities && p.cities.length > 1 ? citiesPct(p.cities) : p.total ? Math.min(100, (p.fetched / p.total) * 100) : 0;
   return (
     <button
       type="button"

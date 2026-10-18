@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 import { NO_FILTER, filterPoints, sortForList } from "../filters";
-import { hasLocation } from "../geojson";
+import { areaBounds, hasLocation } from "../geojson";
 import type { HuntSource, PointStatus, StreamPoint } from "../types";
 import "./hunts.css";
 import { HuntPanel, type PanelTab } from "./hunt-panel";
@@ -124,6 +124,8 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
   const sheetPx = snap === "peek" ? 152 : snap === "half" ? vh * 0.56 : vh * 0.9;
   const padding = mobile ? { top: 84, right: 24, bottom: Math.min(sheetPx, vh * 0.55) + 24, left: 24 } : { top: 110, right: (selected ? 460 : 420) + 60, bottom: 80, left: 60 };
   const fitKey = `${[...srcFilter].sort()}|${[...statusFilter].sort()}`;
+  // Multi-city: frame every city of the hunt (single-city hunts keep fitting the points only).
+  const area = useMemo(() => (stream.cities.length > 1 ? areaBounds(stream.cities) : null), [stream.cities]);
 
   // Bottom-sheet drag (mobile).
   const drag = useRef<{ y: number; moved: boolean } | null>(null);
@@ -179,7 +181,7 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-black text-white" data-testid="hunt-live" style={{ ["--faro-sheet-h" as string]: SNAP_CSS[snap] }}>
-      <MapView points={filtered} arrival={stream.arrival} selectedId={selected?.id ?? null} onSelect={selectById} fly={fly} padding={padding} fitKey={fitKey} />
+      <MapView points={filtered} arrival={stream.arrival} selectedId={selected?.id ?? null} onSelect={selectById} fly={fly} padding={padding} fitKey={fitKey} area={area} />
 
       {/* title card */}
       <div className="pointer-events-none absolute top-3 left-3 z-10 max-w-[calc(100%-24px)] md:top-5 md:left-5 md:max-w-[min(560px,calc(100%-500px))]">
@@ -195,7 +197,7 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
             <h1 className="truncate font-display text-[16px] leading-tight font-semibold md:text-[18px]">
               {stream.loading ? <span className="faro-skeleton inline-block h-5 w-44 align-middle" /> : title}
             </h1>
-            {!stream.loading && <StatusLine status={stream.status} active={runnerActive.size > 0} isDemo={stream.isDemo} city={stream.city ? prettyCity(stream.city) : ""} />}
+            {!stream.loading && <StatusLine status={stream.status} active={runnerActive.size > 0} isDemo={stream.isDemo} city={stream.area || (stream.city ? prettyCity(stream.city) : "")} />}
           </div>
           <Link
             href={`/app/hunts/${huntId}/outreach`}

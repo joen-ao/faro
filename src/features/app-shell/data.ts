@@ -3,7 +3,7 @@ import { HOLIDAYS_CO_2026, SEND_TIMEZONE_CO, SEND_WINDOWS_CO } from "@/config/ho
 import { hunts, icpProfiles, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { checkSendWindow, sendWindowPolicy, type SendWindowSetting } from "@/features/compliance/windows";
-import { prettyCity } from "@/features/hunts/ui/format";
+import { areaLabel } from "@/features/icp/presets";
 import { getSendWindow } from "@/features/settings/send-window";
 
 export interface RecentHunt {
@@ -101,11 +101,11 @@ export async function getAppShellData(db: AppDb | null, env: Record<string, stri
       queued: queue.reduce((a, q) => a + q.n, 0),
       contactHref: queue[0]?.huntId ? `/app/hunts/${queue[0].huntId}/outreach` : "/app/hunts",
       recent: rows.map((r) => {
-        const c = (r.criteria ?? {}) as { sector?: unknown; city?: unknown };
+        const c = (r.criteria ?? {}) as { sector?: unknown; city?: unknown; cities?: unknown; scope?: unknown; country?: unknown };
         return {
           id: r.id,
           title: typeof c.sector === "string" && c.sector ? capitalize(c.sector) : "Búsqueda",
-          city: typeof c.city === "string" && c.city ? prettyCity(c.city) : null,
+          city: areaLabel(c),
           status: r.status,
           fit: r.fit,
         };

@@ -31,6 +31,19 @@ export interface SourceProgress {
   /** Why it is skipped (e.g. RUES does not cover Miami). */
   reason?: string;
   log: SourceLogEntry[];
+  /** Multi-city hunts only: index (into the hunt cities) of the city `cursor` points into. Cities run in sequence. */
+  city?: number;
+  /** Multi-city hunts only: per-city progress of this source (same order as the hunt cities). */
+  cities?: CityProgress[];
+}
+
+/** Progress of one source in one city of a multi-city hunt. */
+export interface CityProgress {
+  name: string;
+  state: "pending" | "running" | "done";
+  total: number | null;
+  fetched: number;
+  excluded: number;
 }
 
 export type HuntSourcesProgress = Record<HuntSource, SourceProgress>;
@@ -77,6 +90,10 @@ export interface StreamResponse {
   isDemo: boolean;
   prompt: string;
   city: string;
+  /** Every city of the hunt (one entry on single-city hunts) with its bbox when known, for the map framing. */
+  cities: Array<{ name: string; bbox?: [number, number, number, number] }>;
+  /** "Bogotá", "Bogotá +2" or "Colombia (5 ciudades)". */
+  area: string;
   sector: string;
   /** Epoch ms of the newest lead returned; send it back as `since`. */
   cursor: number;

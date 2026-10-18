@@ -25,7 +25,7 @@ const BTN = cn("inline-flex min-h-11 items-center justify-center rounded-button 
 const BTN_PRIMARY = cn(BTN, "bg-faro-accent font-bold text-faro-accent-ink hover:brightness-110");
 const BTN_GHOST = cn(BTN, "border border-white/20 text-white hover:border-faro-accent");
 
-const title = (x: HuntSummary) => `${x.sector ? x.sector.charAt(0).toUpperCase() + x.sector.slice(1) : "Búsqueda"}${x.city ? ` · ${prettyCity(x.city)}` : ""}`;
+const title = (x: HuntSummary) => `${x.sector ? x.sector.charAt(0).toUpperCase() + x.sector.slice(1) : "Búsqueda"}${x.area ? ` · ${x.area}` : x.city ? ` · ${prettyCity(x.city)}` : ""}`;
 
 function Metrics({ items }: { items: [string, number, boolean?][] }) {
   return (

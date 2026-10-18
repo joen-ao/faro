@@ -1,5 +1,5 @@
 import { complete, type AnthropicAdapter, type CallRecorder, type Usage } from "@/integrations/anthropic";
-import { findCity, findSector } from "./presets";
+import { countryCities, findCity, findCountry, findSector, normalizeCities, placesInText, withCities } from "./presets";
 import { DEFAULT_THRESHOLD, IcpCriteria } from "./schema";
 
 export * from "./schema";
@@ -9,8 +9,9 @@ export function buildIcpPrompt(userInput: string): string {
   return [
     "[[task:icp_parse]]",
     "Convert the sales prospect description below into an ICP (ideal customer profile) JSON object with exactly these keys:",
-    '{"sector": string, "ciiu": string[], "osmTags": string[] ("key=value"), "placesTypes": string[], "city": string, "country": ISO-3166 alpha-2, "bbox"?: [south, west, north, east], "size"?: string, "signals": string[], "exclusions": string[], "language": "es" | "en"}',
+    '{"sector": string, "ciiu": string[], "osmTags": string[] ("key=value"), "placesTypes": string[], "city": string, "cities"?: [{"name": string, "bbox"?: [south, west, north, east]}], "scope"?: "cities" | "country", "country": ISO-3166 alpha-2, "bbox"?: [south, west, north, east], "size"?: string, "signals": string[], "exclusions": string[], "language": "es" | "en"}',
     "Use only what the description supports; leave arrays empty rather than guessing. Never include person names.",
+    'Location: "city" is the first (or only) city. When the description names several cities, also return "cities" with all of them in order (at most 5). When it asks for a whole country (e.g. "Colombia", "todo el país") without naming cities, set "scope": "country", "country" to its code and "city" to its capital.',
     "USER_INPUT:",
     userInput,
   ].join("\n");
@@ -27,8 +28,8 @@ export interface ParsedIcp {
 /** Fills catalogue mappings (CIIU / OSM / Places / bbox) the model left empty. Never overrides model output. */
 export function enrichCriteria(c: IcpCriteria, source: string): IcpCriteria {
   const sector = findSector(`${c.sector} ${source}`);
-  const city = findCity(`${c.city} ${source}`);
-  return {
+  const city = findCity(c.city) ?? findCity(source);
+  const base: IcpCriteria = {
     ...c,
     // Known sectors use the CIIU codes verified against RUES (F02), never the model's guess (it said 8623 for dental).
     ciiu: sector?.ciiu.length ? sector.ciiu : c.ciiu,
@@ -36,6 +37,24 @@ export function enrichCriteria(c: IcpCriteria, source: string): IcpCriteria {
     placesTypes: c.placesTypes.length ? c.placesTypes : (sector?.placesTypes ?? []),
     bbox: c.bbox ?? city?.bbox,
   };
+  return withPlaces(base, source);
+}
+
+/**
+ * Multi-city / country: a whole country (model scope, a country in `city`, or the text) expands to its main preset
+ * cities; several cities named in the text fill `cities` when the model returned fewer. Then dedupe, cap 5, bboxes.
+ */
+function withPlaces(c: IcpCriteria, source: string): IcpCriteria {
+  const modelCities = c.cities?.length ?? 0;
+  const countryInCity = !findCity(c.city) ? findCountry(c.city) : undefined;
+  const text = placesInText(source);
+  if (modelCities < 2) {
+    const code = countryInCity?.code ?? (c.scope === "country" ? c.country : text.scope === "country" ? findCountry(source)?.code : undefined);
+    const presets = code ? countryCities(code) : [];
+    if (presets.length) return withCities({ ...c, language: c.language }, presets, "country");
+    if (text.cities.length > 1) return withCities(c, text.cities, "cities");
+  }
+  return normalizeCities(c);
 }
 
 export async function parseIcp(

@@ -50,7 +50,7 @@ describe("peerSites", () => {
     const peers = await peerSites(db, huntId, selfId);
     expect(peers).toHaveLength(3);
     const sorted = [...peers].sort((a, b) => Number(b.onlineBooking) - Number(a.onlineBooking) || Number(b.whatsapp) - Number(a.whatsapp));
-    expect(sorted[0]).toEqual({ onlineBooking: true, whatsapp: true, form: false, copyrightYear: 2026 });
+    expect(sorted[0]).toEqual({ onlineBooking: true, whatsapp: true, form: false, copyrightYear: 2026, city: null });
     expect(peers.filter((p) => p.form)).toHaveLength(2); // signal or web_form contact point
     expect(peers.some((p) => p.onlineBooking && !p.whatsapp)).toBe(false);
   });

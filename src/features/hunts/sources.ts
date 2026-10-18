@@ -16,7 +16,7 @@ import {
 import type { SourceCompany } from "@/integrations/types";
 import type { SourceCompany as OsmCompany } from "@/integrations/overpass/types";
 import { screenOsmCompanies } from "@/features/compliance/person-name";
-import { findSector } from "@/features/icp/presets";
+import { findCity, findSector } from "@/features/icp/presets";
 import { BATCH_SIZE, sliceBatch } from "./batch";
 import type { HuntSource } from "./types";
 
@@ -81,18 +81,23 @@ export async function fetchBatch(
   cursor: number,
   deps: SourceDeps,
   size = BATCH_SIZE,
+  /** Index of the city inside a multi-city hunt (`c` is already restricted to that city). */
+  cityIndex = 0,
 ): Promise<FetchedBatch> {
   if (source === "osm") {
-    const { list, isMock, excluded } = await osmList(`${huntId}:osm`, c, deps.overpass);
+    const { list, isMock, excluded } = await osmList(cityIndex ? `${huntId}:osm:${cityIndex}` : `${huntId}:osm`, c, deps.overpass);
     const s = sliceBatch(list, cursor, size);
     // The excluded count is reported once, with the first batch.
     return { companies: s.items, nextCursor: s.nextCursor, done: s.done, total: list.length, isMock, excluded: cursor === 0 ? excluded : 0 };
   }
   const isRues = source === "rues";
   const dataset = isRues ? RUES_DATASET : REPS_DATASET;
+  // Preset cities carry the verified RUES chamber and the DANE code for REPS; others fall back to the name.
+  // (Bogotá: the code returns exactly the rows the old name filter did, so older hunts resume at the same cursor.)
+  const preset = findCity(c.city);
   const where = isRues
-    ? ruesWhere({ ciiu: c.ciiu, camara: accentless(c.city) })
-    : repsWhere({ municipio: accentless(c.city), nameKeywords: HEALTH_SERVICE_KEYWORDS.dental });
+    ? ruesWhere({ ciiu: c.ciiu, camara: preset?.camara ?? accentless(c.city) })
+    : repsWhere({ municipio: accentless(c.city), municipioCode: preset?.dane, nameKeywords: HEALTH_SERVICE_KEYWORDS.dental });
   const page = await deps.socrata.query(dataset, { select: isRues ? RUES_FIELDS : REPS_FIELDS, where, order: ":id", limit: size, offset: cursor });
   const converted = isRues ? ruesToSource(page.rows, page.isMock) : repsToSource(page.rows, page.isMock);
   const total = cursor === 0 ? (await deps.socrata.count(dataset, where)).count : null;

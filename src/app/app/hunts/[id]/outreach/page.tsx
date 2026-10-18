@@ -9,7 +9,7 @@ import { ensureOutreachDemo } from "@/features/outreach/demo";
 import { listOutreachRows } from "@/features/outreach/service";
 import { requireAppAccess } from "@/lib/app-access";
 import { getEnv } from "@/lib/env";
-import { prettyCity } from "@/features/hunts/ui/format";
+import { areaLabel } from "@/features/icp/presets";
 import { OutreachClient, type QueueItem } from "./outreach-client";
 
 export const dynamic = "force-dynamic";
@@ -62,10 +62,11 @@ export default async function OutreachPage({
   const [hunt] = await db.select().from(hunts).where(eq(hunts.id, huntId)).limit(1);
   if (!hunt) return <Notice title="Búsqueda no encontrada" body="No existe una búsqueda con ese identificador." />;
   const [profile] = await db.select({ criteria: icpProfiles.criteria }).from(icpProfiles).where(eq(icpProfiles.id, hunt.icpProfileId)).limit(1);
-  const crit = (profile?.criteria ?? {}) as { sector?: unknown; city?: unknown };
+  const crit = (profile?.criteria ?? {}) as { sector?: unknown; city?: unknown; cities?: unknown; scope?: unknown; country?: unknown };
   const rawSector = typeof crit.sector === "string" ? crit.sector : "";
   const sector = SECTOR_TITLE[rawSector] ?? (rawSector ? rawSector.charAt(0).toUpperCase() + rawSector.slice(1) : "Búsqueda");
-  const huntTitle = typeof crit.city === "string" && crit.city ? `${sector} · ${prettyCity(crit.city)}` : sector;
+  const area = areaLabel(crit);
+  const huntTitle = area ? `${sector} · ${area}` : sector;
 
   // `?now=` only on the demo, so screenshots are deterministic.
   const parsed = isDemo && nowParam ? new Date(nowParam) : null;
