@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { desc, eq } from "drizzle-orm";
 import { ensureMigrated, getDb } from "@/db/client";
 import { companies, hunts, leads, messages } from "@/db/schema";
-import { checkSendWindow } from "@/features/compliance/windows";
+import { checkSendWindow, sendWindowPolicy } from "@/features/compliance/windows";
 import { ensureOutreachDemo } from "@/features/outreach/demo";
 import { listOutreachRows } from "@/features/outreach/service";
 import { requireAppAccess } from "@/lib/app-access";
@@ -91,7 +91,7 @@ export default async function OutreachPage({
       whatsappEnabled={env.WHATSAPP_ENABLED === true}
       humanRate={env.HUMAN_MINUTE_RATE_USD}
       nowIso={now.toISOString()}
-      window={{ allowed: win.allowed, reason: win.reason, nextAllowedAt: win.nextAllowedAt?.toISOString() ?? null }}
+      window={{ allowed: win.allowed, reason: win.reason, nextAllowedAt: win.nextAllowedAt?.toISOString() ?? null, policy: sendWindowPolicy() }}
       rows={rows.map((r) => ({
         ...r,
         assessment: { ...r.assessment, nextAllowedAt: r.assessment.nextAllowedAt?.toISOString() ?? null, blocks: r.assessment.blocks.map((b) => ({ rule: b.rule, message: b.message })) },
