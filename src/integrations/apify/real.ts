@@ -1,5 +1,5 @@
 import { assertScrapableUrl } from "./guard";
-import { APIFY_API, ApifyError, type ApifyAdapter, type ApifyContactItem, type ApifyRunResult } from "./types";
+import { APIFY_API, ApifyError, type ApifyAdapter, type ApifyContactItem, type ApifyRunResult, type ApifySearchResult } from "./types";
 
 export interface RealApifyDeps {
   token: string;
@@ -29,6 +29,8 @@ const strArray = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x i
  */
 export const DEFAULT_CONTACT_ACTOR_ID = "vdrmota~contact-info-scraper";
 export const MAX_PAGES_PER_URL = 4;
+/** Apify "Google Search Results Scraper" (https://apify.com/apify/google-search-scraper): organic results per query. */
+export const SEARCH_ACTOR_ID = "apify~google-search-scraper";
 
 /** Normalises one dataset row of a contact actor (field names vary by actor) to `ApifyContactItem`. */
 export function toContactItem(row: Record<string, unknown>): ApifyContactItem {
@@ -66,39 +68,56 @@ export function createRealApify(deps: RealApifyDeps): ApifyAdapter {
     return (await res.json()) as T;
   }
 
+  /** Starts an actor run, waits up to `waitSecs` (aborts after that) and returns the dataset rows plus the billed cost. */
+  async function runActor(actorId: string, input: Record<string, unknown>, waitSecs: number, limit: number) {
+    const started = now();
+    let run = (
+      await call<{ data: RunData }>(`/acts/${encodeURIComponent(actorId.replace("/", "~"))}/runs?waitForFinish=${Math.min(45, waitSecs)}`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      })
+    ).data;
+    const deadline = started + waitSecs * 1000;
+    while (run.id && !TERMINAL.has(run.status ?? "") && now() < deadline) {
+      run = (await call<{ data: RunData }>(`/actor-runs/${run.id}?waitForFinish=${Math.max(1, Math.min(45, Math.floor((deadline - now()) / 1000)))}`)).data;
+    }
+    const usage = typeof run.usageTotalUsd === "number" ? run.usageTotalUsd : 0;
+    if (run.status !== "SUCCEEDED") {
+      if (run.id && !TERMINAL.has(run.status ?? "")) {
+        const aborted = await call<{ data: RunData }>(`/actor-runs/${run.id}/abort`, { method: "POST" }).catch(() => undefined);
+        run = aborted?.data ?? run;
+      }
+      throw new ApifyError(`La corrida de Apify terminó en estado ${run.status ?? "desconocido"}`, undefined, typeof run.usageTotalUsd === "number" ? run.usageTotalUsd : usage, run.id);
+    }
+    const rows = run.defaultDatasetId ? await call<Record<string, unknown>[]>(`/datasets/${run.defaultDatasetId}/items?clean=true&format=json&limit=${limit}`) : [];
+    return { rows, runId: run.id ?? null, usageTotalUsd: usage, latencyMs: now() - started };
+  }
+
   return {
     async scrapeContacts(rawUrls: string[], opts?: { waitSecs?: number }): Promise<ApifyRunResult> {
       const urls = rawUrls.map(assertScrapableUrl); // throws before any request or cost
-      const started = now();
       const waitSecs = Math.max(1, Math.min(opts?.waitSecs ?? deps.waitSecs ?? 50, 50));
-      let run = (
-        await call<{ data: RunData }>(`/acts/${encodeURIComponent((deps.actorId || DEFAULT_CONTACT_ACTOR_ID).replace("/", "~"))}/runs?waitForFinish=${Math.min(45, waitSecs)}`, {
-          method: "POST",
-          body: JSON.stringify(buildActorInput(urls)),
-        })
-      ).data;
-      const deadline = started + waitSecs * 1000;
-      while (run.id && !TERMINAL.has(run.status ?? "") && now() < deadline) {
-        run = (await call<{ data: RunData }>(`/actor-runs/${run.id}?waitForFinish=${Math.max(1, Math.min(45, Math.floor((deadline - now()) / 1000)))}`)).data;
+      const r = await runActor(deps.actorId || DEFAULT_CONTACT_ACTOR_ID, buildActorInput(urls), waitSecs, Math.max(100, urls.length * 4));
+      return { items: r.rows.map(toContactItem), runId: r.runId, usageTotalUsd: r.usageTotalUsd, latencyMs: r.latencyMs, isMock: false };
+    },
+    async findWebsites(queries, opts): Promise<ApifySearchResult> {
+      const waitSecs = Math.max(1, Math.min(opts?.waitSecs ?? 45, 50));
+      const r = await runActor(
+        SEARCH_ACTOR_ID,
+        { queries: queries.map((q) => q.q).join("\n"), maxPagesPerQuery: 1, countryCode: "co", languageCode: "es", mobileResults: false, saveHtml: false, saveHtmlToKeyValueStore: false, includeIcons: false },
+        waitSecs,
+        Math.max(50, queries.length * 2),
+      );
+      const keyByQ = new Map(queries.map((q) => [q.q.trim().toLowerCase(), q.key]));
+      const results: ApifySearchResult["results"] = [];
+      for (const row of r.rows) {
+        const term = String((row.searchQuery as { term?: unknown } | undefined)?.term ?? "").trim().toLowerCase();
+        const key = keyByQ.get(term);
+        if (!key) continue;
+        const organic = Array.isArray(row.organicResults) ? (row.organicResults as Array<{ url?: unknown }>) : [];
+        results.push({ key, urls: organic.map((o) => (typeof o.url === "string" ? o.url : "")).filter(Boolean) });
       }
-      const usage = typeof run.usageTotalUsd === "number" ? run.usageTotalUsd : 0;
-      if (run.status !== "SUCCEEDED") {
-        if (run.id && !TERMINAL.has(run.status ?? "")) {
-          const aborted = await call<{ data: RunData }>(`/actor-runs/${run.id}/abort`, { method: "POST" }).catch(() => undefined);
-          run = aborted?.data ?? run;
-        }
-        throw new ApifyError(`La corrida de Apify terminó en estado ${run.status ?? "desconocido"}`, undefined, typeof run.usageTotalUsd === "number" ? run.usageTotalUsd : usage, run.id);
-      }
-      const rows = run.defaultDatasetId
-        ? await call<Record<string, unknown>[]>(`/datasets/${run.defaultDatasetId}/items?clean=true&format=json&limit=${Math.max(100, urls.length * 4)}`)
-        : [];
-      return {
-        items: rows.map(toContactItem),
-        runId: run.id ?? null,
-        usageTotalUsd: typeof run.usageTotalUsd === "number" ? run.usageTotalUsd : 0,
-        latencyMs: now() - started,
-        isMock: false,
-      };
+      return { results, runId: r.runId, usageTotalUsd: r.usageTotalUsd, latencyMs: r.latencyMs, isMock: false };
     },
   };
 }

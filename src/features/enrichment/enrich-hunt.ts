@@ -7,6 +7,7 @@ import { IcpCriteria } from "@/features/icp/schema";
 import { scoreLeadsDeterministic } from "@/features/hunts/service";
 import { ApifyError, assertScrapableUrl, BlockedUrlError, type ApifyAdapter } from "@/integrations/apify";
 import type { WebsiteFetchAdapter } from "@/integrations/website-fetch";
+import { pickCompanyWebsite, websiteQuery } from "./discover";
 import { apifyContacts, enrichCompany, EnrichInputError, recordApifyCost, US_HINT } from "./enrich";
 
 /** Free mailbox providers and platforms: a generic address there says nothing about the company's own site. */
@@ -16,6 +17,9 @@ export const NON_COMPANY_DOMAINS: readonly string[] = [...new Set([...DEDUPE_SHA
 export const ENRICH_FRESH_MS = 24 * 3600 * 1000;
 export const APIFY_BATCH_SIZE = 25;
 export const DIRECT_CONCURRENCY = 4;
+/** Website discovery (web search) per call and per hunt: the best-scored companies without a site or company email. */
+export const DISCOVER_BATCH = 15;
+export const DISCOVER_MAX = 150;
 
 /** Own domain deducible from a generic company mailbox (`info@clinica.co` -> `clinica.co`); undefined for free/shared hosts. */
 export function deduceWebsite(emails: readonly string[]): string | undefined {
@@ -52,6 +56,10 @@ export interface EnrichHuntSummary {
   /** Extras for the paging client. */
   omitidosRecientes: number;
   dominiosDeducidos: number;
+  /** Website discovery: companies searched and own sites found in this call; `discovering` keeps the client looping. */
+  sitiosBuscados: number;
+  sitiosEncontrados: number;
+  discovering: boolean;
   cursor: number;
   nextCursor: number;
   total: number;
@@ -83,7 +91,7 @@ export async function enrichHunt(db: AppDb, huntId: string, opts: EnrichHuntOpti
   const limit = Math.max(1, Math.min(opts.limit ?? 25, 200));
   const cursor = Math.max(0, opts.cursor ?? 0);
   const [row] = await db
-    .select({ icp: icpProfiles })
+    .select({ icp: icpProfiles, progress: hunts.progress })
     .from(hunts)
     .innerJoin(icpProfiles, eq(icpProfiles.id, hunts.icpProfileId))
     .where(eq(hunts.id, huntId));
@@ -91,7 +99,7 @@ export async function enrichHunt(db: AppDb, huntId: string, opts: EnrichHuntOpti
   const criteria = IcpCriteria.safeParse(row.icp.criteria);
 
   const leadRows = await db
-    .select({ leadId: leads.id, companyId: companies.id, website: companies.website, address: companies.address, city: companies.city })
+    .select({ leadId: leads.id, companyId: companies.id, name: companies.name, website: companies.website, address: companies.address, city: companies.city, fitScore: leads.fitScore, isLegal: companies.isLegalEntity })
     .from(leads)
     .innerJoin(companies, eq(companies.id, leads.companyId))
     .where(and(eq(leads.huntId, huntId), eq(leads.isDemo, false), eq(companies.isDemo, false)))
@@ -102,6 +110,55 @@ export async function enrichHunt(db: AppDb, huntId: string, opts: EnrichHuntOpti
     : [];
   const emailsBy = new Map<string, string[]>();
   for (const e of emailRows) emailsBy.set(e.companyId, [...(emailsBy.get(e.companyId) ?? []), e.value]);
+
+  // Website discovery first (real Apify only): companies with neither a site nor a company mailbox get a web search, best
+  // scores first, DISCOVER_BATCH per call up to DISCOVER_MAX per hunt. A found site is kept only if its domain carries a word
+  // of the company name; the regular enrichment below then reads it.
+  if (opts.useApify && opts.apify?.findWebsites && !opts.apify.isMock && cursor === 0) {
+    const progress = (row.progress ?? {}) as Record<string, unknown> & { websiteSearch?: { searched?: string[] } };
+    const searched = new Set(progress.websiteSearch?.searched ?? []);
+    if (searched.size < DISCOVER_MAX) {
+      const pending = [...leadRows]
+        .filter((l) => l.isLegal && !l.website && !(emailsBy.get(l.companyId)?.length) && !searched.has(l.companyId))
+        .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0))
+        .filter((l, i, arr) => arr.findIndex((x) => x.companyId === l.companyId) === i)
+        .slice(0, Math.min(DISCOVER_BATCH, DISCOVER_MAX - searched.size));
+      if (pending.length) {
+        const base: EnrichHuntSummary = { revisados: 0, enriquecidos: 0, conAgenda: 0, conWhatsapp: 0, contactosNuevos: 0, costoApifyUsd: 0, promovidosAFit: 0, omitidosRecientes: 0, dominiosDeducidos: 0, sitiosBuscados: pending.length, sitiosEncontrados: 0, discovering: true, cursor: 0, nextCursor: 0, total: 0, done: false, notas: [] };
+        const budget = opts.budgetMs ?? 50_000;
+        try {
+          const res = await opts.apify.findWebsites(
+            pending.map((l) => ({ key: l.companyId, q: websiteQuery(l.name, l.city) })),
+            { waitSecs: Math.max(10, Math.min(45, Math.floor(budget / 1000) - 5)) },
+          );
+          await db.insert(apiCalls).values({ service: "apify", endpoint: "google-search", status: 200, latencyMs: res.latencyMs, error: null, costUsd: 0, isMock: res.isMock });
+          const share = res.usageTotalUsd / pending.length;
+          const evidence = `Apify ${res.runId ?? "run"} búsqueda de sitio web · usageTotalUsd ${res.usageTotalUsd.toFixed(6)} · ${pending.length} empresas`;
+          for (const l of pending) await recordApifyCost(db, l.companyId, share, evidence, { isMock: false, isDemo: false });
+          base.costoApifyUsd = Math.round(res.usageTotalUsd * 1e6) / 1e6;
+          const byKey = new Map(res.results.map((r) => [r.key, r.urls]));
+          for (const l of pending) {
+            const site = pickCompanyWebsite(l.name, byKey.get(l.companyId) ?? []);
+            if (!site) continue;
+            await db.update(companies).set({ website: site }).where(eq(companies.id, l.companyId));
+            base.sitiosEncontrados++;
+          }
+        } catch (e) {
+          if (e instanceof ApifyError && e.usageTotalUsd) {
+            const share = e.usageTotalUsd / pending.length;
+            for (const l of pending) await recordApifyCost(db, l.companyId, share, `Apify ${e.runId ?? "run"} búsqueda fallida · usageTotalUsd ${e.usageTotalUsd.toFixed(6)}`, { isMock: false, isDemo: false });
+            base.costoApifyUsd = e.usageTotalUsd;
+          }
+          await db.insert(apiCalls).values({ service: "apify", endpoint: "google-search", status: null, latencyMs: 0, error: e instanceof Error ? e.message : "error", costUsd: 0, isMock: false });
+          base.notas.push(`Búsqueda de sitios falló: ${e instanceof Error ? e.message : "error"}`);
+        }
+        // Remember who was searched (found or not) so the next call moves on.
+        const next = { ...progress, websiteSearch: { searched: [...searched, ...pending.map((l) => l.companyId)] } };
+        await db.update(hunts).set({ progress: next }).where(eq(hunts.id, huntId));
+        return base;
+      }
+    }
+  }
 
   // Candidates: have a website or a deducible own domain. One entry per company (a company could be in the hunt once).
   const seen = new Set<string>();
@@ -122,7 +179,7 @@ export async function enrichHunt(db: AppDb, huntId: string, opts: EnrichHuntOpti
   const fresh = new Set(srcRows.filter((s) => !s.isMock && started - s.fetchedAt.getTime() < ENRICH_FRESH_MS).map((s) => s.companyId));
   const todo = slice.filter((c) => !fresh.has(c.companyId));
 
-  const out: EnrichHuntSummary = { revisados: 0, enriquecidos: 0, conAgenda: 0, conWhatsapp: 0, contactosNuevos: 0, costoApifyUsd: 0, promovidosAFit: 0, omitidosRecientes: slice.length - todo.length, dominiosDeducidos: 0, cursor, nextCursor: cursor, total, done: false, notas: [] };
+  const out: EnrichHuntSummary = { revisados: 0, enriquecidos: 0, conAgenda: 0, conWhatsapp: 0, contactosNuevos: 0, costoApifyUsd: 0, promovidosAFit: 0, omitidosRecientes: slice.length - todo.length, dominiosDeducidos: 0, sitiosBuscados: 0, sitiosEncontrados: 0, discovering: false, cursor, nextCursor: cursor, total, done: false, notas: [] };
 
   const budget = opts.budgetMs ?? Number.POSITIVE_INFINITY;
   // With Apify, keep ~half of the budget for the run itself.

@@ -1,5 +1,5 @@
 import { assertScrapableUrl } from "./guard";
-import type { ApifyAdapter, ApifyRunResult } from "./types";
+import type { ApifyAdapter, ApifyRunResult, ApifySearchResult } from "./types";
 
 /** Mock run: fictional contacts and a fixed fake `usageTotalUsd` (0.002 per URL), always `isMock`. */
 export function createMockApify(): ApifyAdapter {
@@ -17,6 +17,10 @@ export function createMockApify(): ApifyAdapter {
         latencyMs: 0,
         isMock: true,
       };
+    },
+    // Fictional search: never returns a website, so mock runs can never attach a made-up site to a real company.
+    async findWebsites(queries): Promise<ApifySearchResult> {
+      return { results: queries.map((q) => ({ key: q.key, urls: [] })), runId: "mock-search", usageTotalUsd: 0, latencyMs: 0, isMock: true };
     },
   };
 }

@@ -17,11 +17,22 @@ export interface ApifyRunResult {
   isMock: boolean;
 }
 
+/** Organic result URLs Apify's Google Search Scraper returned for one query (keyed by the caller's id). */
+export interface ApifySearchResult {
+  results: Array<{ key: string; urls: string[] }>;
+  runId: string | null;
+  usageTotalUsd: number;
+  latencyMs: number;
+  isMock: boolean;
+}
+
 export interface ApifyAdapter {
   /** True for fictional output: no network, no robots check needed. */
   readonly isMock?: boolean;
   /** `waitSecs` caps how long the call may block (real adapter: <= 50 s, then the run is aborted). */
   scrapeContacts(urls: string[], opts?: { waitSecs?: number }): Promise<ApifyRunResult>;
+  /** Finds candidate company websites with a web search (one query per company; never Maps nor social profiles). */
+  findWebsites?(queries: Array<{ key: string; q: string }>, opts?: { waitSecs?: number }): Promise<ApifySearchResult>;
 }
 
 export class ApifyError extends Error {

@@ -228,3 +228,45 @@ describe("Contact Details Scraper contract", () => {
     expect(calls).toHaveLength(2);
   });
 });
+
+describe("website discovery (web search)", () => {
+  it("keeps only a site whose domain carries a word of the company name, never directories or social networks", async () => {
+    const { pickCompanyWebsite, nameTokens } = await import("@/features/enrichment/discover");
+    expect(nameTokens("180 GRADOS CONSULTORIAS BOGOTA S.A.S")).toEqual(["grados", "consultorias"]);
+    expect(pickCompanyWebsite("180 GRADOS CONSULTORIAS S.A.S", ["https://www.facebook.com/180grados", "https://www.einforma.co/x", "https://180gradosconsultorias.com/contacto"])).toBe("https://180gradosconsultorias.com");
+    expect(pickCompanyWebsite("2MC CONSULTORES SAS", ["https://www.rues.org.co/x", "https://otraempresa.com"])).toBeNull();
+    expect(pickCompanyWebsite("Contadores Unidos Ltda", ["https://maps.google.com/?q=contadores", "https://www.linkedin.com/company/contadores-unidos"])).toBeNull();
+  });
+
+  it("searches the best-scored companies without site or mailbox, stores the found site, records the cost and moves on", async () => {
+    const huntId = await seedHunt();
+    const a = await seedLead(huntId, { name: "Contadores Unidos SAS" });
+    const b = await seedLead(huntId, { name: "Zeta Asesores Ltda" });
+    await db.update(companies).set({ isLegalEntity: true }).where(inArray(companies.id, [a.companyId, b.companyId]));
+    const queries: string[] = [];
+    const apify: ApifyAdapter = {
+      isMock: false,
+      scrapeContacts: async () => ({ items: [], runId: "r", usageTotalUsd: 0, latencyMs: 0, isMock: false }),
+      findWebsites: async (qs) => {
+        queries.push(...qs.map((q) => q.q));
+        return {
+          results: qs.map((q) => ({ key: q.key, urls: q.key === a.companyId ? ["https://www.facebook.com/x", "https://contadoresunidos.com.co/"] : ["https://directorio.test/zeta"] })),
+          runId: "search-1",
+          usageTotalUsd: 0.02,
+          latencyMs: 5,
+          isMock: false,
+        };
+      },
+    };
+    const sites = fakeSites();
+    const first = await enrichHunt(db, huntId, { fetch: sites.adapter, apify, useApify: true });
+    expect(first).toMatchObject({ discovering: true, sitiosBuscados: 2, sitiosEncontrados: 1, costoApifyUsd: 0.02, done: false });
+    expect(queries[0]).toContain("Bogota");
+    const [ca] = await db.select({ website: companies.website }).from(companies).where(eq(companies.id, a.companyId));
+    expect(ca!.website).toBe("https://contadoresunidos.com.co");
+    // Second call: nobody left to search -> the regular enrichment reads the found site.
+    const second = await enrichHunt(db, huntId, { fetch: sites.adapter, apify, useApify: true });
+    expect(second.discovering).toBe(false);
+    expect(second.total).toBe(1);
+  });
+});
