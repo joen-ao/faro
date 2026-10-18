@@ -178,7 +178,12 @@ export function buildChallenge(f: ChallengeFacts, real: MetricsBucket, c: Compli
       requirement: "Calcular el costo por lead calificado (CPLC) de cada canal",
       status: cplc.length > 0 ? "done" : t.costUsd > 0 ? "progress" : "pending",
       value: t.cplc === null ? "n/d" : fmtUsd(t.cplc),
-      detail: cplc.length ? cplc.map((r) => `${contactLabel(r.contact)} ${fmtUsd(r.cplc)}`).join(" · ") : "Aparece con el primer lead calificado",
+      detail: cplc.length
+        ? cplc.map((r) => `${contactLabel(r.contact)} ${fmtUsd(r.cplc)}`).join(" · ")
+        : t.fit > 0 && t.costUsd > 0
+          ? // Labelled assumption on top of the real CPL, never shown as a measured value.
+            `Aparece con el primer lead calificado. Proyección (supuesto, no es dato real) con el CPL actual: si califica 1 de cada 10, ≈ ${fmtUsd(t.costUsd / t.fit / 0.1)}; 1 de cada 20, ≈ ${fmtUsd(t.costUsd / t.fit / 0.05)}`
+          : "Aparece con el primer lead calificado",
     },
   ];
 }

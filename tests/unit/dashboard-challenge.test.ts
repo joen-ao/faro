@@ -90,4 +90,13 @@ describe("Reto Dapta challenge panel", () => {
     const items = buildChallenge(facts, empty, { naturalPersonsContacted: 1, senderIdentifiedPct: null, optOutsTotal: 0, optOutsRespected: 0, blockedBySchedule: 0, blockedTotal: 0, sentTotal: 1 });
     expect(byId(items, "public-data").status).toBe("pending");
   });
+
+  it("projects CPLC from the real CPL, labelled as an assumption, while nobody qualified yet", () => {
+    const facts = { companiesBySource: [], uniqueCompanies: 0, mergedDuplicates: 0, excludedPersons: 0, daptaQualified: 0, daptaEvaluated: 0 };
+    const real = { excludedMockUsd: 0, excludedDemoUsd: 0, bySource: [], byContact: [], cells: [], unattributedUsd: 0, totals: { found: 100, fit: 10, contacted: 10, opened: 2, responded: 0, chatted: 0, qualified: 0, costUsd: 0.2, cpl: 0.02, cplc: null } } as never;
+    const item = byId(buildChallenge(facts, real, { naturalPersonsContacted: 0, senderIdentifiedPct: null, optOutsTotal: 0, optOutsRespected: 0, blockedBySchedule: 0, blockedTotal: 0, sentTotal: 10 }), "cplc");
+    expect(item.value).toBe("n/d");
+    expect(item.detail).toContain("Proyección (supuesto, no es dato real)");
+    expect(item.detail).toContain("1 de cada 10");
+  });
 });

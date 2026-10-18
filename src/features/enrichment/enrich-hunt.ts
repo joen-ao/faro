@@ -19,6 +19,7 @@ export const APIFY_BATCH_SIZE = 25;
 export const DIRECT_CONCURRENCY = 4;
 /** Website discovery (web search) per call and per hunt: the best-scored companies without a site or company email. */
 export const DISCOVER_BATCH = 15;
+export const DISCOVER_RUNS = 4;
 export const DISCOVER_MAX = 150;
 
 /** Own domain deducible from a generic company mailbox (`info@clinica.co` -> `clinica.co`); undefined for free/shared hosts. */
@@ -122,36 +123,45 @@ export async function enrichHunt(db: AppDb, huntId: string, opts: EnrichHuntOpti
         .filter((l) => l.isLegal && !l.website && !(emailsBy.get(l.companyId)?.length) && !searched.has(l.companyId))
         .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0))
         .filter((l, i, arr) => arr.findIndex((x) => x.companyId === l.companyId) === i)
-        .slice(0, Math.min(DISCOVER_BATCH, DISCOVER_MAX - searched.size));
+        .slice(0, Math.min(DISCOVER_BATCH * DISCOVER_RUNS, DISCOVER_MAX - searched.size));
       if (pending.length) {
         const base: EnrichHuntSummary = { revisados: 0, enriquecidos: 0, conAgenda: 0, conWhatsapp: 0, contactosNuevos: 0, costoApifyUsd: 0, promovidosAFit: 0, omitidosRecientes: 0, dominiosDeducidos: 0, sitiosBuscados: pending.length, sitiosEncontrados: 0, discovering: true, cursor: 0, nextCursor: 0, total: 0, done: false, notas: [] };
         const budget = opts.budgetMs ?? 50_000;
-        try {
-          const res = await opts.apify.findWebsites(
-            pending.map((l) => ({ key: l.companyId, q: websiteQuery(l.name, l.city) })),
-            { waitSecs: Math.max(10, Math.min(45, Math.floor(budget / 1000) - 5)) },
-          );
-          await db.insert(apiCalls).values({ service: "apify", endpoint: "google-search", status: 200, latencyMs: res.latencyMs, error: null, costUsd: 0, isMock: res.isMock });
-          const share = res.usageTotalUsd / pending.length;
-          const evidence = `Apify ${res.runId ?? "run"} búsqueda de sitio web · usageTotalUsd ${res.usageTotalUsd.toFixed(6)} · ${pending.length} empresas`;
-          for (const l of pending) await recordApifyCost(db, l.companyId, share, evidence, { isMock: false, isDemo: false });
-          base.costoApifyUsd = Math.round(res.usageTotalUsd * 1e6) / 1e6;
-          const byKey = new Map(res.results.map((r) => [r.key, r.urls]));
-          for (const l of pending) {
-            const site = pickCompanyWebsite(l.name, byKey.get(l.companyId) ?? []);
-            if (!site) continue;
-            await db.update(companies).set({ website: site }).where(eq(companies.id, l.companyId));
-            base.sitiosEncontrados++;
+        const findWebsites = opts.apify.findWebsites.bind(opts.apify);
+        const waitSecs = Math.max(10, Math.min(45, Math.floor(budget / 1000) - 5));
+        // DISCOVER_RUNS actor runs in parallel (DISCOVER_BATCH companies each): one call searches up to 60 companies.
+        const chunks: (typeof pending)[] = [];
+        for (let i = 0; i < pending.length; i += DISCOVER_BATCH) chunks.push(pending.slice(i, i + DISCOVER_BATCH));
+        const settled = await Promise.allSettled(chunks.map((chunk) => findWebsites(chunk.map((l) => ({ key: l.companyId, q: websiteQuery(l.name, l.city) })), { waitSecs })));
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i]!;
+          const r = settled[i]!;
+          if (r.status === "fulfilled") {
+            const res = r.value;
+            await db.insert(apiCalls).values({ service: "apify", endpoint: "google-search", status: 200, latencyMs: res.latencyMs, error: null, costUsd: 0, isMock: res.isMock });
+            const share = res.usageTotalUsd / chunk.length;
+            const evidence = `Apify ${res.runId ?? "run"} búsqueda de sitio web · usageTotalUsd ${res.usageTotalUsd.toFixed(6)} · ${chunk.length} empresas`;
+            for (const l of chunk) await recordApifyCost(db, l.companyId, share, evidence, { isMock: false, isDemo: false });
+            base.costoApifyUsd += res.usageTotalUsd;
+            const byKey = new Map(res.results.map((x) => [x.key, x.urls]));
+            for (const l of chunk) {
+              const site = pickCompanyWebsite(l.name, byKey.get(l.companyId) ?? []);
+              if (!site) continue;
+              await db.update(companies).set({ website: site }).where(eq(companies.id, l.companyId));
+              base.sitiosEncontrados++;
+            }
+          } else {
+            const e = r.reason;
+            if (e instanceof ApifyError && e.usageTotalUsd) {
+              const share = e.usageTotalUsd / chunk.length;
+              for (const l of chunk) await recordApifyCost(db, l.companyId, share, `Apify ${e.runId ?? "run"} búsqueda fallida · usageTotalUsd ${e.usageTotalUsd.toFixed(6)}`, { isMock: false, isDemo: false });
+              base.costoApifyUsd += e.usageTotalUsd;
+            }
+            await db.insert(apiCalls).values({ service: "apify", endpoint: "google-search", status: null, latencyMs: 0, error: e instanceof Error ? e.message : "error", costUsd: 0, isMock: false });
+            base.notas.push(`Búsqueda de sitios falló: ${e instanceof Error ? e.message : "error"}`);
           }
-        } catch (e) {
-          if (e instanceof ApifyError && e.usageTotalUsd) {
-            const share = e.usageTotalUsd / pending.length;
-            for (const l of pending) await recordApifyCost(db, l.companyId, share, `Apify ${e.runId ?? "run"} búsqueda fallida · usageTotalUsd ${e.usageTotalUsd.toFixed(6)}`, { isMock: false, isDemo: false });
-            base.costoApifyUsd = e.usageTotalUsd;
-          }
-          await db.insert(apiCalls).values({ service: "apify", endpoint: "google-search", status: null, latencyMs: 0, error: e instanceof Error ? e.message : "error", costUsd: 0, isMock: false });
-          base.notas.push(`Búsqueda de sitios falló: ${e instanceof Error ? e.message : "error"}`);
         }
+        base.costoApifyUsd = Math.round(base.costoApifyUsd * 1e6) / 1e6;
         // Remember who was searched (found or not) so the next call moves on.
         const next = { ...progress, websiteSearch: { searched: [...searched, ...pending.map((l) => l.companyId)] } };
         await db.update(hunts).set({ progress: next }).where(eq(hunts.id, huntId));
