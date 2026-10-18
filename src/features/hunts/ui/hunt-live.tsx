@@ -182,7 +182,7 @@ export function HuntLive({ huntId, initialLeadId }: { huntId: string; initialLea
       {/* title card */}
       <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-w-[calc(100%-24px)] flex-col gap-2.5 md:top-4 md:left-4 md:max-w-[min(560px,calc(100%-480px))]">
         <div className="pointer-events-auto faro-rise flex items-center gap-3 rounded-[16px] border border-white/[0.14] bg-faro-surface-1/95 py-2.5 pr-4 pl-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-          <Link href="/app/new" aria-label="Volver a nueva búsqueda" className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-white/[0.14] text-white transition-colors hover:border-faro-accent">
+          <Link href="/app/hunts" aria-label="Volver a mis búsquedas" className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-white/[0.14] text-white transition-colors hover:border-faro-accent">
             <ArrowLeft className="size-4" aria-hidden />
           </Link>
           <div className="min-w-0">
