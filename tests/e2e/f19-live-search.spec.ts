@@ -71,6 +71,79 @@ test("new profile: conversation, editable chips and source cards", async ({ page
   expect(sent.offer?.angles).toHaveLength(1);
 });
 
+test("new search over several cities or a whole country", async ({ page }, info) => {
+  const width = widthOf(info);
+  await page.goto("/app/new");
+  await page.getByTestId("example-bogota-dental").click();
+  await expect(page.getByTestId("launch")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("place-picker")).toContainText("Bogotá");
+
+  // Cities mode: searchable presets, removable chips, max 5.
+  await page.getByTestId("place-picker").click();
+  await expect(page.getByTestId("place-panel")).toBeVisible();
+  await page.getByTestId("city-search").fill("mede");
+  await page.getByTestId("city-option-medellin").click();
+  await page.getByTestId("city-option-cali").click();
+  await expect(page.getByTestId("place-picker")).toContainText("Bogotá, Medellín +1");
+  const summary = page.getByTestId("launch-summary");
+  await expect(summary).toHaveText("3 fuentes · dental en Bogotá, Medellín y Cali");
+  // estimates add up per city; OSM was not measured outside Bogotá, so no number is invented
+  const cards = page.getByTestId("source-cards").locator("li");
+  await expect(cards.nth(1)).toContainText("≈ 2.191 registros en 3 ciudades");
+  await expect(cards.nth(0)).toContainText("Estimado no disponible");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByTestId("place-panel").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `artifacts/screens/F07-multiciudad-ciudades-${width}.png`, fullPage: true });
+
+  await page.getByRole("button", { name: "Quitar Cali" }).click();
+  await expect(summary).toHaveText("3 fuentes · dental en Bogotá y Medellín");
+  await page.getByTestId("city-option-barranquilla").click();
+  await page.getByTestId("city-option-cartagena").click();
+  await page.getByTestId("city-option-cali").click();
+  await expect(page.getByTestId("city-search")).toBeDisabled();
+  await expect(page.getByTestId("city-option-miami")).toHaveCount(0); // one country per search
+
+  // Country mode: Colombia expands to its 5 main cities.
+  await page.getByTestId("place-mode-country").click();
+  await page.getByTestId("country-option-CO").click();
+  await expect(page.getByTestId("country-option-CO")).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByTestId("place-picker")).toContainText("Colombia (5 ciudades)");
+  await expect(summary).toHaveText("3 fuentes · dental en Bogotá, Medellín, Cali, Barranquilla y Cartagena");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByTestId("place-panel").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `artifacts/screens/F07-multiciudad-pais-${width}.png`, fullPage: true });
+  await page.getByTestId("place-done").click();
+  await expect(page.getByTestId("place-panel")).toBeHidden();
+
+  // The hunt is created with every city. Answered with the demo hunt (no real data for later specs); its stream is
+  // given the 5 cities so the live map frames all of them.
+  let sent: { criteria?: { city: string; scope?: string; cities?: Array<{ name: string; bbox?: number[] }> } } = {};
+  await page.route("**/api/hunts", async (route) => {
+    sent = route.request().postDataJSON();
+    await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ huntId: "demo" }) });
+  });
+  await page.route("**/api/hunts/*/stream*", async (route) => {
+    const res = await route.fetch();
+    const body = await res.json();
+    await route.fulfill({ response: res, json: { ...body, cities: sent.criteria?.cities ?? [], area: "Colombia (5 ciudades)" } });
+  });
+  await page.getByTestId("service-pick-agentes-ia").click();
+  await page.getByTestId("launch").click();
+  await expect(page).toHaveURL(/\/app\/hunts\/demo$/, { timeout: 20_000 });
+  expect(sent.criteria).toMatchObject({ city: "Bogota", scope: "country" });
+  expect(sent.criteria?.cities?.map((c) => c.name)).toEqual(["Bogota", "Medellin", "Cali", "Barranquilla", "Cartagena"]);
+  expect(sent.criteria?.cities?.every((c) => c.bbox?.length === 4)).toBe(true);
+  await expect(page.getByTestId("hunt-title")).toContainText("Colombia (5 ciudades)", { timeout: 60_000 });
+  const mapLoaded = await page
+    .waitForSelector('[data-testid="map"][data-loaded="true"]', { timeout: 30_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (mapLoaded) await page.waitForTimeout(4000); // fit + basemap tiles
+  await page.screenshot({ path: `artifacts/screens/F07-multiciudad-mapa-${width}.png` });
+});
+
 test("live hunt (DEMO 2.000 points): map, virtual list, filters and lead drawer", async ({ page }, info) => {
   const width = widthOf(info);
   await page.goto("/app/hunts/demo");
