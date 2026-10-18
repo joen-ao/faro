@@ -12,7 +12,11 @@ export interface MetricsRow {
   /** leads of the profile: fit_score >= ICP threshold */
   fit: number;
   contacted: number;
+  /** Opened the diagnostic page (widget_open, or click with payload.kind = page_view). */
+  opened: number;
   responded: number;
+  /** Talked to the Dapta agent (widget_chat event or a Dapta-origin qualification). */
+  chatted: number;
   qualified: number;
   costUsd: number;
   /** costUsd / fit, null when fit = 0 */
@@ -53,7 +57,9 @@ interface Raw {
   found?: number;
   fit?: number;
   contacted?: number;
+  opened?: number;
   responded?: number;
+  chatted?: number;
   qualified?: number;
   qfit?: number;
   usd?: number;
@@ -62,7 +68,7 @@ interface Raw {
 
 /**
  * One row per lead with its funnel flags. Mock messages/events/qualifications only count for demo leads
- * (SPEC §7: mock never mixes with real). The contact channel is that of the first sent message,
+ * (SPEC §7: mock never mixes with real; neither do demo-flagged events/qualifications on a real lead). The contact channel is that of the first sent message,
  * or `dapta_widget` for inbound widget activity.
  */
 export const LEAD_FACTS = `
@@ -74,11 +80,14 @@ with lf as (
         where m.lead_id = l.id and m.status in ('sent','delivered') and (l.is_demo or not m.is_mock)
         order by m.sent_at asc nulls last, m.created_at asc limit 1),
       (select 'dapta_widget' from events e
-        where e.lead_id = l.id and e.type in ('widget_open','widget_chat','form_submit') and (l.is_demo or not e.is_mock) limit 1)
+        where e.lead_id = l.id and e.type in ('widget_open','widget_chat','form_submit') and (l.is_demo or not (e.is_mock or e.is_demo)) limit 1)
     ) as ch,
-    exists (select 1 from events e where e.lead_id = l.id and e.type in ('reply','widget_chat','form_submit') and (l.is_demo or not e.is_mock)) as responded,
+    exists (select 1 from events e where e.lead_id = l.id and e.type in ('reply','widget_chat','form_submit') and (l.is_demo or not (e.is_mock or e.is_demo))) as responded,
     exists (select 1 from messages m where m.lead_id = l.id and m.status in ('sent','delivered') and (l.is_demo or not m.is_mock)) as contacted,
-    exists (select 1 from qualifications q where q.lead_id = l.id and q.qualified and (l.is_demo or not q.is_mock)) as qualified
+    exists (select 1 from events e where e.lead_id = l.id and (e.type = 'widget_open' or (e.type = 'click' and e.payload->>'kind' = 'page_view')) and (l.is_demo or not (e.is_mock or e.is_demo))) as opened,
+    (exists (select 1 from events e where e.lead_id = l.id and e.type = 'widget_chat' and (l.is_demo or not (e.is_mock or e.is_demo)))
+      or exists (select 1 from qualifications q where q.lead_id = l.id and q.origin = 'dapta' and (l.is_demo or not (q.is_mock or q.is_demo)))) as chatted,
+    exists (select 1 from qualifications q where q.lead_id = l.id and q.qualified and (l.is_demo or not (q.is_mock or q.is_demo))) as qualified
   from leads l
   left join hunts h on h.id = l.hunt_id
   left join icp_profiles i on i.id = h.icp_profile_id
@@ -111,7 +120,9 @@ select ${g.sel}, demo,
   count(*)::int as found,
   (count(*) filter (where fit))::int as fit,
   (count(*) filter (where contacted))::int as contacted,
+  (count(*) filter (where opened))::int as opened,
   (count(*) filter (where responded))::int as responded,
+  (count(*) filter (where chatted))::int as chatted,
   (count(*) filter (where qualified))::int as qualified,
   (count(*) filter (where qualified and fit))::int as qfit
 from lf ${filter} group by ${g.grp}`),
@@ -137,7 +148,9 @@ function buildRow(source: string | null, contact: string | null, a: Counts): Met
     found: a.found,
     fit: a.fit,
     contacted: a.contacted,
+    opened: a.opened,
     responded: a.responded,
+    chatted: a.chatted,
     qualified: a.qualified,
     costUsd,
     cpl: a.fit > 0 ? costUsd / a.fit : null,
@@ -147,8 +160,8 @@ function buildRow(source: string | null, contact: string | null, a: Counts): Met
   };
 }
 
-type Counts = { found: number; fit: number; contacted: number; responded: number; qualified: number; qfit: number; usd: number };
-const zero = (): Counts => ({ found: 0, fit: 0, contacted: 0, responded: 0, qualified: 0, qfit: 0, usd: 0 });
+type Counts = { found: number; fit: number; contacted: number; opened: number; responded: number; chatted: number; qualified: number; qfit: number; usd: number };
+const zero = (): Counts => ({ found: 0, fit: 0, contacted: 0, opened: 0, responded: 0, chatted: 0, qualified: 0, qfit: 0, usd: 0 });
 
 function fold(raw: Raw[], demo: boolean, dim: Dim): { rows: MetricsRow[]; unattributed: number; nullKeyUsd: number } {
   const acc = new Map<string, { src: string | null; ch: string | null; v: ReturnType<typeof zero> }>();
@@ -166,7 +179,7 @@ function fold(raw: Raw[], demo: boolean, dim: Dim): { rows: MetricsRow[]; unattr
     }
     const key = `${r.src}|${r.ch}`;
     const cur = acc.get(key) ?? { src: r.src, ch: r.ch, v: zero() };
-    for (const k of ["found", "fit", "contacted", "responded", "qualified", "qfit", "usd"] as const) cur.v[k] += r[k] ?? 0;
+    for (const k of ["found", "fit", "contacted", "opened", "responded", "chatted", "qualified", "qfit", "usd"] as const) cur.v[k] += r[k] ?? 0;
     acc.set(key, cur);
   }
   const out = [...acc.values()].map((x) => buildRow(x.src, x.ch, x.v));
@@ -188,7 +201,9 @@ export async function getChannelMetrics(db: AppDb, opts: { includeDemo?: boolean
       total.found += r.found;
       total.fit += r.fit;
       total.contacted += r.contacted;
+      total.opened += r.opened;
       total.responded += r.responded;
+      total.chatted += r.chatted;
       total.qualified += r.qualified;
       total.qfit += r.qualifiedRate.k;
     }

@@ -22,6 +22,10 @@ test("dashboard: empty real state, then demo toggle shows separated DEMO data", 
   await expect(page.getByRole("region", { name: /Datos de prueba/ })).toBeVisible();
   await expect(page.getByRole("region", { name: /Datos de prueba/ }).getByRole("complementary", { name: "Recomendación" })).toContainText("Ejemplo con datos de prueba");
   await expect(page.getByText("Pauta vs. fuentes gratuitas")).toBeVisible();
+  const demoRegion = page.getByRole("region", { name: /Datos de prueba/ });
+  await expect(demoRegion.getByTestId("funnel-source")).toContainText("Abrieron diagnóstico");
+  await expect(demoRegion.getByTestId("funnel-source")).toContainText("Conversaron con el agente");
+  await expect(demoRegion.getByTestId("funnel-contact")).toContainText("Abrieron diagnóstico");
 
   // heatmap cell -> leads -> receipt
   await page.getByRole("button", { name: /^REPS por Correo/ }).click();
