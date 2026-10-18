@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { findCity, findSector, ICP_EXAMPLES } from "@/features/icp/presets";
 import { DEFAULT_THRESHOLD, type IcpCriteria } from "@/features/icp/schema";
+import { OfferStep, type OfferSelection } from "@/features/offer/ui/offer-step";
 import { cn } from "@/lib/utils";
 import { estimateSources } from "../estimates";
 import { SOURCE_LABEL, fmtInt } from "./format";
@@ -164,6 +165,12 @@ export function NewProfile() {
   const [modes, setModes] = useState<Modes>({});
   const [submitted, setSubmitted] = useState("");
   const resultRef = useRef<HTMLDivElement>(null);
+  const [offer, setOffer] = useState<OfferSelection>({ services: [], angles: [], refinements: [] });
+  const [offerError, setOfferError] = useState<string | null>(null);
+  const onOffer = useCallback((o: OfferSelection) => {
+    setOffer(o);
+    if (o.services.length) setOfferError(null);
+  }, []);
 
   useEffect(() => {
     fetch("/api/health")
@@ -212,12 +219,27 @@ export function NewProfile() {
   const applicable = estimates.filter((e) => e.applicable);
   const totalEstimate = applicable.reduce((a, e) => a + (e.estimate ?? 0), 0);
 
+  const offerCriteria = useMemo(
+    () => (criteria && (phase === "ready" || phase === "launching") ? { sector: criteria.sector, city: criteria.city, signals: criteria.signals } : null),
+    [criteria, phase],
+  );
+
   const launch = async () => {
     if (!criteria) return;
+    if (offer.services.length === 0) {
+      setOfferError("Elige al menos un servicio: es lo que Faro le ofrecerá a cada empresa.");
+      document.getElementById("oferta")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     setError(null);
     setPhase("launching");
     try {
-      const res = await fetch("/api/hunts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: submitted, criteria }) });
+      const res = await fetch("/api/hunts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+          prompt: submitted,
+          criteria,
+          offer: { serviceIds: offer.services.map((s) => s.id), services: offer.services, angles: offer.angles, refinements: offer.refinements },
+        }),
+      });
       const body = (await res.json().catch(() => ({}))) as { huntId?: string; error?: string };
       if (!res.ok || !body.huntId) throw new Error(body.error ?? `HTTP ${res.status}`);
       router.push(`/app/hunts/${body.huntId}`);
@@ -313,6 +335,8 @@ export function NewProfile() {
             ))}
           </div>
         </section>
+
+        <OfferStep criteria={offerCriteria} error={offerError} onChange={onOffer} />
 
         {phase !== "idle" && (
           <section ref={resultRef} aria-label="Perfil estructurado" className="faro-rise flex scroll-mt-20 flex-col gap-5 rounded-[20px] border border-white/10 bg-faro-surface-1 p-5 md:p-6">

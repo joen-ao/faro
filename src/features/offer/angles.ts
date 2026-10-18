@@ -52,7 +52,7 @@ export function deterministicAngles(input: AnglesInput): { angles: Angle[]; refi
 
 const MOCK_SERVICES: { match: string[]; service: z.input<typeof ServiceCatalog>[number] }[] = [
   {
-    match: ["whatsapp", "chat", "agente", "bot", "automatiz", "ia "],
+    match: ["whatsapp", "chat", "agente", "bot", "automatiz", " ia "],
     service: {
       name: "Agente de WhatsApp con IA",
       description: "Un agente que responde y agenda por WhatsApp a cualquier hora, con supervisión de su equipo.",
@@ -80,7 +80,7 @@ const MOCK_SERVICES: { match: string[]; service: z.input<typeof ServiceCatalog>[
     },
   },
   {
-    match: ["software", "crm", "sistema", "aplicacion", "app"],
+    match: ["software", "crm", "sistema", "aplicacion", " app "],
     service: {
       name: "Software a medida",
       description: "Sistemas hechos para cómo trabaja el negocio: seguimiento, agenda y reportes en un solo lugar.",

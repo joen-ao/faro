@@ -7,7 +7,7 @@ export type FindingKind = (typeof FINDING_KINDS)[number];
 export const SERVICE_LIMITS = { name: 80, description: 300, outcome: 200, entryOffer: 120, proof: 200, max: 8, keywords: 12, keyword: 40, note: 200 } as const;
 
 // "Dra. Ana Gómez", "el señor Pérez": a title followed by capitalised words reads as a person -> masked.
-const TITLED_PERSON = /\b(?:dr|dra|doctor|doctora|od|odont[oó]log[oa]|sr|sra|se[nñ]or|se[nñ]ora|don|do[nñ]a|ing|lic)\.?\s+(?:[A-ZÁÉÍÓÚÑ][\p{L}'-]+)(?:\s+(?:de\s+(?:la\s+|los\s+)?)?[A-ZÁÉÍÓÚÑ][\p{L}'-]+)*/gu;
+const TITLED_PERSON = /\b(?:[Dd]ra?|[Dd]octora?|[Oo]d|[Oo]dont[oó]log[oa]|[Ss]ra?|[Ss]e[nñ]ora?|[Dd]on|[Dd]o[nñ]a|[Ii]ng|[Ll]ic)\.?\s+(?:[A-ZÁÉÍÓÚÑ][\p{L}'-]+)(?:\s+(?:de\s+(?:la\s+|los\s+)?)?[A-ZÁÉÍÓÚÑ][\p{L}'-]+)*/gu;
 
 /**
  * Cleans free text typed by the team or returned by the model: no tags, URLs, control characters or emails,
