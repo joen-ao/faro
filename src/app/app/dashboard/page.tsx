@@ -27,19 +27,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const data = await getDashboardData((await getReadyDb()) as unknown as AppDb, { includeDemo });
 
   return (
-    <main className="relative isolate">
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[360px]" style={{ background: "var(--faro-glow-violet)" }} />
-      <div className="mx-auto max-w-[1240px] px-4 py-8 sm:px-8 sm:py-12">
-        <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+    <main>
+      <div className="mx-auto max-w-[1280px] px-4 pb-16 pt-8 sm:px-6 sm:pb-[72px] sm:pt-9">
+        <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-faro-text-3">Faro · tablero</p>
-            <h1 className="mt-2 text-3xl font-bold leading-tight sm:text-5xl">¿Qué fuente rinde más por peso?</h1>
-            <p className="mt-2 max-w-xl text-faro-text-2">Cada número viene de registros de costo reales y se puede abrir hasta su recibo.</p>
+            <p className="text-[13px] uppercase tracking-[0.2em] text-faro-text-3">Tablero</p>
+            <h1 className="mt-2 text-3xl font-bold leading-tight tracking-[-0.03em] sm:text-[40px]">¿Qué fuente rinde más por peso?</h1>
+            <p className="mt-2 max-w-xl text-sm text-faro-text-2">Cada número viene de registros de costo reales y se puede abrir hasta su recibo.</p>
           </div>
           <DemoToggle on={includeDemo} />
         </header>
 
-        <div className="mt-8 space-y-10">
+        <div className="mt-7 space-y-7">
           <ChallengePanel items={data.challenge} />
 
           <section aria-label="Datos reales">

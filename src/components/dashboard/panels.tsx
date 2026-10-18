@@ -15,12 +15,12 @@ export function Panel({ title, hint, children, className, id }: { title: string;
   );
 }
 
-function Kpi({ label, value, note, empty }: { label: string; value: string; note: string; empty?: boolean }) {
+function Kpi({ label, value, note, empty, accent }: { label: string; value: string; note: string; empty?: boolean; accent?: boolean }) {
   return (
-    <div className="rounded-card border border-border bg-card p-5">
-      <p className="text-xs uppercase tracking-[0.14em] text-faro-text-3">{label}</p>
-      <p className={cn("mt-2 font-display font-bold tabular-nums tracking-tight", empty ? "text-lg leading-8 text-faro-text-2" : "text-4xl text-white")}>{value}</p>
-      <p className="mt-1 text-xs text-faro-text-2">{note}</p>
+    <div className="rounded-card border border-white/10 bg-faro-surface-1 p-5">
+      <p className="text-[13px] text-faro-text-3">{label}</p>
+      <p className={cn("mt-2 font-display font-bold tabular-nums tracking-tight", empty ? "text-lg leading-[2.75rem] text-faro-text-2" : cn("text-4xl", accent ? "text-faro-accent" : "text-white"))}>{value}</p>
+      <p className="mt-1 text-[13px] text-faro-text-3">{note}</p>
     </div>
   );
 }
@@ -30,17 +30,108 @@ export function KpiRow({ bucket }: { bucket: MetricsBucket }) {
   const q = t.qualifiedRate;
   const rate = q.n > 0 ? q.k / q.n : null;
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Kpi label="Leads del perfil" value={fmtInt(t.fit)} note={`de ${fmtInt(t.found)} encontrados`} />
-      <Kpi label="CPL global" value={t.cpl === null ? INSUFFICIENT : fmtUsd(t.cpl)} empty={t.cpl === null} note={`costo ${fmtUsd(t.costUsd)} ÷ ${fmtInt(t.fit)} del perfil`} />
+    <section aria-label="Indicadores" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <Kpi label="Leads del perfil" value={fmtInt(t.fit)} accent note={`de ${fmtInt(t.found)} encontrados`} />
+      <Kpi label="CPL global" value={t.cpl === null ? INSUFFICIENT : fmtUsd(t.cpl)} empty={t.cpl === null} note={`${fmtUsd(t.costUsd)} en API + IA + envíos ÷ ${fmtInt(t.fit)} del perfil`} />
       <Kpi
         label="% calificado"
         value={rate === null ? INSUFFICIENT : fmtPct(rate)}
         empty={rate === null}
-        note={q.n > 0 ? `${q.k} de ${q.n} · ${fmtInterval(q)}` : "aún sin leads del perfil"}
+        note={q.n > 0 ? `${q.k} de ${q.n} por el agente de Dapta · ${fmtInterval(q)}` : "aún sin leads del perfil"}
       />
-      <Kpi label="CPLC" value={t.cplc === null ? INSUFFICIENT : fmtUsd(t.cplc)} empty={t.cplc === null} note={t.cplc === null ? "ningún lead calificado todavía" : `costo ÷ ${t.qualified} calificados`} />
-    </div>
+      <Kpi label="CPLC" value={t.cplc === null ? "n/d" : fmtUsd(t.cplc)} empty={t.cplc === null} note={t.cplc === null ? "costo por lead calificado · ningún calificado todavía" : `costo por lead calificado · ÷ ${t.qualified} calificados`} />
+    </section>
+  );
+}
+
+const TOTAL_STAGES = ["found", "fit", "contacted", "opened", "chatted", "qualified"] as const;
+
+/** Whole-world funnel (design: Encontrados → … → Calificados). Log-scaled bars so small stages stay visible next to thousands found. */
+export function TotalsFunnel({ bucket, id }: { bucket: MetricsBucket; id: string }) {
+  const t = bucket.totals;
+  const stages = TOTAL_STAGES.map((k) => FUNNEL_STAGES.find((s) => s.key === k)!);
+  const scale = Math.log10(Math.max(1, t.found) + 1);
+  return (
+    <section aria-labelledby={id} className="min-w-0 flex-[3_1_560px] rounded-card border border-white/10 bg-faro-surface-1 p-5 sm:p-6">
+      <h3 id={id} className="font-display text-xl font-semibold">Embudo</h3>
+      <ol className="mt-5 space-y-3 sm:space-y-2.5" data-testid="funnel-total">
+        {stages.map((s, i) => {
+          const v = t[s.key];
+          const w = v > 0 ? Math.max(2, (Math.log10(v + 1) / scale) * 100) : 0;
+          return (
+            <li key={s.key} data-stage={s.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3.5 gap-y-1.5 sm:grid-cols-[170px_minmax(0,1fr)_64px]">
+              <span className="text-sm text-white/75">{s.label}</span>
+              <span className="text-right font-bold tabular-nums sm:order-3">{fmtInt(v)}</span>
+              <div className="col-span-2 h-5 sm:order-2 sm:col-span-1 sm:h-7">
+                <div className="h-full rounded-lg" style={{ width: `${Math.min(100, w)}%`, background: i === 0 ? "var(--faro-surface-3)" : `rgba(203,232,80,${s.alpha})` }} />
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="mt-4 text-xs text-faro-text-3">Barras en escala logarítmica para que las etapas pequeñas se vean junto a los encontrados.</p>
+    </section>
+  );
+}
+
+/** Highlights the first recommended source name in lime inside the sentence. */
+function RecText({ rec }: { rec: Recommendation }) {
+  const label = rec.sources[0] ? sourceLabel(rec.sources[0]) : null;
+  const at = label ? rec.text.indexOf(label) : -1;
+  if (!label || at < 0) return <>{rec.text}</>;
+  return (
+    <>
+      {rec.text.slice(0, at)}
+      <strong className="text-faro-accent">{label}</strong>
+      {rec.text.slice(at + label.length)}
+    </>
+  );
+}
+
+/** CPL and CPLC per source with the recommendation sentence (real) or a labelled example (demo). */
+export function CplTable({ bucket, rec, id, demo = false }: { bucket: MetricsBucket; rec: Recommendation; id: string; demo?: boolean }) {
+  const rows = bucket.bySource.filter((r) => r.source !== null);
+  const hasPaid = rows.some((r) => r.source === "meta_ads");
+  const cell = "py-3 text-right tabular-nums";
+  return (
+    <section id={id} aria-labelledby={`${id}-h`} className="min-w-0 flex-[2_1_380px] scroll-mt-20 rounded-card border border-white/10 bg-faro-surface-1 p-5 sm:p-6">
+      <h3 id={`${id}-h`} className="font-display text-xl font-semibold">CPL por fuente</h3>
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <caption className="sr-only">Leads del perfil, costo por lead (CPL) y costo por lead calificado (CPLC) de cada fuente</caption>
+          <thead>
+            <tr className="text-left text-faro-text-3">
+              <th scope="col" className="py-2 font-medium">Fuente</th>
+              <th scope="col" className="py-2 text-right font-medium">Del perfil</th>
+              <th scope="col" className="py-2 text-right font-medium">CPL</th>
+              <th scope="col" className="py-2 text-right font-medium">CPLC</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.source} className="border-t border-white/10">
+                <th scope="row" className="py-3 pr-3 text-left font-normal">{sourceLabel(r.source)}</th>
+                <td className={cell}>{fmtInt(r.fit)}</td>
+                <td className={cn(cell, r.cpl === null ? "text-faro-text-3" : "text-faro-accent")}>{r.cpl === null ? "sin datos" : fmtUsd(r.cpl)}</td>
+                <td className={cn(cell, r.cplc === null ? "text-faro-text-3" : "text-white")}>{r.cplc === null ? "n/d" : fmtUsd(r.cplc)}</td>
+              </tr>
+            ))}
+            {!hasPaid && (
+              <tr className="border-t border-white/10">
+                <th scope="row" className="py-3 pr-3 text-left font-normal">{sourceLabel("meta_ads")}</th>
+                <td className={cell}>0</td>
+                <td className={cn(cell, "text-faro-text-3")}>sin datos</td>
+                <td className={cn(cell, "text-faro-text-3")}>n/d</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <aside aria-label="Recomendación" className={cn("mt-4 rounded-[10px] bg-faro-surface-2 p-3.5 text-sm leading-relaxed", rec.kind === "winner" ? "text-white" : "text-faro-text-2")}>
+        {demo && <span className="mb-1 block text-xs font-semibold tracking-[0.14em] text-faro-text-3">DEMO · no es una recomendación real</span>}
+        <RecText rec={rec} />
+      </aside>
+    </section>
   );
 }
 

@@ -33,6 +33,9 @@ describe("Reto Dapta challenge panel", () => {
       cplc: "pending",
     });
     expect(d.challenge.filter((i) => i.group === "required")).toHaveLength(6);
+    // no CPL table without real leads, so no dangling anchor
+    expect(byId(d.challenge, "dashboard").href).toBeUndefined();
+    expect(d.challenge.every((i) => i.title.length > 0)).toBe(true);
   });
 
   it("counts real sources, unique companies, merged duplicates and keeps 'en curso' until someone responds", async () => {
@@ -69,7 +72,7 @@ describe("Reto Dapta challenge panel", () => {
     expect(byId(d.challenge, "icp")).toMatchObject({ status: "done", value: "2 de 3" });
     expect(byId(d.challenge, "outreach")).toMatchObject({ status: "progress", value: "1 enviado" });
     expect(byId(d.challenge, "outreach").detail).toContain("1 abrió");
-    expect(byId(d.challenge, "dashboard").status).toBe("done");
+    expect(byId(d.challenge, "dashboard")).toMatchObject({ status: "done", href: "#cpl" });
     expect(byId(d.challenge, "dapta").status).toBe("progress");
 
     await db.insert(s.events).values({ leadId: leadIds[0], type: "reply" });
