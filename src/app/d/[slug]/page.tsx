@@ -11,7 +11,7 @@ import { DiagnosticView } from "../_components/diagnostic-view";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Diagnóstico de captación de pacientes",
+  title: "Diagnóstico gratuito de su presencia digital",
   robots: { index: false, follow: false },
 };
 

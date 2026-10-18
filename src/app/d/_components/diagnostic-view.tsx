@@ -237,7 +237,7 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
   const product = env.NEXT_PUBLIC_PRODUCT_NAME;
   const isIcp = !!icp;
   const trackingProp = { c: tracking.c, s: tracking.s, utm: tracking.utm };
-  const wa = whatsappHref(env.NEXT_PUBLIC_WHATSAPP_NUMBER, company?.name, slug);
+  const wa = whatsappHref(env.NEXT_PUBLIC_WHATSAPP_NUMBER, company?.name, slug, health);
   const sorted = [...findings].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
   const opportunityCards = sorted.filter((f) => f.status === "opportunity");
   const gridCards = sorted.filter((f) => f.status !== "opportunity");
