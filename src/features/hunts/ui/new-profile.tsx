@@ -3,12 +3,13 @@
 import { AlertTriangle, ArrowRight, Check, CornerDownLeft, Pencil, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { findCity, findSector, ICP_EXAMPLES } from "@/features/icp/presets";
+import { areaList, findSector, ICP_EXAMPLES } from "@/features/icp/presets";
 import { DEFAULT_THRESHOLD, type IcpCriteria } from "@/features/icp/schema";
 import { OfferStep, type OfferSelection } from "@/features/offer/ui/offer-step";
 import { cn } from "@/lib/utils";
 import { estimateSources } from "../estimates";
 import { SOURCE_LABEL, fmtInt } from "./format";
+import { PlacePicker } from "./place-picker";
 import "./hunts.css";
 
 type Phase = "idle" | "parsing" | "ready" | "launching";
@@ -211,17 +212,15 @@ export function NewProfile() {
     const m = findSector(sector);
     patch(m ? { sector: m.sector, ciiu: m.ciiu, osmTags: m.osmTags, placesTypes: m.placesTypes } : { sector });
   };
-  const setCity = (city: string) => {
-    const c = findCity(city);
-    patch(c ? { city: c.city, country: c.country, bbox: c.bbox, language: c.language } : { city, bbox: undefined });
-  };
 
   const estimates = useMemo(() => (criteria ? estimateSources(criteria) : []), [criteria]);
   const applicable = estimates.filter((e) => e.applicable);
   const totalEstimate = applicable.reduce((a, e) => a + (e.estimate ?? 0), 0);
+  const unestimated = applicable.filter((e) => e.estimate == null).map((e) => SOURCE_LABEL[e.source]);
+  const cityCount = criteria ? (criteria.cities?.length ?? 1) : 1;
 
   const offerCriteria = useMemo(
-    () => (criteria && (phase === "ready" || phase === "launching") ? { sector: criteria.sector, city: criteria.city, signals: criteria.signals } : null),
+    () => (criteria && (phase === "ready" || phase === "launching") ? { sector: criteria.sector, city: areaList(criteria), signals: criteria.signals } : null),
     [criteria, phase],
   );
 
@@ -354,7 +353,7 @@ export function NewProfile() {
                 {aiMock && <p className="-mt-2 text-[12.5px] text-faro-text-3">Sin llave de Claude: sirve para los ejemplos y frases con sector y ciudad claros. Toca un chip para corregirlo.</p>}
                 <div className="flex flex-wrap items-center gap-2 text-[14px]">
                   <EditableChip value={criteria.sector} onChange={setSector} label="Sector" />
-                  <EditableChip value={criteria.city} onChange={setCity} label="Ciudad" suffix={criteria.country} />
+                  <PlacePicker criteria={criteria} onChange={setCriteria} />
                   {criteria.ciiu.map((c) => (
                     <span key={c} className="rounded-[10px] bg-faro-surface-2 px-3 py-2">
                       CIIU <strong className="font-bold">{c}</strong>
@@ -404,10 +403,10 @@ export function NewProfile() {
                           <p className="mt-1.5 text-[13px] text-faro-text-3">
                             {e.applicable && e.estimate != null ? (
                               <>
-                                ≈ <span className="tabular-nums">{fmtInt(e.estimate)}</span> registros · gratis
+                                ≈ <span className="tabular-nums">{fmtInt(e.estimate)}</span> registros{cityCount > 1 ? ` en ${cityCount} ciudades` : ""} · gratis
                               </>
                             ) : e.applicable ? (
-                              "Sin referencia medida · gratis"
+                              "Estimado no disponible · gratis"
                             ) : (
                               e.reason
                             )}
@@ -433,9 +432,11 @@ export function NewProfile() {
           <div className="mx-auto flex max-w-[880px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4 sm:px-6">
             <div className="min-w-0 flex-1 basis-56">
               <p className="truncate text-[14.5px] font-medium">
-                {applicable.length} {applicable.length === 1 ? "fuente" : "fuentes"} · {criteria.sector} en {criteria.city}
+                {applicable.length} {applicable.length === 1 ? "fuente" : "fuentes"} · {criteria.sector} en {areaList(criteria)}
               </p>
-              <p className="text-[12.5px] text-faro-text-3">{totalEstimate > 0 ? `~${fmtInt(totalEstimate)} registros por revisar, en lotes y en vivo` : "Se buscará en lotes y verás el avance en vivo"}</p>
+              <p className="text-[12.5px] text-faro-text-3">{totalEstimate > 0
+                  ? `~${fmtInt(totalEstimate)} registros por revisar${unestimated.length ? ` (más ${unestimated.join(" y ")}, sin estimado)` : ""}, en lotes y en vivo`
+                  : "Se buscará en lotes y verás el avance en vivo"}</p>
             </div>
             <label className="flex cursor-pointer items-center gap-2 text-[13px] text-white/80" data-testid="auto-enrich">
               <input type="checkbox" checked={autoEnrich} onChange={(e) => setAutoEnrich(e.target.checked)} className="size-4 accent-[#cbe850]" />
