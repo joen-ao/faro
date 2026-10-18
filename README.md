@@ -7,6 +7,17 @@ Proyecto del **30X Hackathon · Reto Dapta "Más leads, menor costo"**. Pregunta
 - Especificación maestra: [`SPEC.md`](SPEC.md) · sub-specs por feature: [`specs/`](specs) · decisiones: [`DECISIONS.md`](DECISIONS.md).
 - Nombre de trabajo "Faro" (configurable con `NEXT_PUBLIC_PRODUCT_NAME`).
 
+## Para evaluadores
+
+- **App en vivo:** https://faro-eight-sage.vercel.app
+- **Entrar al panel:** en [`/app/login`](https://faro-eight-sage.vercel.app/app/login) usa **"Entrar como evaluador"**: un clic, sin clave. Puedes ver todo (tablero, búsquedas, mapa, leads, diagnósticos, contacto, configuración) y lanzar búsquedas nuevas. Enviar correos, enriquecer con Apify y cambiar la configuración quedan reservados al equipo (la API responde 403 "Modo evaluador: solo lectura").
+- **Qué mirar, en orden:**
+  1. `/app/dashboard`: panel **"Reto Dapta: cumplimiento en vivo"**, cada requisito del brief con su número real (los datos de prueba no cuentan).
+  2. `/app/hunts`: búsquedas reales (clínicas dentales en Bogotá; contabilidad en Bogotá y Medellín) y "Ver mapa y leads".
+  3. Un diagnóstico de los que recibieron las empresas, p. ej. [`/d/rxsfucxl`](https://faro-eight-sage.vercel.app/d/rxsfucxl): oportunidades leídas de **su propio sitio** y cruzadas con los servicios del equipo, comparación con su competencia real y chat de Dapta.
+  4. `/app/new`: describe un cliente ideal ("clínicas dermatológicas o spas en Medellín") y mira la búsqueda en vivo.
+- **Estado real al 18 oct 2026 (sin datos demo):** 2 búsquedas reales · 8.045 empresas únicas de 4 fuentes (RUES, OpenStreetMap, REPS, sitios web) · 131 duplicados fusionados · 55 del perfil · 29 correos reales enviados desde `equipo@mokub.co` · 7 empresas abrieron su diagnóstico · 0 personas naturales contactadas · CPL ≈ USD 0,02. Las respuestas y la calificación con Dapta llegan solas al tablero cuando una empresa contesta o conversa con el agente; el CPLC muestra "n/d" hasta el primer calificado (con una proyección rotulada "supuesto").
+
 ## El reto y cómo lo cubre Faro
 
 Dapta ayuda a las pymes a convertir leads, pero 3 de cada 5 leads que llegan a Dapta preguntan si también les ayudan a conseguirlos. El brief pide una plataforma que **encuentre** leads en fuentes públicas gratuitas, los **contacte** y mida el **costo por lead (CPL) por canal**; opcionalmente los califica con Dapta. Cerrar la venta queda fuera.
@@ -24,6 +35,14 @@ Dapta ayuda a las pymes a convertir leads, pero 3 de cada 5 leads que llegan a D
 | Pauta como canal de control | F16 Meta Ads (UTM, `meta_ads` como fuente, gasto manual o CSV) | Hecho |
 | WhatsApp (opcional) | F17 export CSV de secuencias para Dapta + webhook; detrás de `WHATSAPP_ENABLED` | Hecho, apagado por defecto |
 | Experiencia de demo | F18 landing + video; F19 búsqueda en vivo con mapa; F20 recomendación + bandit | F18, F19 y F20 hechos |
+
+### Lo que se agregó en vivo (17–18 oct)
+
+- **Enriquecimiento con Apify:** al terminar una búsqueda (casilla "enriquecer sitios web con Apify"), Faro busca en Google el sitio de las empresas sin web ni correo (Google Search Scraper, 4 corridas en paralelo, hasta 1.000 por búsqueda; solo acepta dominios que contienen el nombre de la empresa, nunca directorios, Maps ni redes) y luego extrae contactos genéricos con el Contact Details Scraper. Costo real (`usageTotalUsd`) prorrateado por lead. En contabilidad: 150 empresas buscadas → 39 sitios → 39 nuevos leads del perfil por USD 0,56.
+- **Tus servicios y valor por lead:** catálogo "Mis servicios" (inicial: los de Mokub), sugerencias de Claude para el catálogo y para los ángulos de valor de cada segmento, y un servicio sugerido por lead según lo que vimos en su sitio.
+- **Diagnóstico con oportunidades reales:** Claude lee el texto del sitio de la empresa y lo cruza con los servicios de la búsqueda; cada oportunidad cita una frase textual del sitio (verificada) y se guarda para no gastar IA en cada visita. El texto se adapta al sector (salud: clínicas/pacientes; resto: empresas/clientes).
+- **Varias ciudades o país:** hasta 5 ciudades por búsqueda o "Colombia" (Bogotá, Medellín, Cali, Barranquilla, Cartagena); cada fuente recorre las ciudades en secuencia, dedupe global, benchmark por ciudad.
+- **Horario de envío editable** en `/app/settings/envio` (Ley 2300, extendida o personalizada), **sidebar** en el panel, **acceso de evaluador** y nodos aproximados en el mapa para empresas sin coordenadas (RUES).
 
 ### Registro de respuestas (F11)
 
@@ -114,7 +133,7 @@ Definiciones: **fuente** = dónde se encontró el lead (`osm`, `rues`, `reps`, `
 | **datos.gov.co: REPS** (`c36g-9fc2`) | Sedes de IPS con NIT en Bogotá (dental por palabras en el nombre) con teléfono y correo de sede | **CC BY-SA 4.0** (Ministerio de Salud) |
 | **Google Places** | Solo la **API oficial** (Text Search, campos mínimos, conteo de llamadas). Valor de lista mostrado aunque lo cubra el tier gratuito | Términos de Google Maps Platform. **Nunca** scraping de Google Maps |
 | **Sitios web de las empresas** | Fetch directo para hallar correos genéricos, formularios y señales | Respeta `robots.txt`, User-Agent identificado, timeouts cortos, sin autenticación ni formularios automáticos |
-| **Apify** | Solo para enriquecer sitios web (contactos genéricos), con su costo real prorrateado | Prohibido usarlo sobre Google Maps ni redes sociales |
+| **Apify** | Buscar el sitio web de la empresa (Google Search Scraper) y extraer contactos genéricos de ese sitio (Contact Details Scraper), con su costo real prorrateado | Prohibido usarlo sobre Google Maps ni redes sociales; un sitio solo se acepta si su dominio contiene el nombre de la empresa |
 
 Datos derivados de CC BY-SA 4.0 y ODbL conservan atribución y licencia en `company_sources` (campos `source_url`, `license`).
 
@@ -148,7 +167,7 @@ Reglas:
 - Solo **personas jurídicas**; se excluyen personas naturales y profesionales independientes. No se guardan nombres de personas.
 - Solo **correos genéricos** de empresa (`info@`, `contacto@`, `citas@`…).
 - **Remitente identificado** (producto, "proyecto del 30X Hackathon", motivo y fuente del contacto), con dirección física y **baja de un clic** en todo mensaje (token HMAC con `OPTOUT_SECRET`) que alimenta `suppression`.
-- **Ventanas de envío** (Ley 2300/2023, adoptadas voluntariamente): lun–vie 7:00–19:00, sáb 8:00–15:00, nunca domingo ni festivos de Colombia 2026. EE. UU.: solo correo, con baja y dirección (CAN-SPAM).
+- **Ventanas de envío:** por defecto Ley 2300/2023 (adoptada voluntariamente): lun–vie 7:00–19:00, sáb 8:00–15:00, nunca domingo ni festivos de Colombia 2026. El equipo puede cambiarla en `/app/settings/envio` (extendida u horas y días personalizados); fuera de la ventana los mensajes quedan en cola. EE. UU.: solo correo, con baja y dirección (CAN-SPAM).
 - Máximo **1 mensaje por empresa**; sin seguimientos automáticos. `robots.txt` respetado.
 - **Habeas data** (Ley 1581/2012): solo datos públicos de empresas, aviso de privacidad en la página de diagnóstico.
 - **`SEND_ENABLED=false` por defecto:** con esa bandera apagada nada sale; el envío queda registrado como "simulado".
@@ -240,7 +259,9 @@ Con un **loop de ingeniería** definido en [`LOOP.md`](LOOP.md): `SPEC.md` es la
 - **Dapta:** el modo de entrega de leads al entorno de prueba (API, webhook, CSV o secuencia) depende de lo que confirmen los organizadores; por eso hay tres modos. WhatsApp está bloqueado por la cuenta de Meta y es opcional.
 - **Envíos reales:** solo con `SEND_ENABLED=true`, fuera de domingo y festivos, activado a mano por la persona responsable.
 - **Google Places:** SKU y reglas de caché de Google pueden cambiar el costo real; se muestra el valor de lista.
-- **Autenticación:** solo una clave simple (`APP_ACCESS_KEY`); no hay multiusuario. Cerrar la venta, CRM y seguimientos automáticos están fuera de alcance.
+- **Autenticación:** una clave del equipo (`APP_ACCESS_KEY`) y un acceso de evaluador de solo lectura derivado de ella; no hay multiusuario. Cerrar la venta, CRM y seguimientos automáticos están fuera de alcance.
+- **Contacto en el RUES:** el dataset público no trae correo ni sitio web, así que en sectores que solo salen del RUES (p. ej. contabilidad) los leads "del perfil" dependen de encontrar el sitio con Apify (≈ 26 % de acierto en la prueba).
+- **Respuestas:** a la hora de la entrega ninguna empresa había respondido aún; el tablero lo muestra como "en curso" en lugar de inventar datos.
 - **Datos de ejemplo:** todo lo marcado demo o mock (incluido el video de la landing, "Demostración con datos de ejemplo") no representa resultados reales.
 
 ## Licencia

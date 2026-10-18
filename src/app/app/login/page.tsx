@@ -28,7 +28,17 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </h1>
         <p className="mt-2 text-faro-text-2">Búsquedas, contacto y tablero de CPL son internos. Usa la clave de acceso del equipo.</p>
 
-        <form method="post" action="/api/auth/login" className="mt-8 space-y-4 rounded-card border border-border bg-faro-surface-1 p-5">
+        <form method="post" action="/api/auth/evaluator" className="mt-8 rounded-card border border-faro-accent/40 bg-faro-accent/[0.06] p-5" data-testid="evaluator-login">
+          <input type="hidden" name="next" value={safeNext(next)} />
+          <p className="text-sm font-semibold text-white">¿Eres evaluador del 30X Hackathon?</p>
+          <p className="mt-1 text-sm text-faro-text-2">Entra con un clic, sin clave. Puedes ver todo y lanzar búsquedas; enviar correos, usar Apify y cambiar la configuración quedan reservados al equipo.</p>
+          <Button type="submit" size="lg" className="mt-4 w-full">
+            Entrar como evaluador
+          </Button>
+        </form>
+
+        <p className="mt-6 text-xs uppercase tracking-[0.18em] text-faro-text-3">Equipo</p>
+        <form method="post" action="/api/auth/login" className="mt-2 space-y-4 rounded-card border border-border bg-faro-surface-1 p-5">
           <input type="hidden" name="next" value={safeNext(next)} />
           <div className="space-y-2">
             <label htmlFor="key" className="block text-sm font-medium">
@@ -40,7 +50,6 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               type="password"
               required
               autoComplete="current-password"
-              autoFocus
               aria-invalid={message ? true : undefined}
               aria-describedby={message ? "login-error" : undefined}
               className="h-11 w-full rounded-button border border-border bg-black px-3 text-white outline-none placeholder:text-faro-text-3 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
