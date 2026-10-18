@@ -38,10 +38,17 @@ beforeAll(async () => {
     { leadId: osm[0], type: "reply" },
     { leadId: ads[0], type: "widget_chat" },
     { leadId: ads[1], type: "widget_open" },
+    // diagnostic opens: a page_view counts, a plain click does not, mock/demo opens never count for real leads
+    { leadId: osm[0], type: "click", payload: { kind: "page_view" }, utm: { c: "email", s: "osm" } },
+    { leadId: osm[0], type: "click", payload: { kind: "page_view" }, utm: { c: "email", s: "osm" } },
+    { leadId: osm[1], type: "click", payload: { kind: "whatsapp" } },
+    { leadId: osm[2], type: "click", payload: { kind: "page_view" }, isMock: true },
+    { leadId: osm[3], type: "widget_chat", isDemo: true },
   ]);
   await db.insert(s.qualifications).values([
     { leadId: ads[0], origin: "dapta", qualified: true },
     { leadId: ads[1], origin: "fallback", qualified: true, isMock: true }, // mock: must not count as real
+    { leadId: osm[1], origin: "dapta", qualified: false }, // talked to the agent, not qualified
   ]);
   await db.insert(s.costEntries).values([
     { leadId: osm[0], sourceChannel: "osm", category: "ai", quantity: 1, unit: "x", rate: 1, usd: 1 },
@@ -57,6 +64,17 @@ beforeAll(async () => {
 afterAll(() => conn.close());
 
 describe("getChannelMetrics", () => {
+  it("counts diagnostic opens and agent conversations per source and channel (real only, one per lead)", async () => {
+    const m = await getChannelMetrics(conn.db);
+    const osm = m.real.bySource.find((r) => r.source === "osm")!;
+    expect(osm).toMatchObject({ contacted: 2, opened: 1, responded: 1, chatted: 1 });
+    const ads = m.real.bySource.find((r) => r.source === "meta_ads")!;
+    expect(ads).toMatchObject({ opened: 1, chatted: 1 });
+    const email = m.real.byContact.find((r) => r.contact === "email")!;
+    expect(email).toMatchObject({ opened: 1, chatted: 1 });
+    expect(m.real.totals).toMatchObject({ opened: 2, chatted: 2 });
+  });
+
   it("excludes demo/mock by default and ties to getCostTotals", async () => {
     const m = await getChannelMetrics(conn.db);
     expect(m.demo).toBeNull();

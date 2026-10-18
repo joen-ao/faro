@@ -3,6 +3,7 @@ import type { AppDb } from "@/db/types";
 import { LEAD_FACTS, getChannelMetrics, type MetricsBucket } from "@/features/metrics/channels";
 import { getLeadReceipts, type LeadReceipt } from "@/features/metrics/receipt";
 import { queryComplianceMetrics, type ComplianceMetrics } from "@/features/compliance/metrics";
+import { buildChallenge, queryChallengeFacts, type ChallengeItem } from "./challenge";
 import { getDemoDb } from "./demo-db";
 
 export interface DashboardData {
@@ -11,6 +12,8 @@ export interface DashboardData {
   /** Separate DEMO bucket, present only when the toggle is on. Never summed into `real`. */
   demo: MetricsBucket | null;
   compliance: ComplianceMetrics;
+  /** "Reto Dapta" requirements with live real-only numbers. */
+  challenge: ChallengeItem[];
 }
 
 /**
@@ -20,7 +23,9 @@ export interface DashboardData {
 export async function getDashboardData(db: AppDb, opts: { includeDemo?: boolean } = {}): Promise<DashboardData> {
   const real = (await getChannelMetrics(db)).real;
   const demo = opts.includeDemo ? (await getChannelMetrics(await getDemoDb(), { includeDemo: true })).demo : null;
-  return { real, demo, compliance: await queryComplianceMetrics(db) };
+  const compliance = await queryComplianceMetrics(db);
+  const challenge = buildChallenge(await queryChallengeFacts(db), real, compliance);
+  return { real, demo, compliance, challenge };
 }
 
 export interface CellLead {

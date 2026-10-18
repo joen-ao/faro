@@ -36,9 +36,14 @@ export function DashboardBody({ bucket, demo = false, demoBucket = null }: { buc
         <MatrixPanel bucket={bucket} demo={demo} />
       </Panel>
       <div className="grid gap-4 xl:grid-cols-2">
-        <Panel id={`${p}-funnel`} title="Embudo por fuente" hint="De la empresa encontrada al lead calificado.">
-          <Funnel bucket={bucket} />
-        </Panel>
+        <div className="space-y-4">
+          <Panel id={`${p}-funnel`} title="Embudo por fuente" hint="De la empresa encontrada al lead calificado, pasando por quién abrió su diagnóstico.">
+            <Funnel bucket={bucket} />
+          </Panel>
+          <Panel id={`${p}-funnel-ch`} title="Embudo por canal" hint="Por canal del primer contacto. Aperturas deduplicadas (una por lead).">
+            <Funnel bucket={bucket} by="contact" />
+          </Panel>
+        </div>
         <div className="space-y-4">
           <Panel id={`${p}-paid`} title="Pauta vs. fuentes gratuitas" hint="La pauta es el canal de control.">
             <PaidVsFree bucket={bucket} />

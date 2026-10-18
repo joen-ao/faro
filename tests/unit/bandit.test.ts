@@ -4,7 +4,7 @@ import type { MetricsRow } from "@/features/metrics/channels";
 import { recommendNextBudget, simulateBandit, probabilityBest, makeRng, SAMPLES } from "@/features/bandit";
 
 function row(source: string, fit: number, qualified: number, costUsd: number): MetricsRow {
-  return { source, contact: null, found: fit, fit, contacted: fit, responded: qualified, qualified, costUsd, cpl: fit ? costUsd / fit : null, cplc: qualified ? costUsd / qualified : null, insufficientData: !qualified, qualifiedRate: betaCredibleInterval(qualified, fit) };
+  return { source, contact: null, found: fit, fit, contacted: fit, opened: 0, responded: qualified, chatted: 0, qualified, costUsd, cpl: fit ? costUsd / fit : null, cplc: qualified ? costUsd / qualified : null, insufficientData: !qualified, qualifiedRate: betaCredibleInterval(qualified, fit) };
 }
 const m = (rows: MetricsRow[]) => ({ real: { bySource: rows } });
 const two = [{ source: "a", n: 10, k: 4, costPerLead: 1 }, { source: "b", n: 10, k: 4, costPerLead: 1 }];

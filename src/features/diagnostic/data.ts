@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import type { AppDb } from "@/db/types";
 import { companies, companySources, contactPoints, events, leads } from "@/db/schema";
 import { seedDiagnosticDemo } from "@/db/seed";
@@ -10,7 +10,8 @@ import { demoToolsEnabled } from "./limits";
 import { normalizeName } from "./normalize";
 import type { ContactInput } from "./contact";
 import type { Tracking } from "./params";
-import type { CompanyInput, FindingContext, SourceInput } from "./findings";
+import { isEnrichedSite, signalsOf, siteFactsFrom, type CompanyInput, type SiteFacts, type SourceInput } from "./findings";
+import type { PeerSite } from "./benchmark";
 
 const g = globalThis as unknown as { __faroDiagReady?: Promise<Awaited<ReturnType<typeof readyConn>>> };
 
@@ -28,7 +29,47 @@ export interface Diagnostic {
   isDemo: boolean;
   company: CompanyInput & { id: string };
   sources: SourceInput[];
-  context: FindingContext;
+  site: SiteFacts;
+  /** Peers of the same hunt with an enriched website (real data only, never names). */
+  peers: PeerSite[];
+}
+
+/**
+ * Website facts of peers from the same hunt: real leads only (never demo), real enrichment only (never mock),
+ * excluding the company itself. Returns aggregates-ready rows without names.
+ */
+export async function peerSites(db: AppDb, huntId: string, excludeCompanyId: string): Promise<PeerSite[]> {
+  const rows = await db
+    .selectDistinctOn([companySources.companyId], { companyId: companySources.companyId, raw: companySources.raw })
+    .from(leads)
+    .innerJoin(companies, eq(companies.id, leads.companyId))
+    .innerJoin(companySources, and(eq(companySources.companyId, companies.id), eq(companySources.sourceChannel, "website")))
+    .where(
+      and(
+        eq(leads.huntId, huntId),
+        eq(leads.isDemo, false),
+        eq(companies.isDemo, false),
+        eq(companySources.isMock, false),
+        ne(companies.id, excludeCompanyId),
+      ),
+    );
+  const enriched = rows.filter((r) => isEnrichedSite({ sourceChannel: "website", raw: r.raw }));
+  if (!enriched.length) return [];
+  const ids = enriched.map((r) => r.companyId);
+  const cps = await db
+    .select({ companyId: contactPoints.companyId, type: contactPoints.type })
+    .from(contactPoints)
+    .where(and(inArray(contactPoints.companyId, ids), eq(contactPoints.sourceChannel, "website"), inArray(contactPoints.type, ["whatsapp", "web_form"])));
+  return enriched.map((r) => {
+    const sig = signalsOf(r.raw)!;
+    const mine = cps.filter((c) => c.companyId === r.companyId);
+    return {
+      onlineBooking: sig.onlineBooking === true,
+      whatsapp: mine.some((c) => c.type === "whatsapp"),
+      form: sig.hasContactForm === true || mine.some((c) => c.type === "web_form"),
+      copyrightYear: typeof sig.copyrightYear === "number" ? sig.copyrightYear : null,
+    };
+  });
 }
 
 export async function getDiagnostic(slug: string): Promise<Diagnostic | null> {
@@ -41,30 +82,25 @@ export async function getDiagnostic(slug: string): Promise<Diagnostic | null> {
     .where(eq(leads.slug, slug))
     .limit(1);
   if (!row) return null;
-  const sources = await db.select().from(companySources).where(eq(companySources.companyId, row.company.id));
-  // Aggregate context only: how many peers the same public search found, and whether the site shows WhatsApp.
-  let peers: FindingContext["peers"] = null;
-  if (row.lead.huntId) {
-    const [p] = await db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(leads)
-      .where(and(eq(leads.huntId, row.lead.huntId), eq(leads.isDemo, row.lead.isDemo)));
-    peers = { count: Number(p?.n ?? 0), city: row.company.city };
-  }
-  const hasSite = sources.some((s) => s.sourceChannel === "website");
-  const [wa] = hasSite
-    ? await db
-        .select({ id: contactPoints.id })
-        .from(contactPoints)
-        .where(and(eq(contactPoints.companyId, row.company.id), eq(contactPoints.type, "whatsapp"), eq(contactPoints.sourceChannel, "website")))
-        .limit(1)
-    : [];
+  const sources = (await db.select().from(companySources).where(eq(companySources.companyId, row.company.id))).map((s) => ({
+    sourceChannel: s.sourceChannel,
+    sourceUrl: s.sourceUrl,
+    license: s.license,
+    isMock: s.isMock,
+    raw: s.raw,
+  }));
+  const contacts = await db
+    .select({ type: contactPoints.type, sourceChannel: contactPoints.sourceChannel })
+    .from(contactPoints)
+    .where(eq(contactPoints.companyId, row.company.id));
+  const peers = row.lead.huntId ? await peerSites(db as unknown as AppDb, row.lead.huntId, row.company.id) : [];
   return {
-    context: { peers, whatsappOnSite: hasSite ? !!wa : undefined },
     leadId: row.lead.id,
     isDemo: row.lead.isDemo || row.company.isDemo,
     company: { id: row.company.id, name: row.company.name, address: row.company.address, city: row.company.city, website: row.company.website },
-    sources: sources.map((s) => ({ sourceChannel: s.sourceChannel, sourceUrl: s.sourceUrl, license: s.license, isMock: s.isMock, raw: s.raw })),
+    sources,
+    site: siteFactsFrom(sources, contacts),
+    peers,
   };
 }
 

@@ -8,6 +8,8 @@ interface DemoSource {
   found: number;
   fit: number;
   contacted: number;
+  /** Opened the diagnostic page (page_view, or widget_open for ads). */
+  opened: number;
   responded: number;
   qualified: number;
   /** USD per lead by category */
@@ -17,11 +19,11 @@ interface DemoSource {
 }
 
 const SOURCES: DemoSource[] = [
-  { src: "reps", found: 26, fit: 18, contacted: 14, responded: 7, qualified: 4, data: 0.012, ai: 0.031 },
-  { src: "rues", found: 22, fit: 12, contacted: 9, responded: 3, qualified: 1, data: 0.012, ai: 0.031 },
-  { src: "osm", found: 34, fit: 15, contacted: 11, responded: 3, qualified: 1, data: 0.0, ai: 0.031 },
-  { src: "google_places", found: 18, fit: 13, contacted: 10, responded: 5, qualified: 3, data: 0.032, ai: 0.031 },
-  { src: "meta_ads", found: 12, fit: 12, contacted: 0, responded: 9, qualified: 5, data: 0, ai: 0.012, ads: 3.4 },
+  { src: "reps", found: 26, fit: 18, contacted: 14, opened: 10, responded: 7, qualified: 4, data: 0.012, ai: 0.031 },
+  { src: "rues", found: 22, fit: 12, contacted: 9, opened: 6, responded: 3, qualified: 1, data: 0.012, ai: 0.031 },
+  { src: "osm", found: 34, fit: 15, contacted: 11, opened: 6, responded: 3, qualified: 1, data: 0.0, ai: 0.031 },
+  { src: "google_places", found: 18, fit: 13, contacted: 10, opened: 8, responded: 5, qualified: 3, data: 0.032, ai: 0.031 },
+  { src: "meta_ads", found: 12, fit: 12, contacted: 0, opened: 12, responded: 9, qualified: 5, data: 0, ai: 0.012, ads: 3.4 },
 ];
 
 /**
@@ -62,6 +64,8 @@ async function build(): Promise<AppDb> {
         msgs.push({ leadId: l.id, contactChannel: channel, body: "Demo", status: "sent", sentAt: new Date(), isMock: true });
         cost(channel === "email" ? "email" : "whatsapp", channel === "email" ? 0.0004 : 0.0125, channel === "email" ? "correo" : "plantilla", channel);
       }
+      if (i < d.opened)
+        evs.push({ leadId: l.id, type: d.src === "meta_ads" ? "widget_open" : "click", payload: d.src === "meta_ads" ? {} : { kind: "page_view" }, ...flag });
       if (i < d.responded) evs.push({ leadId: l.id, type: d.src === "meta_ads" ? "widget_chat" : "reply", ...flag });
       if (i < d.qualified) quals.push({ leadId: l.id, origin: "fallback", qualified: true, score: 80, ...flag });
     });

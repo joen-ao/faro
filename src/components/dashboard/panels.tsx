@@ -55,20 +55,26 @@ export function RecommendationCard({ rec, demo = false }: { rec: Recommendation;
   );
 }
 
-const STAGES: { key: keyof Pick<MetricsRow, "found" | "fit" | "contacted" | "responded" | "qualified">; label: string; alpha: number }[] = [
-  { key: "found", label: "Encontrados", alpha: 0.28 },
-  { key: "fit", label: "Del perfil", alpha: 0.45 },
-  { key: "contacted", label: "Contactados", alpha: 0.62 },
-  { key: "responded", label: "Respondieron", alpha: 0.8 },
+type StageKey = keyof Pick<MetricsRow, "found" | "fit" | "contacted" | "opened" | "responded" | "chatted" | "qualified">;
+export const FUNNEL_STAGES: { key: StageKey; label: string; alpha: number }[] = [
+  { key: "found", label: "Encontrados", alpha: 0.22 },
+  { key: "fit", label: "Del perfil", alpha: 0.35 },
+  { key: "contacted", label: "Contactados", alpha: 0.48 },
+  { key: "opened", label: "Abrieron diagnóstico", alpha: 0.62 },
+  { key: "responded", label: "Respondieron", alpha: 0.75 },
+  { key: "chatted", label: "Conversaron con el agente", alpha: 0.88 },
   { key: "qualified", label: "Calificados", alpha: 1 },
 ];
 
-export function Funnel({ bucket }: { bucket: MetricsBucket }) {
-  const max = Math.max(1, ...bucket.bySource.map((r) => r.found));
+/** Funnel per source (default) or per contact channel. Real and demo buckets are never mixed here. */
+export function Funnel({ bucket, by = "source" }: { bucket: MetricsBucket; by?: "source" | "contact" }) {
+  const rows = by === "source" ? bucket.bySource : bucket.byContact;
+  const max = Math.max(1, ...rows.map((r) => (by === "source" ? r.found : Math.max(r.found, r.contacted))));
+  if (rows.length === 0) return <p className="text-sm text-faro-text-2">Aún no hay contactos por canal.</p>;
   return (
-    <div>
+    <div data-testid={`funnel-${by}`}>
       <ul className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-faro-text-2" aria-label="Etapas del embudo">
-        {STAGES.map((s) => (
+        {FUNNEL_STAGES.map((s) => (
           <li key={s.key} className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-sm" style={{ background: `rgba(203,232,80,${s.alpha})` }} aria-hidden />
             {s.label}
@@ -76,16 +82,16 @@ export function Funnel({ bucket }: { bucket: MetricsBucket }) {
         ))}
       </ul>
       <ul className="space-y-5">
-        {bucket.bySource.map((r) => (
-          <li key={r.source}>
-            <p className="mb-1.5 text-sm font-medium">{sourceLabel(r.source)}</p>
+        {rows.map((r) => (
+          <li key={(by === "source" ? r.source : r.contact) ?? "x"}>
+            <p className="mb-1.5 text-sm font-medium">{by === "source" ? sourceLabel(r.source) : contactLabel(r.contact)}</p>
             <div className="space-y-1">
-              {STAGES.map((s) => (
-                <div key={s.key} className="flex items-center gap-3">
+              {FUNNEL_STAGES.map((s) => (
+                <div key={s.key} className="flex items-center gap-3" data-stage={s.key}>
                   <div className="h-3.5 flex-1">
-                    <div className="h-full rounded-r-[4px]" style={{ width: `${(r[s.key] / max) * 100}%`, minWidth: r[s.key] > 0 ? 3 : 0, background: `rgba(203,232,80,${s.alpha})` }} />
+                    <div className="h-full rounded-r-[4px]" style={{ width: `${Math.min(100, (r[s.key] / max) * 100)}%`, minWidth: r[s.key] > 0 ? 3 : 0, background: `rgba(203,232,80,${s.alpha})` }} />
                   </div>
-                  <span className="w-24 shrink-0 text-right text-xs tabular-nums text-faro-text-2">
+                  <span className="w-28 shrink-0 text-right text-xs tabular-nums text-faro-text-2 sm:w-52">
                     <span className="text-white">{fmtInt(r[s.key])}</span> <span className="hidden sm:inline">{s.label.toLowerCase()}</span>
                   </span>
                 </div>

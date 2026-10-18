@@ -99,7 +99,18 @@ export async function seedDiagnosticDemo(db: AppDb): Promise<{ created: boolean 
     .returning();
   await db.insert(s.companySources).values([
     { companyId: company.id, sourceChannel: "reps", externalId: "demo-diag-reps", raw: { demo: true }, sourceUrl: "https://www.datos.gov.co/", license: "CC BY-SA 4.0", isMock: true },
-    { companyId: company.id, sourceChannel: "website", externalId: "demo-diag-web", raw: { demo: true, hasBookingForm: false }, sourceUrl: "https://sonrisa-norte.example", isMock: true },
+    {
+      companyId: company.id,
+      sourceChannel: "website",
+      externalId: "demo-diag-web",
+      raw: {
+        demo: true,
+        fetchedPages: 3,
+        signals: { onlineBooking: false, noAppointmentForm: false, hasContactForm: true, copyrightYear: 2022, socialNetworks: ["instagram", "facebook"] },
+      },
+      sourceUrl: "https://sonrisa-norte.example",
+      isMock: true,
+    },
     { companyId: company.id, sourceChannel: "osm", externalId: "demo-diag-osm", raw: { demo: true }, sourceUrl: "https://www.openstreetmap.org/copyright", license: "ODbL", isMock: true },
   ]);
   await db.insert(s.leads).values({ companyId: company.id, status: "contacted", primarySource: "sample", fitScore: 78, slug: DEMO_DIAGNOSTIC_SLUG, isDemo: true });

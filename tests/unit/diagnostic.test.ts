@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { parseContact } from "@/features/diagnostic/contact";
-import { buildFindings, safeHttpUrl, type SourceInput } from "@/features/diagnostic/findings";
+import { computeBenchmark, type PeerSite } from "@/features/diagnostic/benchmark";
+import { whatsappHref } from "@/features/diagnostic/cta";
+import { buildFindings, registryNote, safeHttpUrl, siteFactsFrom, type SourceInput } from "@/features/diagnostic/findings";
+import { buildWidgetDoc, DAPTA_CONTAINER_ID, openOnLoadSrc } from "@/features/diagnostic/widget";
 import { parseTracking } from "@/features/diagnostic/params";
 
 describe("parseTracking", () => {
@@ -32,47 +35,144 @@ const src = (sourceChannel: string, extra: Partial<SourceInput> = {}): SourceInp
   ...extra,
 });
 const company = { name: "Clínica X SAS", address: "Calle 1 # 2-3", city: "Bogotá", website: null };
+const NOW = new Date("2026-10-18T12:00:00Z");
+const site = (signals: Record<string, unknown>, extra: Partial<SourceInput> = {}) =>
+  src("website", { sourceUrl: "https://clinica.example/", raw: { fetchedPages: 2, signals }, ...extra });
 
-describe("buildFindings", () => {
-  const regs = [src("reps", { sourceUrl: "https://www.datos.gov.co/resource/c36g-9fc2" }), src("rues")];
-  it("returns at most 5 findings, each with an http(s) source, registry first", () => {
-    const f = buildFindings(company, [src("osm"), ...regs, src("google_places", { raw: { userRatingCount: 42 } }), src("website", { raw: { signals: { noAppointmentForm: true, copyrightYear: 2019 } } })], { peers: { count: 1809, city: "Bogotá" }, whatsappOnSite: false, now: new Date("2026-10-18") });
-    expect(f).toHaveLength(5);
-    expect(f.every((x) => /^https?:\/\//.test(x.sourceUrl))).toBe(true);
-    expect(f[0].text).toContain("REPS");
+describe("buildFindings (website presence)", () => {
+  it("one card per website fact with status, why and one recommendation", () => {
+    const facts = siteFactsFrom(
+      [src("reps"), site({ onlineBooking: false, hasContactForm: false, copyrightYear: 2019, socialNetworks: ["instagram"] })],
+      [{ type: "whatsapp", sourceChannel: "osm" }],
+    );
+    const f = buildFindings(company, facts, NOW);
+    expect(f.map((x) => [x.id, x.status])).toEqual([
+      ["booking", "opportunity"],
+      ["whatsapp", "opportunity"], // a WhatsApp from another source does not count as "on the site"
+      ["form", "opportunity"],
+      ["freshness", "opportunity"],
+      ["social", "ok"],
+    ]);
+    expect(f.every((x) => x.why.length > 20 && x.recommendation.length > 20 && x.sourceUrl === "https://clinica.example/")).toBe(true);
+    expect(f.find((x) => x.id === "freshness")!.title).toContain("2019");
+    expect(f.find((x) => x.id === "social")!.title).toContain("Instagram");
   });
-  it("reads the website signals stored by enrichment (booking, WhatsApp, stale footer)", () => {
-    const site = src("website", { sourceUrl: "https://clinica.example/", raw: { fetchedPages: 2, signals: { noAppointmentForm: true, hasContactForm: true, copyrightYear: 2019 } } });
-    const f = buildFindings({ ...company, website: "https://clinica.example" }, [site], { whatsappOnSite: false, now: new Date("2026-10-18") });
-    expect(f.map((x) => x.id)).toEqual(["web-booking", "web-whatsapp", "web-year"]);
-    expect(f[0].text).toContain("no permite agendar citas en línea");
-    expect(f[2].text).toContain("© 2019");
-    const booking = buildFindings(company, [src("website", { raw: { signals: { onlineBooking: true } } })]);
-    expect(booking[0].text).toBe("Su sitio web ya permite agendar citas en línea.");
-  });
-  it("says when no website was found and how many peers the search found", () => {
-    const f = buildFindings(company, regs, { peers: { count: 1809, city: "Bogotá" } });
-    const ids = f.map((x) => x.id);
-    expect(ids).toContain("no-website");
-    expect(f.find((x) => x.id === "peers")?.text).toContain("1.809 empresas de su mismo sector en Bogotá");
-  });
-  it("keeps the legacy hasBookingForm shape and describes reviews and OSM address", () => {
-    const f = buildFindings({ ...company, website: "https://x.example" }, [src("google_places", { raw: { userRatingCount: 42 } }), src("website", { raw: { hasBookingForm: false } }), src("osm")]);
-    expect(f.map((x) => x.text)).toEqual([
-      "Su sitio web no permite agendar citas en línea ni tiene formulario: los pacientes nuevos tienen que llamar o escribir.",
-      "Tiene 42 reseñas públicas en Google Maps.",
-      "Está registrada en OpenStreetMap en Calle 1 # 2-3.",
+
+  it("marks what already works and reads WhatsApp / form from the site's contact points", () => {
+    const facts = siteFactsFrom(
+      [site({ onlineBooking: true, copyrightYear: 2025 })],
+      [
+        { type: "whatsapp", sourceChannel: "website" },
+        { type: "web_form", sourceChannel: "website" },
+      ],
+    );
+    const f = buildFindings(company, facts, NOW);
+    expect(f.map((x) => [x.id, x.status])).toEqual([
+      ["booking", "ok"],
+      ["whatsapp", "ok"],
+      ["form", "ok"],
+      ["freshness", "ok"],
     ]);
   });
-  it("skips findings with no fact or no safe URL and never links javascript:", () => {
-    expect(safeHttpUrl("javascript:alert(1)")).toBeNull();
-    const f = buildFindings(company, [src("website", { raw: {} }), src("sample"), src("osm", { sourceUrl: "javascript:alert(1)" })]);
-    expect(f.map((x) => x.id)).toEqual(["osm"]);
-    expect(f[0].sourceUrl).toBe("https://www.openstreetmap.org/copyright");
+
+  it("no data, no card: unknown signals produce no booking/form/year/social card", () => {
+    const f = buildFindings(company, siteFactsFrom([site({})], []), NOW);
+    expect(f.map((x) => x.id)).toEqual(["whatsapp"]);
   });
-  it("marks mock sources as examples and returns [] without sources", () => {
-    expect(buildFindings(company, [src("reps", { isMock: true })])[0].isExample).toBe(true);
-    expect(buildFindings(company, [])).toEqual([]);
+
+  it("without an enriched site shows one honest card; a known but unread site is 'sin revisar'", () => {
+    const none = buildFindings(company, siteFactsFrom([src("reps"), src("website", { raw: { fetchedPages: 0, signals: {} } })], []), NOW);
+    expect(none).toHaveLength(1);
+    expect(none[0]).toMatchObject({ id: "no-website", status: "opportunity", title: "No encontramos un sitio web propio", sourceUrl: null });
+    const unread = buildFindings({ ...company, website: "https://x.example" }, siteFactsFrom([], []), NOW);
+    expect(unread).toHaveLength(1);
+    expect(unread[0]).toMatchObject({ id: "site-unreviewed", status: "unknown" });
+    expect(buildFindings({ ...company, website: "javascript:alert(1)" }, siteFactsFrom([], []), NOW)[0].id).toBe("no-website");
+  });
+
+  it("keeps the legacy hasBookingForm shape and marks mock sites as examples", () => {
+    const f = buildFindings(company, siteFactsFrom([src("website", { raw: { hasBookingForm: false }, isMock: true })], []), NOW);
+    expect(f[0]).toMatchObject({ id: "booking", status: "opportunity", isExample: true });
+  });
+
+  it("never links javascript: from stored source data", () => {
+    const f = buildFindings(company, siteFactsFrom([site({ onlineBooking: true }, { sourceUrl: "javascript:alert(1)" })], []), NOW);
+    expect(f.every((x) => x.sourceUrl === null)).toBe(true);
+    expect(safeHttpUrl("data:text/html,x")).toBeNull();
+  });
+});
+
+describe("registryNote", () => {
+  it("prefers REPS, keeps the license and falls back to the registry URL", () => {
+    expect(registryNote([src("osm", { license: "ODbL" }), src("reps", { sourceUrl: "javascript:x", license: "CC BY-SA 4.0" })])).toEqual({
+      label: "REPS (Registro Especial de Prestadores de Salud), datos.gov.co (CC BY-SA 4.0)",
+      url: "https://www.datos.gov.co/",
+      isExample: false,
+    });
+    expect(registryNote([src("website")])).toBeNull();
+  });
+});
+
+describe("computeBenchmark", () => {
+  const peer = (p: Partial<PeerSite> = {}): PeerSite => ({ onlineBooking: false, whatsapp: false, form: false, copyrightYear: null, ...p });
+  const you = siteFactsFrom([site({ onlineBooking: true, copyrightYear: 2026 })], []);
+
+  it("returns shares only from n >= 5 and per-metric n (updated counts peers with a year)", () => {
+    const peers = [
+      peer({ onlineBooking: true, whatsapp: true, copyrightYear: 2026 }),
+      peer({ whatsapp: true, form: true, copyrightYear: 2020 }),
+      peer({ whatsapp: true, copyrightYear: 2025 }),
+      peer({ form: true }),
+      peer(),
+      peer({ whatsapp: true }),
+    ];
+    const b = computeBenchmark(you, peers, { city: "Bogotá", websiteKnown: true, now: NOW });
+    const row = (k: string) => b.rows.find((r) => r.key === k)!;
+    expect(row("booking")).toMatchObject({ you: true, n: 6 });
+    expect(row("booking").pct).toBeCloseTo(1 / 6);
+    expect(row("whatsapp")).toMatchObject({ you: false, n: 6 });
+    expect(row("whatsapp").pct).toBeCloseTo(4 / 6);
+    expect(row("form").pct).toBeCloseTo(2 / 6);
+    expect(row("updated")).toMatchObject({ you: true, n: 3, pct: null }); // only 3 peers show a year
+    expect(b.city).toBe("Bogotá");
+  });
+
+  it("withholds every percentage below 5 peers and answers 'no' when there is no website at all", () => {
+    const b = computeBenchmark(siteFactsFrom([], []), [peer(), peer()], { city: null, websiteKnown: false, now: NOW });
+    expect(b.rows.every((r) => r.pct === null && r.n <= 2 && r.you === false)).toBe(true);
+    const unread = computeBenchmark(siteFactsFrom([], []), [], { city: null, websiteKnown: true, now: NOW });
+    expect(unread.rows.every((r) => r.you === null)).toBe(true);
+  });
+});
+
+describe("Dapta widget doc", () => {
+  const snippet = '<script src="https://widget-v2.dapta.ai/agent.min.js?agentId=abc-123"></script>';
+  it("loads the script in embedded mode with autoOpen and keeps the agentId", () => {
+    const u = new URL(openOnLoadSrc(snippet)!);
+    expect(u.searchParams.get("agentId")).toBe("abc-123");
+    expect(u.searchParams.get("mode")).toBe("embedded");
+    expect(u.searchParams.get("container")).toBe(DAPTA_CONTAINER_ID);
+    expect(u.searchParams.get("autoOpen")).toBe("true");
+    const doc = buildWidgetDoc(snippet);
+    expect(doc).toContain(`id="${DAPTA_CONTAINER_ID}"`);
+    expect(doc).toContain("toggleDaptaWidgetChat");
+    expect(doc).toContain("faro-fallback");
+  });
+  it("leaves unknown snippets as they are (with the fallback watchdog)", () => {
+    expect(openOnLoadSrc('<script src="https://evil.example/agent.min.js?agentId=x"></script>')).toBeNull();
+    expect(openOnLoadSrc('<script src="https://widget-v2.dapta.ai/agent.min.js?env=_dev"></script>')).toBeNull();
+    expect(buildWidgetDoc("<div>hola</div>")).toContain("<div>hola</div>");
+  });
+});
+
+describe("whatsappHref", () => {
+  it("builds a wa.me link with the company and slug, digits only, default number", () => {
+    const h = whatsappHref(undefined, "Clínica Sonrisa SAS", "demo-clinica");
+    expect(h.startsWith("https://wa.me/573014734934?text=")).toBe(true);
+    const text = decodeURIComponent(h.split("text=")[1]!);
+    expect(text).toContain("Clínica Sonrisa SAS");
+    expect(text).toContain("demo-clinica");
+    expect(whatsappHref("+57 300 111 2233", undefined, "icp:clinicas")).toMatch(/^https:\/\/wa\.me\/573001112233\?text=.*clinicas/);
   });
 });
 

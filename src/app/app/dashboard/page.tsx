@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Attribution } from "@/components/attribution";
+import { ChallengePanel } from "@/components/dashboard/challenge-panel";
 import { DashboardBody } from "@/components/dashboard/dashboard-body";
 import { DemoToggle } from "@/components/dashboard/demo-toggle";
 import { CompliancePanel, Panel } from "@/components/dashboard/panels";
@@ -39,6 +40,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </header>
 
         <div className="mt-8 space-y-10">
+          <ChallengePanel items={data.challenge} />
+
           <section aria-label="Datos reales">
             <DashboardBody bucket={data.real} demoBucket={data.demo} />
           </section>

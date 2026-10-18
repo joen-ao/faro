@@ -12,6 +12,7 @@
   --faro-border: rgba(255, 255, 255, 0.14);
   --faro-border-active: #cbe850;
   --faro-danger: #ff6b6b;
+  --faro-warn: #f5b544;
   --faro-gradient-brand: linear-gradient(90deg, #cbe850 0%, #000000 100%);
   --faro-glow-violet: radial-gradient(60% 60% at 50% 0%, rgba(124, 58, 237, 0.35) 0%, rgba(0, 0, 0, 0) 70%);
   --faro-radius-button: 10px;
