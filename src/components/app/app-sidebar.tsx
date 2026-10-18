@@ -256,10 +256,11 @@ export function AppShell({ data, children }: { data: AppShellData; children: Rea
         data-testid="app-sidebar"
         data-collapsed={collapsed ? "true" : "false"}
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[300px] max-w-[85vw] flex-col overflow-y-auto overscroll-contain border-r border-white/10 bg-[#0A0A0B] px-3.5 py-[18px] shadow-[30px_0_60px_rgba(0,0,0,0.6)] transition-[transform,visibility,width] duration-200 motion-reduce:transition-none",
+          "fixed inset-y-0 left-0 z-50 flex w-[300px] max-w-[85vw] flex-col overflow-y-auto overscroll-contain border-r border-white/10 bg-[#0A0A0B] px-3.5 py-[18px] shadow-[30px_0_60px_rgba(0,0,0,0.6)] duration-200 motion-reduce:transition-none",
           "lg:visible lg:max-w-none lg:translate-x-0 lg:border-white/[0.08] lg:py-5 lg:shadow-none",
           collapsed ? "lg:w-[72px]" : "lg:w-[264px]",
-          open ? "visible translate-x-0" : "invisible -translate-x-full",
+          // Visibility flips at once on open (so focus can move in) and only after the slide-out on close.
+          open ? "visible translate-x-0 transition-[transform,width]" : "invisible -translate-x-full transition-[transform,visibility,width]",
         )}
       >
         <div className={cn("flex items-center justify-between px-1.5 lg:px-2 lg:pt-1", collapsed && "lg:flex-col lg:gap-3 lg:px-0")}>
