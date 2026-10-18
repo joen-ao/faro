@@ -39,7 +39,7 @@ export interface EnrichSummary {
   apify?: { used: boolean; costUsd: number; isMock: boolean; note?: string };
 }
 
-const US_HINT = /\b(miami|florida|fl|usa|estados unidos|united states)\b/i;
+export const US_HINT = /\b(miami|florida|fl|usa|estados unidos|united states)\b/i;
 
 function hostOf(url: string): string {
   try {
@@ -50,7 +50,7 @@ function hostOf(url: string): string {
 }
 
 /** Apify items -> contacts, with the same rule as the direct fetch: only generic company mailboxes. */
-function apifyContacts(items: Array<{ url: string; emails: string[]; phones: string[]; whatsapps: string[] }>, country: string, evidence: string) {
+export function apifyContacts(items: Array<{ url: string; emails: string[]; phones: string[]; whatsapps: string[] }>, country: string, evidence: string) {
   const contacts: ExtractedContact[] = [];
   let discarded = 0;
   for (const it of items) {
@@ -71,7 +71,7 @@ function apifyContacts(items: Array<{ url: string; emails: string[]; phones: str
 }
 
 /** Spreads an Apify run cost over the company's leads, grouped by hunt; unattached when it has no lead. */
-async function recordApifyCost(db: AppDb, companyId: string, totalUsd: number, evidence: string, flags: { isMock: boolean; isDemo: boolean }) {
+export async function recordApifyCost(db: AppDb, companyId: string, totalUsd: number, evidence: string, flags: { isMock: boolean; isDemo: boolean }) {
   const companyLeads = await db.select({ id: leads.id, huntId: leads.huntId }).from(leads).where(eq(leads.companyId, companyId));
   if (!companyLeads.length) {
     await recordCost(db, { sourceChannel: "website", category: "scraping", quantity: 1, unit: "run", rate: totalUsd, evidence, ...flags });
