@@ -20,7 +20,8 @@ export interface ApifyRunResult {
 export interface ApifyAdapter {
   /** True for fictional output: no network, no robots check needed. */
   readonly isMock?: boolean;
-  scrapeContacts(urls: string[]): Promise<ApifyRunResult>;
+  /** `waitSecs` caps how long the call may block (real adapter: <= 50 s, then the run is aborted). */
+  scrapeContacts(urls: string[], opts?: { waitSecs?: number }): Promise<ApifyRunResult>;
 }
 
 export class ApifyError extends Error {

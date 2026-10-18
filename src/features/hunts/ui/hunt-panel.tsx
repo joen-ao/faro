@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import type { Counters, HuntSource, HuntSourcesProgress, PointStatus, SourceProgress, StreamPoint } from "../types";
 import { POINT_STATUSES } from "../types";
 import { REASON_LABEL, SOURCE_LABEL, SOURCE_SHORT, STATUS_LABEL, fmtClock, fmtInt } from "./format";
+import { EnrichButton } from "./enrich-button";
 import { LeadList, StatusDot } from "./lead-list";
 import { useCountUp } from "./use-count-up";
 import type { RunnerErrors } from "./use-hunt-stream";
@@ -269,6 +270,8 @@ export function HuntPanel(p: PanelProps) {
           </button>
         )}
       </div>
+
+      {!p.loading && <EnrichButton huntId={p.huntId} />}
 
       <div role="tablist" aria-label="Detalle de la búsqueda" className="flex gap-1 border-y border-white/[0.08] px-3">
         {tabs.map((tb) => (
