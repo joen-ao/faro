@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import {
   companies,
   companySources,
@@ -701,12 +701,14 @@ export interface OutreachRow {
 }
 
 export async function listOutreachRows(db: AppDb, huntId: string, env: Env, now: Date): Promise<OutreachRow[]> {
+  // Profile leads (and anything already contacted) first; a short tail of the best "found" ones for context.
+  // Each row costs several queries, so the list stays small enough to render well under the 60 s function limit.
   const rows = await db
     .select({ lead: leads.id })
     .from(leads)
     .where(eq(leads.huntId, huntId))
-    .orderBy(desc(leads.fitScore))
-    .limit(300);
+    .orderBy(sql`case when ${leads.status} = 'found' then 1 else 0 end`, desc(leads.fitScore))
+    .limit(60);
   const out: OutreachRow[] = [];
   for (const { lead: leadId } of rows) {
     const ctx = await loadLeadContext(db, leadId);
