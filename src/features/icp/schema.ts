@@ -30,6 +30,17 @@ export const IcpCriteria = z.object({
   size: z.string().trim().min(1).optional(),
   signals: strList,
   exclusions: strList,
+  /**
+   * Words or short phrases (uppercase, accentless) that companies of the sector carry in their registered name or product
+   * category: how registries without a usable sector code (SECOP II, RNT, Supersolidaria) are searched. Older hunts lack it.
+   */
+  /**
+   * Include independents (natural persons with a registered business: comerciantes in RUES, independent professionals in
+   * REPS, natural-person suppliers in SECOP). They are scored and listed, but never contacted automatically (manual review).
+   * Older hunts lack it (companies only).
+   */
+  includeIndependents: z.boolean().optional(),
+  nameKeywords: z.array(z.string().trim().min(2).max(40)).max(10).optional(),
   language: z.enum(["es", "en"]).default("es"),
 });
 export type IcpCriteria = z.infer<typeof IcpCriteria>;

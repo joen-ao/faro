@@ -24,7 +24,7 @@ Dapta ayuda a las pymes a convertir leads, pero 3 de cada 5 leads que llegan a D
 
 | Requisito del brief | Feature | Estado |
 |---|---|---|
-| ≥ 2 fuentes públicas y gratuitas | F03 OpenStreetMap/Overpass, F04 datos.gov.co (RUES, REPS); extra: F05 Google Places (API oficial), F06 enriquecimiento web | Hecho (F05 en modo mock sin llave) |
+| ≥ 2 fuentes públicas y gratuitas | F03 OpenStreetMap/Overpass, F04 datos.gov.co (RUES, REPS) y F21 datos.gov.co (SECOP II, RNT, Supersolidaria); extra: F05 Google Places (API oficial), F06 enriquecimiento web | Hecho (F05 en modo mock sin llave) |
 | Un solo lugar y sin duplicados | F01 modelo de datos, F07 dedupe multi-fuente (NIT, nombre trigram + 80 m, dominio, teléfono) | Hecho |
 | Filtrar por cliente ideal (ICP) | F08 ICP en lenguaje natural + score 0–100 con evidencia | Hecho (IA en modo mock sin llave) |
 | Primer mensaje y registrar la respuesta | F10 outreach (correo + formulario asistido), F12 página de diagnóstico `/d/[slug]`, F11 registro de respuestas | Hecho (F10, F11, F12) |
@@ -103,6 +103,7 @@ Todo servicio externo vive en `src/integrations/<servicio>/` con `types.ts` (int
 |---|---|---|---|
 | Overpass (OSM) | `OVERPASS_MODE` | `real` | Funciona, no requiere llave |
 | Socrata (RUES, REPS) | `SOCRATA_MODE` | `real` | Funciona; `SOCRATA_APP_TOKEN` es opcional |
+| Búsqueda gratis de sitios y redes (Brave Search API o Google Programmable Search) | `BRAVE_SEARCH_API_KEY` o `GOOGLE_CSE_KEY` + `GOOGLE_CSE_CX` | sin llave | Sin llave Faro solo adivina el dominio (`nombre.com.co`, verificado contra la página); con llave, una consulta por empresa encuentra su sitio y su página de Instagram/Facebook/LinkedIn/TikTok |
 | Anthropic (ICP, scoring, mensajes) | `ANTHROPIC_MODE` | `mock` | Mock determinista |
 | Google Places | `GOOGLE_PLACES_MODE` | `mock` | Mock |
 | Apify | `APIFY_MODE` | `mock` | Mock |
@@ -131,6 +132,9 @@ Definiciones: **fuente** = dónde se encontró el lead (`osm`, `rues`, `reps`, `
 | **OpenStreetMap** vía Overpass | Empresas con nombre, coordenadas y, a veces, web, teléfono o correo | **ODbL 1.0**. Atribución "© colaboradores de OpenStreetMap" visible en landing, tablero y README. Overpass es de uso moderado: User-Agent identificado (`Faro-30XHackathon/0.1`), ≤ 1 consulta cada 2 s, caché en disco y mirror de respaldo |
 | **datos.gov.co: RUES** (`c82u-588k`) | Valida persona jurídica y NIT por CIIU (8622 odontología, 5611 restaurantes) y cámara de comercio; no trae contacto | **CC BY-SA 4.0** (Datos Abiertos Colombia, Cámaras de Comercio) |
 | **datos.gov.co: REPS** (`c36g-9fc2`) | Sedes de IPS con NIT en Bogotá (dental por palabras en el nombre) con teléfono y correo de sede | **CC BY-SA 4.0** (Ministerio de Salud) |
+| **datos.gov.co: SECOP II Proveedores Registrados** (`qmzu-gj57`) | Empresas inscritas para venderle al Estado, cualquier sector: NIT, correo, teléfono y sitio web. Se filtra por ciudad (código DANE), empresa activa, sin personas naturales y por palabras del sector al inicio de una palabra del nombre | **CC BY-SA 4.0** (Colombia Compra Eficiente) |
+| **datos.gov.co: RNT Registro Nacional de Turismo** (`thwd-ivmp`) | Prestadores turísticos activos (hoteles, agencias, gastronomía): NIT y correo. Solo para sectores de turismo | **CC BY-SA 4.0** (MinCIT) |
+| **datos.gov.co: Supersolidaria** (`kg2d-yfyg`) | Cooperativas, fondos de empleados y mutuales: NIT y correo de la entidad (una fila por NIT) | **CC BY-SA 4.0** (Supersolidaria) |
 | **Google Places** | Solo la **API oficial** (Text Search, campos mínimos, conteo de llamadas). Valor de lista mostrado aunque lo cubra el tier gratuito | Términos de Google Maps Platform. **Nunca** scraping de Google Maps |
 | **Sitios web de las empresas** | Fetch directo para hallar correos genéricos, formularios y señales | Respeta `robots.txt`, User-Agent identificado, timeouts cortos, sin autenticación ni formularios automáticos |
 | **Apify** | Buscar el sitio web de la empresa (Google Search Scraper) y extraer contactos genéricos de ese sitio (Contact Details Scraper), con su costo real prorrateado | Prohibido usarlo sobre Google Maps ni redes sociales; un sitio solo se acepta si su dominio contiene el nombre de la empresa |
@@ -255,7 +259,7 @@ Con un **loop de ingeniería** definido en [`LOOP.md`](LOOP.md): `SPEC.md` es la
 - **Escala de la prueba:** el evento es un fin de semana con presupuesto de 10–20 USD; las muestras son pequeñas y los intervalos Beta son anchos. Con pocos calificados el tablero dice "datos insuficientes" en lugar de recomendar.
 - **Cobertura de contacto:** OSM trae poca información de contacto (0,7 % con web en clínicas de Bogotá); el resto depende de REPS (solo salud), Places y el enriquecimiento web.
 - **Dedupe aproximado:** nombre normalizado con trigram y distancia; puede dejar pasar duplicados con nombres muy distintos.
-- **Persona jurídica:** en OSM y Places es una heurística marcada "por verificar"; solo RUES y REPS la verifican. Razones sociales con apariencia de nombre propio se descartan.
+- **Persona jurídica:** en OSM y Places es una heurística marcada "por verificar"; solo los registros (RUES, REPS, SECOP II, RNT, Supersolidaria) la verifican; en estos últimos solo pasan NIT de empresa (9 dígitos que empiezan por 8 o 9). Razones sociales con apariencia de nombre propio se descartan.
 - **Dapta:** el modo de entrega de leads al entorno de prueba (API, webhook, CSV o secuencia) depende de lo que confirmen los organizadores; por eso hay tres modos. WhatsApp está bloqueado por la cuenta de Meta y es opcional.
 - **Envíos reales:** solo con `SEND_ENABLED=true`, fuera de domingo y festivos, activado a mano por la persona responsable.
 - **Google Places:** SKU y reglas de caché de Google pueden cambiar el costo real; se muestra el valor de lista.

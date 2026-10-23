@@ -1,7 +1,7 @@
 import { findCity, findSector, huntCities } from "@/features/icp/presets";
 import type { IcpCriteria } from "@/features/icp/schema";
 import { planSources } from "./batch";
-import type { HuntSource } from "./types";
+import { HUNT_SOURCES, type HuntSource } from "./types";
 
 export interface SourceEstimate {
   source: HuntSource;
@@ -37,7 +37,7 @@ export function estimateSources(c: IcpCriteria): SourceEstimate[] {
   const plan = planSources(c);
   const sector = findSector(c.sector)?.sector ?? c.sector;
   const refs = huntCities(c).map((x) => REFERENCE[`${sector}|${findCity(x.name)?.keywords[0] ?? x.name.toLowerCase()}`]);
-  return (["osm", "rues", "reps"] as const).map((source) => {
+  return HUNT_SOURCES.map((source) => {
     const values = refs.map((r) => r?.[source]);
     const known = values.every((v): v is number => v != null);
     const estimate = plan[source].applicable && known ? values.reduce((a, v) => a + v, 0) : null;

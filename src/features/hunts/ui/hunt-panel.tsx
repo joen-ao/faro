@@ -6,7 +6,7 @@ import { Attribution } from "@/components/attribution";
 import type { MergedPair } from "@/features/dedupe/plan";
 import { cn } from "@/lib/utils";
 import type { Counters, HuntSource, HuntSourcesProgress, PointStatus, SourceProgress, StreamPoint } from "../types";
-import { POINT_STATUSES } from "../types";
+import { HUNT_SOURCES, POINT_STATUSES } from "../types";
 import { REASON_LABEL, SOURCE_LABEL, SOURCE_SHORT, STATUS_LABEL, fmtClock, fmtInt, prettyCity } from "./format";
 import { EnrichButton } from "./enrich-button";
 import { LeadList, StatusDot } from "./lead-list";
@@ -206,7 +206,7 @@ function Timeline({ sources, active }: { sources: Partial<HuntSourcesProgress>; 
 export function HuntPanel(p: PanelProps) {
   const t = p.counters?.total;
   const filtersOn = p.query.trim() !== "" || p.sourceFilter.size > 0 || p.statusFilter.size > 0;
-  const srcKeys = (["osm", "rues", "reps"] as const).filter((k) => p.sources[k]);
+  const srcKeys = HUNT_SOURCES.filter((k) => p.sources[k]);
   const loading = p.loading;
   const tabs: Array<{ id: PanelTab; label: string; n?: number }> = [
     { id: "leads", label: "Empresas", n: p.rows.length },

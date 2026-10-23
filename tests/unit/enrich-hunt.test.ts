@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
-import { apiCalls, companies, companySources, contactPoints, costEntries, leads } from "@/db/schema";
+import { apiCalls, companies, companySources, contactPoints, costEntries, hunts, leads } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { deduceWebsite, enrichHunt, NON_COMPANY_DOMAINS } from "@/features/enrichment";
 import { createHunt } from "@/features/hunts/service";
@@ -232,7 +232,14 @@ describe("Contact Details Scraper contract", () => {
 describe("website discovery (web search)", () => {
   it("keeps only a site whose domain carries a word of the company name, never directories or social networks", async () => {
     const { pickCompanyWebsite, nameTokens } = await import("@/features/enrichment/discover");
-    expect(nameTokens("180 GRADOS CONSULTORIAS BOGOTA S.A.S")).toEqual(["grados", "consultorias"]);
+    expect(nameTokens("180 GRADOS CONSULTORIAS BOGOTA S.A.S")).toEqual(["grados", "180"]);
+    // Cases from a real run: foreign country sites and a common surname never count as the company's own site.
+    expect(pickCompanyWebsite("PRAXIS JURIDICA S.A.S", ["https://praxisjuridica.com.ar/"])).toBeNull();
+    expect(pickCompanyWebsite("THEILYNG LOPEZ ABOGADOS Y CONTADORES S.A.S", ["https://lopezasociados.net/"])).toBeNull();
+    expect(pickCompanyWebsite("CONSULJURIDICO S.A.S", ["https://consuljuridico.com/"])).toBe("https://consuljuridico.com");
+    expect(pickCompanyWebsite("JCB ASESORES S.A.S", ["https://jcbasesores.com/"])).toBe("https://jcbasesores.com");
+    expect(pickCompanyWebsite("AMORTEGUI ABOGADOS & ASOCIADOS S.A.S", ["https://www.amorteguiabogados.com/"])).toBe("https://amorteguiabogados.com");
+    expect(pickCompanyWebsite("Abogados Asociados SAS", ["https://abogadosasociados.com"])).toBeNull();
     expect(pickCompanyWebsite("180 GRADOS CONSULTORIAS S.A.S", ["https://www.facebook.com/180grados", "https://www.einforma.co/x", "https://180gradosconsultorias.com/contacto"])).toBe("https://180gradosconsultorias.com");
     expect(pickCompanyWebsite("2MC CONSULTORES SAS", ["https://www.rues.org.co/x", "https://otraempresa.com"])).toBeNull();
     expect(pickCompanyWebsite("Contadores Unidos Ltda", ["https://maps.google.com/?q=contadores", "https://www.linkedin.com/company/contadores-unidos"])).toBeNull();
@@ -259,6 +266,9 @@ describe("website discovery (web search)", () => {
       },
     };
     const sites = fakeSites();
+    // The free pass (domain guess) always goes first; here it finds nothing.
+    const free = await enrichHunt(db, huntId, { fetch: sites.adapter, apify, useApify: true, resolve: async () => false });
+    expect(free).toMatchObject({ discovering: true, sitiosBuscados: 2, sitiosEncontrados: 0, costoApifyUsd: 0 });
     const first = await enrichHunt(db, huntId, { fetch: sites.adapter, apify, useApify: true });
     expect(first).toMatchObject({ discovering: true, sitiosBuscados: 2, sitiosEncontrados: 1, costoApifyUsd: 0.02, done: false });
     expect(queries[0]).toContain("Bogota");
@@ -266,7 +276,50 @@ describe("website discovery (web search)", () => {
     expect(ca!.website).toBe("https://contadoresunidos.com.co");
     // Second call: nobody left to search -> the regular enrichment reads the found site.
     const second = await enrichHunt(db, huntId, { fetch: sites.adapter, apify, useApify: true });
-    expect(second.discovering).toBe(false);
+    expect(second, JSON.stringify(second)).toMatchObject({ discovering: false });
     expect(second.total).toBe(1);
+  });
+});
+
+describe("website discovery when Apify is slow or failing", () => {
+  it("marks as searched only the companies a run answered and retries the rest", async () => {
+    const huntId = await seedHunt();
+    const names = ["Alfa Juridica SAS", "Beta Contable SAS", "Gamma Legal SAS", "Delta Norte SAS", "Epsilon Sur SAS", "Zeta Oriente SAS"];
+    const seeded = [];
+    for (const n of names) seeded.push(await seedLead(huntId, { name: n }));
+    await db.update(companies).set({ isLegalEntity: true }).where(inArray(companies.id, seeded.map((x) => x.companyId)));
+    let call = 0;
+    const apify: ApifyAdapter = {
+      isMock: false,
+      scrapeContacts: async () => ({ items: [], runId: "r", usageTotalUsd: 0, latencyMs: 0, isMock: false }),
+      findWebsites: async (qs) => {
+        call++;
+        if (call === 2) throw new Error("La corrida de Apify terminó en estado ABORTED");
+        // First run: a partial answer (only the first two companies came back before the time limit).
+        return { results: qs.slice(0, 2).map((q) => ({ key: q.key, urls: [] })), runId: "s", usageTotalUsd: 0.01, latencyMs: 1, isMock: false };
+      },
+    };
+    await enrichHunt(db, huntId, { fetch: fakeSites().adapter, apify, useApify: true, resolve: async () => false });
+    const r = await enrichHunt(db, huntId, { fetch: fakeSites().adapter, apify, useApify: true });
+    expect(r.discovering).toBe(true);
+    const [h] = await db.select({ progress: hunts.progress }).from(hunts).where(eq(hunts.id, huntId));
+    expect(((h!.progress as { websiteSearch?: { searched?: string[] } }).websiteSearch?.searched ?? []).length).toBe(2);
+  });
+
+  it("ends the pass (no endless loop) when every run fails", async () => {
+    const huntId = await seedHunt();
+    const a = await seedLead(huntId, { name: "Omega Asesores SAS" });
+    await db.update(companies).set({ isLegalEntity: true }).where(eq(companies.id, a.companyId));
+    const apify: ApifyAdapter = {
+      isMock: false,
+      scrapeContacts: async () => ({ items: [], runId: "r", usageTotalUsd: 0, latencyMs: 0, isMock: false }),
+      findWebsites: async () => {
+        throw new Error("Apify respondió 402");
+      },
+    };
+    await enrichHunt(db, huntId, { fetch: fakeSites().adapter, apify, useApify: true, resolve: async () => false });
+    const r = await enrichHunt(db, huntId, { fetch: fakeSites().adapter, apify, useApify: true });
+    expect(r).toMatchObject({ discovering: false, done: true });
+    expect(r.notas.join(" ")).toContain("Apify no respondió");
   });
 });

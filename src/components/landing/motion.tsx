@@ -42,7 +42,7 @@ export function InViewSection({ id, labelledBy, className, children }: { id?: st
 const nf = new Intl.NumberFormat("es-CO");
 
 /** Counts up to `to` when its section enters the viewport. Server HTML and reduced motion show the final value. */
-export function CountUp({ to, suffix = "", className }: { to: number; suffix?: string; className?: string }) {
+export function CountUp({ to, suffix = "", prefix = to >= 100 ? "+" : "", className }: { to: number; suffix?: string; prefix?: string; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [shown, setShown] = useState(to);
   useEffect(() => {
@@ -77,6 +77,7 @@ export function CountUp({ to, suffix = "", className }: { to: number; suffix?: s
   }, [to]);
   return (
     <span ref={ref} className={className}>
+      {prefix}
       {nf.format(shown)}
       {suffix}
     </span>

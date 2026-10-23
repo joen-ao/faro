@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { renderEmailHtml } from "./email-html";
 import { createOptOutToken } from "@/features/compliance/optout";
+import { looksLikePersonName } from "@/features/compliance/person-name";
 import { FACT, LEAD_IN, type Recommendation } from "@/features/offer/match";
 import { complete, type AnthropicAdapter, type CallRecorder, type Usage } from "@/integrations/anthropic";
 import { getEnv, type Env } from "@/lib/env";
@@ -9,6 +11,9 @@ export const SOURCE_LABELS: Record<SourceChannel, string> = {
   osm: "OpenStreetMap (mapa colaborativo público, licencia ODbL)",
   rues: "el RUES (registro público de las cámaras de comercio, datos.gov.co)",
   reps: "el REPS (registro público de prestadores de salud, datos.gov.co)",
+  secop: "SECOP II (registro público de proveedores del Estado, datos.gov.co)",
+  rnt: "el Registro Nacional de Turismo (datos.gov.co)",
+  solidaria: "el registro público de entidades solidarias de la Supersolidaria (datos.gov.co)",
   google_places: "Google Maps (ficha pública del negocio)",
   website: "su sitio web público",
   meta_ads: "una visita a nuestra página",
@@ -23,6 +28,22 @@ export interface GenLead {
 export interface GenCompany {
   name: string;
   city?: string | null;
+  /** Natural person with a registered business: greeted by name, never "equipo de". */
+  independent?: boolean;
+}
+
+const BUSINESS_NAME = /\b(s\.?a\.?s|ltda|s\.?a|cia|e\.?u|dental|odont\w*|clinic\w*|consultorio|deposito|laboratorio|centro|grupo|servicios|spa|estudio|instituto|fundacion|asociad\w*|inversiones|distribuid\w*|comercializ\w*)\b/i;
+
+/** An independent registered under their own name ("DANA LIZETH SORIANO BERMUDEZ"), not a business name. */
+export function isPersonName(name: string): boolean {
+  const folded = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return looksLikePersonName(name) || !BUSINESS_NAME.test(folded);
+}
+
+/** "DANA LIZETH SORIANO BERMUDEZ" -> "Dana": the first given name, title-cased. */
+export function firstName(name: string): string {
+  const w = name.trim().split(/\s+/)[0] ?? name;
+  return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
 }
 export interface GenIcp {
   criteria: Record<string, unknown>;
@@ -82,20 +103,11 @@ export function sanitizeCopy(input: string, max: number): string {
     .slice(0, max);
 }
 
-export function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
+export { escapeHtml } from "./email-html";
 
-/** Plain text -> safe HTML: escape first, then linkify http(s) URLs only. */
+/** The email body as sent: the premium HTML template built from the plain text (see email-html.ts). */
 export function textToHtml(text: string): string {
-  const paragraphs = text
-    .split(/\n{2,}/)
-    .map((p) => {
-      const escaped = escapeHtml(p).replace(/(https?:\/\/[^\s<]*[^\s<.,;:!?)])/g, (u) => `<a href="${u}" style="color:#3a5a00">${u}</a>`);
-      return `<p style="margin:0 0 14px">${escaped.replace(/\n/g, "<br>")}</p>`;
-    })
-    .join("");
-  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1a1a1c;max-width:560px">${paragraphs}</div>`;
+  return renderEmailHtml(text);
 }
 
 const trimSlash = (u: string) => u.replace(/\/+$/, "");
@@ -186,7 +198,8 @@ export async function generateMessage(
   const entry = pitch?.service.entryOffer ? sanitizeCopy(pitch.service.entryOffer, 120) : "";
   const price = pitch?.service.price ? sanitizeCopy(pitch.service.price, 60) : "";
   const lines = [
-    `Hola, equipo de ${sanitizeCopy(company.name, 120)}:`,
+    // A person is greeted by first name; an independent registered under a business name ("Deposito Dental Alfo") is not.
+    company.independent && isPersonName(company.name) ? `Hola, ${sanitizeCopy(firstName(company.name), 60)}:` : `Hola, equipo de ${sanitizeCopy(company.name, 120)}:`,
     opening,
     value,
     // The entry offer closes the pitch from a fixed template, never from the model.
@@ -194,8 +207,8 @@ export async function generateMessage(
     ...(entry || price
       ? [[entry ? `Si le interesa, el primer paso: ${entry.replace(/\.?$/, ".")}` : "", price ? `Precio de referencia: ${price.charAt(0).toLowerCase()}${price.slice(1).replace(/\.?$/, ".")}` : ""].filter(Boolean).join(" ")]
       : []),
-    `Preparamos un breve diagnóstico público sobre su empresa: ${diagnosticUrl}`,
-    `Por qué le escribimos: su empresa aparece en ${sourceLabel}. Es un único mensaje; no haremos seguimientos automáticos.`,
+    `Preparamos un breve diagnóstico público sobre su ${company.independent ? "negocio" : "empresa"}: ${diagnosticUrl}`,
+    `Por qué le escribimos: su ${company.independent ? "negocio" : "empresa"} aparece en ${sourceLabel}. Es un único mensaje; no haremos seguimientos automáticos.`,
     `Quién escribe: ${seller ? `${seller}, con ${product} (proyecto del 30X Hackathon)` : `${product}, un proyecto del 30X Hackathon`}. ${replyTo ? `Puede responder a este correo (${replyTo}).` : "Puede responder a este mensaje."}`,
     `Si no desea recibir mensajes nuestros, darse de baja toma un clic: ${optOutUrl}`,
     [who, env.SENDER_ADDRESS].filter(Boolean).join(" · "),

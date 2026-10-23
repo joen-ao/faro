@@ -23,6 +23,12 @@ export function Footer() {
       <div className="mx-auto flex max-w-[1240px] flex-col justify-between gap-4 px-4 py-10 text-sm text-faro-text-3 sm:px-6 md:flex-row md:items-start">
         <p>
           <span className="font-display font-semibold text-white">Faro</span> · Proyecto del 30X Hackathon · Integrado con Dapta
+          <span className="mt-1 block">
+            Búsqueda web por{" "}
+            <a href="https://brave.com/search/api/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-white">
+              Brave Search
+            </a>
+          </span>
         </p>
         <Attribution className="text-sm md:text-right" />
       </div>

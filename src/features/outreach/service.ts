@@ -20,13 +20,14 @@ import { getSendWindow } from "@/features/settings/send-window";
 import { suggestionLine, type Recommendation } from "@/features/offer/match";
 import { loadEffectiveOffer, recommendForLead, type EffectiveOffer } from "@/features/offer/resolve";
 import { dbCallRecorder, loadAiRates, recordAiCost } from "@/features/scoring/cost";
+import { REGISTRY_CHANNELS } from "@/features/scoring/fit";
 import { AiError, type AnthropicAdapter } from "@/integrations/anthropic";
 import { EmailSendError, type EmailAdapter } from "@/integrations/email";
 import { getEnv, type Env } from "@/lib/env";
 import { channelOptions, optionFor, selectChannel, type ChannelOption } from "./channel";
 import { buildLinks, generateMessage, senderSignature, textToHtml, type GeneratedMessage } from "./generate";
 
-export type OutreachRule = BlockRule | "legal_unverified" | "missing_unsubscribe" | "no_channel" | "channel_unavailable" | "sender_incomplete";
+export type OutreachRule = BlockRule | "legal_unverified" | "missing_unsubscribe" | "no_channel" | "channel_unavailable" | "sender_incomplete" | "not_independent";
 
 export interface ServiceBlock {
   rule: OutreachRule;
@@ -101,7 +102,7 @@ export async function loadLeadContext(db: AppDb, leadId: string): Promise<LeadCo
     contacts,
     sources,
     country: toCountry(workspace?.country ?? (typeof criteria.country === "string" ? criteria.country : "CO")),
-    legalVerified: sources.some((s) => s.sourceChannel === "rues" || s.sourceChannel === "reps"),
+    legalVerified: sources.some((s) => REGISTRY_CHANNELS.has(s.sourceChannel)),
     allowUnverifiedLegal: criteria.allowUnverifiedLegal === true,
   };
 }
@@ -234,6 +235,8 @@ export interface PreviewResult {
   assessment: Assessment;
   message: Pick<GeneratedMessage, "subject" | "text" | "html" | "diagnosticUrl" | "optOutUrl" | "sourceLabel" | "senderIdentified" | "replyTo"> | null;
   isMockAi: boolean;
+  /** Sender as the recipient will see it (EMAIL_FROM). */
+  from: string | null;
   sendEnabled: boolean;
   window: { allowed: boolean; reason: string; nextAllowedAt: Date | null };
 }
@@ -287,7 +290,7 @@ export async function previewOutreach(
     } else try {
       const g = await generateMessage(
         { id: ctx.lead.id, slug: ctx.lead.slug, primarySource: ctx.lead.primarySource },
-        { name: ctx.company.name, city: ctx.company.city },
+        { name: ctx.company.name, city: ctx.company.city, independent: !ctx.company.isLegalEntity },
         { criteria: ctx.icp.criteria },
         { name: ctx.workspace.name, offerDescription: ctx.workspace.offerDescription, senderEmail: ctx.workspace.senderEmail, country: ctx.workspace.country },
         { ai: deps.ai, channel, recipient, env, recorder: dbCallRecorder(db, ctx.hunt?.id), pitch, sellerName },
@@ -336,6 +339,7 @@ export async function previewOutreach(
     assessment,
     message,
     isMockAi,
+    from: env.EMAIL_FROM ?? null,
     sendEnabled: sendEnabled(env),
     window: checkSendWindow(now, ctx.country, (await getSendWindow(db)).setting),
   };
@@ -700,6 +704,73 @@ export async function recordAssistedSend(db: AppDb, input: AssistedInput, deps: 
   return { status: simulated ? "simulated" : "sent", messageId: msg!.id, blocks: [], costUsd: usd };
 }
 
+export interface ManualInput {
+  leadId: string;
+  channel: "email" | "whatsapp";
+  subject?: string;
+  body: string;
+  minutes: number;
+}
+
+/** Rules that only guard automatic sending: a person contacting an independent by hand is not bound by them. */
+const AUTOMATIC_ONLY = new Set(["natural_person", "personal_email", "legal_unverified", "channel_unavailable", "sender_incomplete", "sender_missing"]);
+
+/**
+ * Independents (natural persons with a registered business) are never contacted automatically: a person writes from
+ * their own mail or WhatsApp and records it here. The rest of the compliance gate still applies (opt-out list, one
+ * message per company, send window), and the minutes go to the human cost of the lead.
+ */
+export async function recordManualContact(db: AppDb, input: ManualInput, deps: OutreachDeps, now: Date = new Date()): Promise<AssistedResult> {
+  const env = deps.env ?? getEnv();
+  const ctx = await loadLeadContext(db, input.leadId);
+  if (ctx.company.isLegalEntity) {
+    return { status: "blocked", messageId: null, blocks: [{ rule: "not_independent", message: "El contacto manual es para independientes; a las empresas se les escribe desde la cola." }], costUsd: 0 };
+  }
+  const contact = ctx.contacts.find((c) => (input.channel === "email" ? c.type === "email" : c.type === "whatsapp" || c.type === "phone"));
+  const a = await assess(db, ctx, input.channel, contact?.value ?? null, now, env);
+  const blocks = a.blocks.filter((b) => !AUTOMATIC_ONLY.has(b.rule));
+  if (blocks.length) return { status: "blocked", messageId: null, blocks, costUsd: 0 };
+
+  const [msg] = await db
+    .insert(messages)
+    .values({
+      leadId: ctx.lead.id,
+      contactChannel: input.channel,
+      subject: input.subject ?? null,
+      body: input.body,
+      status: "sent",
+      recipient: contact!.value,
+      sentAt: now,
+      isMock: ctx.company.isDemo,
+    })
+    .returning({ id: messages.id });
+  await db.insert(events).values({
+    leadId: ctx.lead.id,
+    type: "sent",
+    payload: { manual: true, independent: true, minutes: input.minutes, messageId: msg!.id, channel: input.channel },
+    isDemo: ctx.lead.isDemo,
+    isMock: false,
+  });
+  const rate = env.HUMAN_MINUTE_RATE_USD;
+  const usd = Math.round(input.minutes * rate * 1e6) / 1e6;
+  await db.insert(costEntries).values({
+    leadId: ctx.lead.id,
+    huntId: ctx.lead.huntId,
+    sourceChannel: ctx.lead.primarySource,
+    contactChannel: input.channel,
+    category: "human",
+    quantity: input.minutes,
+    unit: "minute",
+    rate,
+    usd,
+    evidence: `Contacto manual a independiente: ${input.minutes} min × ${rate} USD/min`,
+    isDemo: ctx.lead.isDemo,
+    isMock: false,
+  });
+  if (ctx.lead.status === "found" || ctx.lead.status === "fit") await db.update(leads).set({ status: "contacted" }).where(eq(leads.id, ctx.lead.id));
+  return { status: "sent", messageId: msg!.id, blocks: [], costUsd: usd };
+}
+
 /* --------------------------------- page data --------------------------------- */
 
 export interface OutreachRow {
@@ -718,17 +789,53 @@ export interface OutreachRow {
   formUrl: string | null;
   /** "Servicio sugerido: X · porque su sitio no tiene WhatsApp" (deterministic), or null without services. */
   suggestion: string | null;
+  /** Natural person with a registered business: contacted by hand only (`/api/outreach/manual`). */
+  isIndependent: boolean;
+  /** Independents: the business mailbox / phone they registered (shown for the manual contact). */
+  manual: { email: string | null; phone: string | null } | null;
 }
 
-export async function listOutreachRows(db: AppDb, huntId: string, env: Env, now: Date): Promise<OutreachRow[]> {
-  // Profile leads (and anything already contacted) first; a short tail of the best "found" ones for context.
-  // Each row costs several queries, so the list stays small enough to render well under the 60 s function limit.
+export type OutreachSegment = "empresas" | "independientes";
+export const OUTREACH_PAGE_SIZE = 50;
+
+/** Company already written to (from any hunt): it goes to the end of the list, since it cannot be contacted again. */
+const companyContacted = sql`exists (select 1 from messages m join leads l2 on l2.id = m.lead_id where l2.company_id = ${leads.companyId} and m.status in ('queued','sending','sent','delivered','simulated'))`;
+
+/** Profile leads per segment and how many of them were already contacted (for the tabs and the pager). */
+export async function outreachCounts(db: AppDb, huntId: string): Promise<Record<OutreachSegment, { total: number; contacted: number }>> {
+  const r = await db
+    .select({
+      legal: companies.isLegalEntity,
+      total: sql<number>`count(*)::int`,
+      contacted: sql<number>`(count(*) filter (where ${companyContacted}))::int`,
+    })
+    .from(leads)
+    .innerJoin(companies, eq(companies.id, leads.companyId))
+    .where(and(eq(leads.huntId, huntId), ne(leads.status, "found")))
+    .groupBy(companies.isLegalEntity);
+  const pick = (legal: boolean) => r.find((x) => x.legal === legal) ?? { total: 0, contacted: 0 };
+  return { empresas: { total: Number(pick(true).total), contacted: Number(pick(true).contacted) }, independientes: { total: Number(pick(false).total), contacted: Number(pick(false).contacted) } };
+}
+
+export async function listOutreachRows(
+  db: AppDb,
+  huntId: string,
+  env: Env,
+  now: Date,
+  opts: { segment?: OutreachSegment; page?: number; pageSize?: number } = {},
+): Promise<OutreachRow[]> {
+  // One segment (companies or independents), profile leads first, companies already written to at the end; paged,
+  // because each row costs several queries and a page must render well under the 60 s function limit.
+  const size = Math.max(1, Math.min(opts.pageSize ?? OUTREACH_PAGE_SIZE, 100));
+  const page = Math.max(1, Math.trunc(opts.page ?? 1));
   const rows = await db
     .select({ lead: leads.id })
     .from(leads)
-    .where(eq(leads.huntId, huntId))
-    .orderBy(sql`case when ${leads.status} = 'found' then 1 else 0 end`, desc(leads.fitScore))
-    .limit(60);
+    .innerJoin(companies, eq(companies.id, leads.companyId))
+    .where(and(eq(leads.huntId, huntId), ...(opts.segment ? [eq(companies.isLegalEntity, opts.segment === "empresas")] : [])))
+    .orderBy(sql`case when ${leads.status} = 'found' then 1 else 0 end`, sql`case when ${companyContacted} then 1 else 0 end`, desc(leads.fitScore), leads.id)
+    .limit(size)
+    .offset((page - 1) * size);
   const out: OutreachRow[] = [];
   const window = (await getSendWindow(db)).setting;
   const offers = new Map<string, EffectiveOffer>();
@@ -757,6 +864,13 @@ export async function listOutreachRows(db: AppDb, huntId: string, env: Env, now:
         : null,
       formUrl: ctx.contacts.find((c) => c.type === "web_form")?.value ?? null,
       suggestion: suggestionLine(leadPitch(ctx, offers.get(offerKey)!)),
+      isIndependent: !ctx.company.isLegalEntity,
+      manual: ctx.company.isLegalEntity
+        ? null
+        : {
+            email: ctx.contacts.find((c) => c.type === "email")?.value ?? null,
+            phone: ctx.contacts.find((c) => c.type === "whatsapp" || c.type === "phone")?.value ?? null,
+          },
     });
   }
   return out;

@@ -10,7 +10,13 @@ export interface ScoreSource {
   osmTags?: string[];
   ciiu?: string | null;
   placesTypes?: string[];
+  /** Registries filtered by sector words (SECOP II, RNT, Supersolidaria): the word that matched, as evidence. */
+  sectorMatch?: string | null;
 }
+
+/** Official registries that confirm a NIT (legal entity). */
+export const REGISTRY_CHANNELS = new Set(["rues", "reps", "secop", "rnt", "solidaria"]);
+const REGISTRY_NAME: Record<string, string> = { rues: "RUES", reps: "REPS", secop: "SECOP II", rnt: "RNT", solidaria: "Supersolidaria" };
 
 export interface ScoreContact {
   type: string;
@@ -120,34 +126,50 @@ export async function scoreFit(company: ScoreCompany, criteria: IcpCriteria, opt
     return { score: 0, threshold, meetsThreshold: false, criteria: out, why_now: "", legalVerified: false, model: null, usage, is_mock: false };
   }
 
-  // Known natural persons are never scored as fit (SPEC §8: only legal entities are contacted).
-  if (!company.isLegalEntity) {
+  // Natural persons are scored only when the hunt includes independents (they are never contacted automatically).
+  const independent = !company.isLegalEntity;
+  if (independent && !criteria.includeIndependents) {
     out.push({ criterio: "Persona juridica", cumplido: false, evidencia: "Persona natural conocida: no se contacta", url: firstUrl(company), peso: 0 });
     return { score: 0, threshold, meetsThreshold: false, criteria: out, why_now: "", legalVerified: false, model: null, usage, is_mock: false };
   }
 
-  out.push(
-    crit("Tiene sitio web", WEIGHTS.web, !!company.website, `Sitio web registrado: ${company.website}`, company.website),
-  );
-
-  const generic = company.contacts.find((c) => c.isGeneric && (c.evidenceUrl || company.website));
+  // Digital presence: its own site OR the company's own social page (F22: a company does not need a website to qualify).
+  const socialPage = company.contacts.find((c) => c.type === "social");
   out.push(
     crit(
-      "Contacto generico verificable",
+      "Sitio web o redes de la empresa",
+      WEIGHTS.web,
+      !!company.website || !!socialPage,
+      company.website ? `Sitio web registrado: ${company.website}` : socialPage ? `Página de la empresa en redes: ${socialPage.value}` : "Sin sitio web ni página en redes",
+      company.website ?? socialPage?.value ?? null,
+    ),
+  );
+
+  // Independents: the mailbox or phone they registered for their business counts (it is their business channel).
+  const generic =
+    company.contacts.find((c) => c.isGeneric && (c.evidenceUrl || company.website)) ??
+    (independent ? company.contacts.find((c) => (c.type === "email" || c.type === "phone" || c.type === "whatsapp") && !!c.evidenceUrl) : undefined);
+  out.push(
+    crit(
+      independent ? "Contacto del negocio verificable" : "Contacto generico verificable",
       WEIGHTS.contact,
       !!generic,
-      generic ? `Contacto generico (${generic.type}) publicado en la fuente` : "Sin contacto generico",
+      generic ? (generic.isGeneric ? `Contacto generico (${generic.type}) publicado en la fuente` : `Contacto del negocio (${generic.type}) registrado en la fuente`) : "Sin contacto generico",
       generic ? (generic.evidenceUrl ?? company.website) : null,
     ),
   );
 
-  const registry = company.sources.find((s) => (s.channel === "rues" || s.channel === "reps") && s.url);
+  const registry = company.sources.find((s) => REGISTRY_CHANNELS.has(s.channel) && s.url);
   out.push(
     crit(
-      "Persona juridica verificada",
+      independent ? "Negocio registrado (independiente)" : "Persona juridica verificada",
       WEIGHTS.legal,
-      company.isLegalEntity && !!company.nit && !!registry,
-      registry ? `NIT ${company.nit} en registro ${registry.channel.toUpperCase()}` : "Sin registro oficial (RUES/REPS)",
+      !!company.nit && !!registry,
+      registry
+        ? independent
+          ? `Independiente inscrito en ${REGISTRY_NAME[registry.channel] ?? registry.channel.toUpperCase()}`
+          : `NIT ${company.nit} en registro ${REGISTRY_NAME[registry.channel] ?? registry.channel.toUpperCase()}`
+        : "Sin registro oficial (RUES/REPS/SECOP/RNT)",
       registry?.url ?? null,
     ),
   );
@@ -161,7 +183,8 @@ export async function scoreFit(company: ScoreCompany, criteria: IcpCriteria, opt
       (s.osmTags?.some((t) => criteria.osmTags.includes(t)) ||
         (s.ciiu && criteria.ciiu.includes(s.ciiu)) ||
         s.placesTypes?.some((t) => criteria.placesTypes.includes(t)) ||
-        repsDental(s)),
+        repsDental(s) ||
+        !!s.sectorMatch),
   );
   const matchLabel = matchSrc
     ? [
@@ -169,6 +192,7 @@ export async function scoreFit(company: ScoreCompany, criteria: IcpCriteria, opt
         ...(matchSrc.ciiu && criteria.ciiu.includes(matchSrc.ciiu) ? [`CIIU ${matchSrc.ciiu}`] : []),
         ...(matchSrc.placesTypes ?? []).filter((t) => criteria.placesTypes.includes(t)),
         ...(repsDental(matchSrc) ? ["IPS odontológica habilitada (REPS)"] : []),
+        ...(matchSrc.sectorMatch ? [matchSrc.sectorMatch] : []),
       ].join(", ")
     : "";
   out.push(
@@ -234,6 +258,7 @@ export async function scoreFit(company: ScoreCompany, criteria: IcpCriteria, opt
     whyNow = met.length ? `Encaja por: ${met.join("; ")}.` : "Sin criterios verificados todavia.";
   }
   const legalVerified = out.some((c) => c.criterio === "Persona juridica verificada" && c.cumplido);
-  if (!legalVerified) whyNow = `${whyNow} (por verificar: persona juridica)`;
+  if (independent) whyNow = `${whyNow} (independiente: revisión manual antes de contactar)`;
+  else if (!legalVerified) whyNow = `${whyNow} (por verificar: persona juridica)`;
   return { score, threshold, meetsThreshold: score >= threshold, criteria: out, why_now: whyNow, legalVerified, model, usage, is_mock: isMock };
 }

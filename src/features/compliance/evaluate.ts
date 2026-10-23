@@ -67,7 +67,7 @@ export function evaluateOutreach(
 ): OutreachEvaluation {
   const blocks: OutreachBlock[] = [];
   if (!lead.isLegalEntity) {
-    blocks.push({ rule: "natural_person", message: "Persona natural o profesional independiente: solo se contacta a personas jurídicas." });
+    blocks.push({ rule: "natural_person", message: "Independiente (persona natural): no se le escribe automáticamente. Revísalo y contáctalo a mano si corresponde." });
   }
   if (contact.channel === "email") {
     if (!isGenericEmail(contact.value)) {

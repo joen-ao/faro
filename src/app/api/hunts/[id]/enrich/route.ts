@@ -5,8 +5,10 @@ import { z } from "zod";
 import { EnrichInputError, enrichHunt } from "@/features/enrichment";
 import { UUID } from "@/features/hunts/http";
 import { getApify } from "@/integrations/apify";
+import { getWebSearch } from "@/integrations/web-search";
 import { getWebsiteFetch } from "@/integrations/website-fetch";
 import { requireAppAccess } from "@/lib/app-access";
+import { getEnv } from "@/lib/env";
 import { withDb } from "@/lib/with-db";
 
 export const dynamic = "force-dynamic";
@@ -38,8 +40,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         budgetMs: BUDGET_MS,
         fetch: getWebsiteFetch(),
         apify: getApify(),
+        search: getWebSearch(),
+        searchMonthlyLimit: getEnv().WEB_SEARCH_MONTHLY_LIMIT,
       });
-      if (summary.done && useApify) {
+      if (summary.done) {
         // Remembered so an automatic enrichment (chosen at creation) never runs twice for the same hunt.
         const [h] = await db.select({ progress: hunts.progress }).from(hunts).where(eq(hunts.id, id)).limit(1);
         if (h) await db.update(hunts).set({ progress: { ...(h.progress ?? {}), enrichedAt: new Date().toISOString() } }).where(eq(hunts.id, id));

@@ -76,7 +76,13 @@ function toScoreCompany(
       const raw = s.raw as Record<string, unknown>;
       const tags = raw.tags && typeof raw.tags === "object" ? (raw.tags as Record<string, unknown>) : {};
       const osmTags = Object.entries(tags).map(([k, v]) => `${k}=${String(v)}`);
-      return { channel: s.sourceChannel, url: s.sourceUrl, osmTags: osmTags.length ? osmTags : undefined, ciiu: typeof raw.ciiu === "string" ? raw.ciiu : null };
+      return {
+        channel: s.sourceChannel,
+        url: s.sourceUrl,
+        osmTags: osmTags.length ? osmTags : undefined,
+        ciiu: typeof raw.ciiu === "string" ? raw.ciiu : null,
+        sectorMatch: typeof raw.sector_match === "string" ? raw.sector_match : null,
+      };
     }),
   };
 }
@@ -94,7 +100,7 @@ export async function scoreLeadsDeterministic(db: AppDb, leadIds: readonly strin
   const byCompany = new Map(comps.map((c) => [c.id, c]));
   let promoted = 0;
   const assessments: Array<typeof fitAssessments.$inferInsert> = [];
-  const updates: Array<{ id: string; score: number; fit: boolean }> = [];
+  const updates: Array<{ id: string; score: number; fit: boolean; demote: boolean }> = [];
   for (const lead of leadRows) {
     const company = byCompany.get(lead.companyId);
     if (!company) continue;
@@ -104,15 +110,18 @@ export async function scoreLeadsDeterministic(db: AppDb, leadIds: readonly strin
       { threshold },
     );
     assessments.push({ companyId: company.id, icpProfileId, score: r.score, criteriaMet: r.criteria, whyNow: r.why_now, model: "rules" });
-    const fit = r.meetsThreshold && company.isLegalEntity && lead.status === "found";
+    const eligible = company.isLegalEntity || criteria.includeIndependents === true;
+    const fit = r.meetsThreshold && eligible && lead.status === "found";
     if (fit) promoted++;
-    updates.push({ id: lead.id, score: r.score, fit });
+    // A lead that lost its evidence (e.g. a wrong website was removed) goes back to `found`; contacted leads never move.
+    const demote = lead.status === "fit" && !(r.meetsThreshold && eligible);
+    updates.push({ id: lead.id, score: r.score, fit, demote });
   }
   await db.transaction(async (tx) => {
     const t = tx as unknown as AppDb;
     for (let i = 0; i < assessments.length; i += 500) await t.insert(fitAssessments).values(assessments.slice(i, i + 500));
     for (const u of updates) {
-      await t.update(leads).set({ fitScore: u.score, ...(u.fit ? { status: "fit" as const } : {}) }).where(eq(leads.id, u.id));
+      await t.update(leads).set({ fitScore: u.score, ...(u.fit ? { status: "fit" as const } : u.demote ? { status: "found" as const } : {}) }).where(eq(leads.id, u.id));
     }
   });
   return promoted;

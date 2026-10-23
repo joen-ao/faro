@@ -18,3 +18,5 @@ next-env.d.ts
 .loop/e2e-*.log
 .loop/test-*.log
 .loop/*.log
+.vercel
+.env*

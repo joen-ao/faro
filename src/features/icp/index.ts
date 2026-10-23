@@ -10,8 +10,9 @@ export function buildIcpPrompt(userInput: string): string {
   return [
     "[[task:icp_parse]]",
     "Convert the sales prospect description below into an ICP (ideal customer profile) JSON object with exactly these keys:",
-    '{"sector": string, "ciiu": string[], "osmTags": string[] ("key=value"), "placesTypes": string[], "city": string, "cities"?: [{"name": string, "bbox"?: [south, west, north, east]}], "scope"?: "cities" | "country", "country": ISO-3166 alpha-2, "bbox"?: [south, west, north, east], "size"?: string, "signals": string[], "exclusions": string[], "language": "es" | "en"}',
+    '{"sector": string, "ciiu": string[], "osmTags": string[] ("key=value"), "placesTypes": string[], "city": string, "cities"?: [{"name": string, "bbox"?: [south, west, north, east]}], "scope"?: "cities" | "country", "country": ISO-3166 alpha-2, "bbox"?: [south, west, north, east], "size"?: string, "signals": string[], "exclusions": string[], "nameKeywords": string[], "language": "es" | "en"}',
     "Use only what the description supports; leave arrays empty rather than guessing. Never include person names.",
+    '"nameKeywords": 4 to 8 Spanish words or short phrases, UPPERCASE and without accents, that companies of this sector usually carry in their registered business name or in a product category (stems are fine). Example for "clínicas odontológicas": ["ODONTOLOG", "DENTAL", "ORTODONC", "IMPLANT"]; for "bioimpresión 3D": ["BIOIMPRES", "IMPRESION 3D", "BIOTEC", "BIOMATERIAL", "BIOMEDIC", "MANUFACTURA ADITIVA"]. Never generic words such as SERVICIOS, SOLUCIONES, GRUPO, INVERSIONES, COMERCIAL.',
     `If no city is mentioned use "${DEFAULT_CITY}" and country "${DEFAULT_COUNTRY}" (the team edits it before searching).`,
     'Location: "city" is the first (or only) city. When the description names several cities, also return "cities" with all of them in order (at most 5). When it asks for a whole country (e.g. "Colombia", "todo el país") without naming cities, set "scope": "country", "country" to its code and "city" to its capital.',
     "USER_INPUT:",
@@ -29,7 +30,10 @@ const filled = (v: unknown, fallback: string) => (typeof v === "string" && v.tri
 export const IcpReply = z.preprocess((v) => {
   if (!v || typeof v !== "object") return v;
   const o = v as Record<string, unknown>;
-  return { ...o, city: filled(o.city, DEFAULT_CITY), country: filled(o.country, DEFAULT_COUNTRY) };
+  const out: Record<string, unknown> = { ...o, city: filled(o.city, DEFAULT_CITY), country: filled(o.country, DEFAULT_COUNTRY) };
+  // Optional text fields the model sometimes returns empty ("size": "") are dropped instead of failing the profile.
+  for (const k of ["size"]) if (typeof out[k] === "string" && !(out[k] as string).trim()) delete out[k];
+  return out;
 }, IcpCriteria);
 
 export interface ParsedIcp {

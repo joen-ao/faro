@@ -6,7 +6,7 @@ import { companies, hunts, icpProfiles, leads, messages } from "@/db/schema";
 import { checkSendWindow, describeCustomWindow } from "@/features/compliance/windows";
 import { getSendWindow } from "@/features/settings/send-window";
 import { ensureOutreachDemo } from "@/features/outreach/demo";
-import { listOutreachRows } from "@/features/outreach/service";
+import { listOutreachRows, outreachCounts, OUTREACH_PAGE_SIZE, type OutreachSegment } from "@/features/outreach/service";
 import { requireAppAccess } from "@/lib/app-access";
 import { getEnv } from "@/lib/env";
 import { areaLabel } from "@/features/icp/presets";
@@ -35,10 +35,10 @@ export default async function OutreachPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ now?: string }>;
+  searchParams: Promise<{ now?: string; tipo?: string; pagina?: string }>;
 }) {
   const { id } = await params;
-  const { now: nowParam } = await searchParams;
+  const { now: nowParam, tipo, pagina } = await searchParams;
   const jar = await cookies();
   if (requireAppAccess(new Request("http://localhost/", { headers: { cookie: jar.toString() } }))) {
     return <Notice title="Acceso restringido" body="Esta vista requiere la clave de la app (cookie faro_key)." />;
@@ -72,7 +72,12 @@ export default async function OutreachPage({
   const parsed = isDemo && nowParam ? new Date(nowParam) : null;
   const now = parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date();
 
-  const rows = await listOutreachRows(db, huntId, env, now);
+  const counts = await outreachCounts(db, huntId);
+  // Companies first (automatic email); independents (manual contact) on their own tab.
+  const segment: OutreachSegment = tipo === "independientes" || (tipo !== "empresas" && counts.empresas.total === 0 && counts.independientes.total > 0) ? "independientes" : "empresas";
+  const pages = Math.max(1, Math.ceil(counts[segment].total / OUTREACH_PAGE_SIZE));
+  const page = Math.min(pages, Math.max(1, Number.parseInt(pagina ?? "1", 10) || 1));
+  const rows = await listOutreachRows(db, huntId, env, now, { segment, page });
   const queueRows = await db
     .select({
       id: messages.id,
@@ -114,6 +119,10 @@ export default async function OutreachPage({
         assessment: { ...r.assessment, nextAllowedAt: r.assessment.nextAllowedAt?.toISOString() ?? null, blocks: r.assessment.blocks.map((b) => ({ rule: b.rule, message: b.message })) },
       }))}
       queue={queue}
+      segment={segment}
+      counts={counts}
+      page={page}
+      pages={pages}
     />
   );
 }

@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { AppDb } from "@/db/types";
 import type { HandlerResult } from "@/features/icp/api";
 import { AiCallError, AiValidationError } from "@/integrations/anthropic";
-import { enqueue, OutreachError, previewOutreach, processQueue, recordAssistedSend, type OutreachDeps } from "./service";
+import { enqueue, OutreachError, previewOutreach, processQueue, recordAssistedSend, recordManualContact, type OutreachDeps } from "./service";
 
 const Channel = z.enum(["email", "web_form", "whatsapp", "dapta_widget"]);
 const LeadId = z.uuid("leadId debe ser un UUID");
@@ -76,6 +76,23 @@ export function handleAssisted(db: AppDb, json: unknown, deps: OutreachDeps, now
   if (!body.success) return Promise.resolve(bad(body.error));
   return guard(async () => {
     const r = await recordAssistedSend(db, { ...body.data }, deps, now);
+    return { status: r.status === "blocked" ? 409 : 200, body: r };
+  });
+}
+
+export const ManualBody = z.object({
+  leadId: LeadId,
+  channel: z.enum(["email", "whatsapp"]),
+  subject: z.string().max(200).optional(),
+  body: z.string().min(1).max(5000),
+  minutes: z.number().min(0.5).max(120),
+});
+
+export function handleManual(db: AppDb, json: unknown, deps: OutreachDeps, now = new Date()): Promise<HandlerResult> {
+  const body = ManualBody.safeParse(json);
+  if (!body.success) return Promise.resolve(bad(body.error));
+  return guard(async () => {
+    const r = await recordManualContact(db, { ...body.data }, deps, now);
     return { status: r.status === "blocked" ? 409 : 200, body: r };
   });
 }

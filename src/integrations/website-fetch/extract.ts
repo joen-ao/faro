@@ -186,6 +186,8 @@ export function extractPage(rawHtml: string, pageUrl: string, opts: ExtractOptio
 
   const social = new Set<string>();
   for (const m of decoded.matchAll(SOCIAL_RE)) social.add(m[1]!.toLowerCase() === "x" ? "twitter" : m[1]!.toLowerCase());
+  // The company's own social pages, linked from its own site (a public business channel, never a person's profile).
+  for (const url of socialProfileUrls([...decoded.matchAll(/href\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]!))) add({ type: "social", value: url, isGeneric: false, evidenceUrl: pageUrl });
 
   let year: number | null = null;
   for (const m of decoded.matchAll(/(?:©|copyright)[^0-9<]{0,25}((?:19|20)\d{2})(?:\s*[-–]\s*((?:19|20)\d{2}))?/gi)) {
@@ -254,6 +256,38 @@ export function findContactLinks(html: string, base: URL): string[] {
     } catch {
       /* ignore malformed hrefs */
     }
+  }
+  return out;
+}
+
+const SOCIAL_SKIP = /^(p|reel|reels|explore|stories|share|sharer|sharer\.php|dialog|plugins|tr|watch|hashtag|intent|login|groups|events|people|in|pub|accounts|legal|about|help|policies|privacy)$/i;
+
+/**
+ * Canonical company pages from a list of hrefs: instagram.com/<handle>, facebook.com/<page>, linkedin.com/company/<slug>,
+ * tiktok.com/@<handle>. Share buttons, posts and personal LinkedIn profiles (/in/) are dropped. At most 4.
+ */
+export function socialProfileUrls(hrefs: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const h of hrefs) {
+    let u: URL;
+    try {
+      u = new URL(decodeEntities(h).trim());
+    } catch {
+      continue;
+    }
+    if (u.protocol !== "https:" && u.protocol !== "http:") continue;
+    const host = u.hostname.toLowerCase().replace(/^(www|m|web|business|[a-z]{2})\.(?=[^.]+\.[a-z]+$)/, "");
+    const parts = u.pathname.split("/").filter(Boolean);
+    let canon: string | null = null;
+    if ((host === "instagram.com" || host === "facebook.com" || host === "fb.com") && parts[0] && !SOCIAL_SKIP.test(parts[0]) && /^[\w.-]{2,60}$/.test(parts[0])) {
+      canon = `https://www.${host === "fb.com" ? "facebook.com" : host}/${parts[0].toLowerCase()}`;
+    } else if (host === "linkedin.com" && parts[0] === "company" && parts[1] && /^[\w.-]{2,80}$/.test(parts[1])) {
+      canon = `https://www.linkedin.com/company/${parts[1].toLowerCase()}`;
+    } else if (host === "tiktok.com" && parts[0]?.startsWith("@") && /^@[\w.-]{2,40}$/.test(parts[0])) {
+      canon = `https://www.tiktok.com/${parts[0].toLowerCase()}`;
+    }
+    if (canon && !out.includes(canon)) out.push(canon);
+    if (out.length >= 4) break;
   }
   return out;
 }

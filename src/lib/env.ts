@@ -31,6 +31,12 @@ export const envSchema = z.object({
   APIFY_TOKEN: optStr,
   APIFY_CONTACT_ACTOR_ID: optStr,
   APIFY_MODE: mode("mock"),
+  /** Free website/social discovery (F22): Brave Search API (free plan) or Google Programmable Search (100/day free). */
+  BRAVE_SEARCH_API_KEY: optStr,
+  GOOGLE_CSE_KEY: optStr,
+  GOOGLE_CSE_CX: optStr,
+  /** Hard cap of free-search API calls per calendar month (Brave gives ~1,000 free; past that it bills the card). */
+  WEB_SEARCH_MONTHLY_LIMIT: num(900),
   EMAIL_PROVIDER: strDefault("resend"),
   RESEND_API_KEY: optStr,
   EMAIL_FROM: optStr,

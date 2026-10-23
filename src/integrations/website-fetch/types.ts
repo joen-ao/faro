@@ -5,7 +5,8 @@ export const MAX_REDIRECTS = 3;
 export const MAX_CONTACT_PAGES = 2;
 export const MAX_WEBSITE_TEXT_BYTES = 8 * 1024;
 
-export type ContactType = "email" | "phone" | "whatsapp" | "web_form";
+/** `social`: the company's own Instagram/Facebook/LinkedIn/TikTok page (a URL), never a person's profile. */
+export type ContactType = "email" | "phone" | "whatsapp" | "web_form" | "social";
 
 /** A contact found on a company's own public site. Never a person's name. */
 export interface ExtractedContact {

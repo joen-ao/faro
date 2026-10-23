@@ -1,0 +1,13 @@
+# Never upload secrets or local state when deploying with the Vercel CLI (root-anchored: src/features/coverage stays).
+/.env
+/.env.*
+!/.env.example
+/.pglite
+/.claude
+/.hyperframes
+/.next
+/node_modules
+/coverage
+/test-results
+/playwright-report
+/artifacts

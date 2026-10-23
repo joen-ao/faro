@@ -1,4 +1,5 @@
 import { findSector, huntCities } from "@/features/icp/presets";
+import { isTourismSector, sectorNameKeywords } from "./keywords";
 import type { IcpCriteria } from "@/features/icp/schema";
 import { HUNT_SOURCES, type HuntSource, type HuntSourcesProgress, type SourceProgress } from "./types";
 
@@ -12,13 +13,25 @@ export interface SourcePlan {
 }
 
 /** Which sources can answer this ICP (RUES/REPS only cover Colombia; REPS only health). */
-export function planSources(c: Pick<IcpCriteria, "osmTags" | "ciiu" | "country" | "sector" | "city" | "bbox" | "cities">): Record<HuntSource, SourcePlan> {
+export function planSources(c: Pick<IcpCriteria, "osmTags" | "ciiu" | "country" | "sector" | "city" | "bbox" | "cities" | "nameKeywords">): Record<HuntSource, SourcePlan> {
   const co = c.country.toUpperCase() === "CO";
   const health = findSector(c.sector)?.sector === "dental";
   return {
     osm: c.osmTags.length > 0 && (!!c.bbox || !!c.city) ? { applicable: true } : { applicable: false, reason: "Sin etiquetas OSM o ubicación" },
     rues: co && c.ciiu.length > 0 ? { applicable: true } : { applicable: false, reason: co ? "Sin código CIIU" : "RUES solo cubre Colombia" },
     reps: co && health ? { applicable: true } : { applicable: false, reason: co ? "REPS solo cubre salud" : "REPS solo cubre Colombia" },
+    ...registryPlans(c, co),
+  };
+}
+
+/** SECOP II / RNT / Supersolidaria are filtered by sector words in the name: no words, no query. RNT only covers tourism. */
+function registryPlans(c: Pick<IcpCriteria, "sector" | "nameKeywords">, co: boolean): Pick<Record<HuntSource, SourcePlan>, "secop" | "rnt" | "solidaria"> {
+  const words = sectorNameKeywords(c).length > 0;
+  const off = (name: string): SourcePlan => ({ applicable: false, reason: co ? "Sin palabras de sector para buscar" : `${name} solo cubre Colombia` });
+  return {
+    secop: co && words ? { applicable: true } : off("SECOP II"),
+    rnt: co && words && isTourismSector(c.sector) ? { applicable: true } : co ? { applicable: false, reason: "RNT solo cubre turismo" } : off("RNT"),
+    solidaria: co && words ? { applicable: true } : off("Supersolidaria"),
   };
 }
 
@@ -37,7 +50,7 @@ const freshSource = (plan: SourcePlan, cities: string[]): SourceProgress => ({
 export function initialSourcesProgress(c: Parameters<typeof planSources>[0]): HuntSourcesProgress {
   const plan = planSources(c);
   const cities = huntCities(c).map((x) => x.name);
-  return { osm: freshSource(plan.osm, cities), rues: freshSource(plan.rues, cities), reps: freshSource(plan.reps, cities) };
+  return Object.fromEntries(HUNT_SOURCES.map((s) => [s, freshSource(plan[s], cities)])) as HuntSourcesProgress;
 }
 
 export interface BatchSlice<T> {
