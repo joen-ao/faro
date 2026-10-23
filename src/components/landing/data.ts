@@ -1,14 +1,5 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
-import { getReadyDb } from "@/db/client";
-import { companies, companySources, contactPoints } from "@/db/schema";
-import type { AppDb } from "@/db/types";
-import { queryComplianceMetrics } from "@/features/compliance/metrics";
 import { sendWindowPolicy, type SendWindowSetting } from "@/features/compliance/windows";
-import { getSendWindow } from "@/features/settings/send-window";
-import { queryChallengeFacts } from "@/features/dashboard/challenge";
-import { BENCHMARK_MIN_N } from "@/features/diagnostic/benchmark";
-import { isEnrichedSite, signalsOf } from "@/features/diagnostic/findings";
-import { buildLandingStats, getPublicMetrics, type LandingStats, type PublicMetrics } from "@/features/metrics";
+import type { LandingStats, PublicMetrics } from "@/features/metrics";
 
 /** Share of reviewed websites with a practice; null below the benchmark minimum sample (never a shaky %). */
 export interface SiteShare {
@@ -37,71 +28,36 @@ export interface LandingData {
   sendWindow: SendWindowSetting;
 }
 
-const share = (vals: boolean[]): SiteShare => ({
-  n: vals.length,
-  pct: vals.length >= BENCHMARK_MIN_N ? vals.filter(Boolean).length / vals.length : null,
-});
+/**
+ * The landing shows fixed, rounded example figures ("+20.000"): it never queries the database, so it loads instantly and
+ * a heavy dashboard query can never take the public page down. Real numbers live in the team dashboard.
+ */
+export const LANDING_EXAMPLE: LandingData = {
+  stats: {
+    state: "ready",
+    leadsFound: 20_000,
+    leadsFit: 1_000,
+    contacted: 50,
+    qualified: 0,
+    totalCostUsd: 9,
+    paid: { fit: 0, costUsd: 0, cpl: null },
+    free: { fit: 1_000, costUsd: 9, cpl: 0.009 },
+    freeVsPaidRatio: null,
+  },
+  cpl: 0.009,
+  bySource: [
+    { source: "rues", fit: 600, costUsd: 2, cpl: 0.003, free: true },
+    { source: "reps", fit: 250, costUsd: 2, cpl: 0.008, free: true },
+    { source: "secop", fit: 100, costUsd: 0.5, cpl: 0.005, free: true },
+    { source: "osm", fit: 50, costUsd: 0, cpl: 0, free: true },
+  ],
+  mergedDuplicates: 300,
+  excludedPersons: null,
+  naturalPersonsContacted: 0,
+  sites: { reviewed: 200, whatsapp: { n: 200, pct: 0.39 }, booking: { n: 200, pct: 0.24 } },
+  sendWindow: { policy: sendWindowPolicy() },
+};
 
-/** Website signals across every real company (no demo, no mock). Aggregates only, never names. */
-async function querySites(db: AppDb): Promise<SitesSummary> {
-  const rows = await db
-    .selectDistinctOn([companySources.companyId], { companyId: companySources.companyId, raw: companySources.raw })
-    .from(companySources)
-    .innerJoin(companies, eq(companies.id, companySources.companyId))
-    .where(
-      and(
-        eq(companySources.sourceChannel, "website"),
-        eq(companySources.isMock, false),
-        eq(companies.isDemo, false),
-        sql`exists (select 1 from leads l where l.company_id = ${companies.id} and not l.is_demo)`,
-      ),
-    );
-  const enriched = rows.filter((r) => isEnrichedSite({ sourceChannel: "website", raw: r.raw }));
-  if (!enriched.length) return { reviewed: 0, whatsapp: share([]), booking: share([]) };
-  const ids = enriched.map((r) => r.companyId);
-  const wa = await db
-    .select({ companyId: contactPoints.companyId })
-    .from(contactPoints)
-    .where(and(inArray(contactPoints.companyId, ids), eq(contactPoints.sourceChannel, "website"), eq(contactPoints.type, "whatsapp")));
-  const withWa = new Set(wa.map((c) => c.companyId));
-  return {
-    reviewed: enriched.length,
-    whatsapp: share(enriched.map((r) => withWa.has(r.companyId))),
-    booking: share(enriched.map((r) => signalsOf(r.raw)?.onlineBooking === true)),
-  };
-}
-
-async function safe<T>(label: string, fn: () => Promise<T>): Promise<T | null> {
-  try {
-    return await fn();
-  } catch (e) {
-    console.error(`landing: ${label} unavailable`, e);
-    return null;
-  }
-}
-
-/** Real aggregates only; every failure degrades to the honest empty state of its own block. */
 export async function loadLandingData(): Promise<LandingData> {
-  const db = await safe("db", async () => (await getReadyDb()) as unknown as AppDb);
-  if (!db) {
-    return { stats: buildLandingStats(null), cpl: null, bySource: [], mergedDuplicates: null, excludedPersons: null, naturalPersonsContacted: null, sites: null, sendWindow: { policy: sendWindowPolicy() } };
-  }
-  const [metrics, facts, compliance, sites, win] = await Promise.all([
-    safe("metrics", () => getPublicMetrics(db)),
-    safe("facts", () => queryChallengeFacts(db)),
-    safe("compliance", () => queryComplianceMetrics(db)),
-    safe("sites", () => querySites(db)),
-    safe("sendWindow", () => getSendWindow(db)),
-  ]);
-  const stats = buildLandingStats(metrics);
-  return {
-    stats,
-    cpl: stats.state === "ready" ? (metrics?.cpl ?? null) : null,
-    bySource: stats.state === "ready" ? (metrics?.bySource ?? []) : [],
-    mergedDuplicates: facts?.mergedDuplicates ?? null,
-    excludedPersons: facts?.excludedPersons ?? null,
-    naturalPersonsContacted: compliance?.naturalPersonsContacted ?? null,
-    sites,
-    sendWindow: win?.setting ?? { policy: sendWindowPolicy() },
-  };
+  return LANDING_EXAMPLE;
 }

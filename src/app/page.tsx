@@ -9,7 +9,7 @@ import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { PaidVsFree } from "@/components/landing/paid-vs-free";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 
 export const metadata: Metadata = {
   title: "Faro — ¿Dónde están tus próximos clientes y cuánto te cuestan?",

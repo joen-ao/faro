@@ -27,6 +27,7 @@ function sourceFromRow(row: typeof companySources.$inferSelect): ScoreSource {
     osmTags: osmTags.length ? osmTags : undefined,
     ciiu: typeof raw.ciiu === "string" ? raw.ciiu : null,
     placesTypes: types,
+    sectorMatch: typeof raw.sector_match === "string" ? raw.sector_match : null,
   };
 }
 

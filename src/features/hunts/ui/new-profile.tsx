@@ -22,6 +22,9 @@ const SOURCE_BLURB: Record<string, string> = {
   osm: "Negocios con ubicación exacta en el mapa. Ideal para descubrir.",
   rues: "Registro mercantil: confirma NIT y que sea persona jurídica.",
   reps: "Prestadores de salud habilitados, con correo de sede.",
+  secop: "Proveedores del Estado: NIT, correo, teléfono y sitio web.",
+  rnt: "Registro Nacional de Turismo: hoteles, agencias y más, con correo.",
+  solidaria: "Cooperativas, fondos y mutuales, con correo de la entidad.",
 };
 
 /** Example labels are stored without accents (they double as mock-parse keys); show them properly. */
@@ -169,6 +172,8 @@ export function NewProfile() {
   const [offer, setOffer] = useState<OfferSelection>({ services: [], angles: [], refinements: [] });
   const [offerError, setOfferError] = useState<string | null>(null);
   const [autoEnrich, setAutoEnrich] = useState(true);
+  /** Independents (natural persons with a registered business): on by default, the team can turn them off per search. */
+  const [includeIndependents, setIncludeIndependents] = useState(true);
   const onOffer = useCallback((o: OfferSelection) => {
     setOffer(o);
     if (o.services.length) setOfferError(null);
@@ -236,7 +241,7 @@ export function NewProfile() {
     try {
       const res = await fetch("/api/hunts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
           prompt: submitted,
-          criteria,
+          criteria: { ...criteria, includeIndependents },
           offer: { serviceIds: offer.services.map((s) => s.id), services: offer.services, angles: offer.angles, refinements: offer.refinements },
           autoEnrich,
         }),
@@ -442,7 +447,11 @@ export function NewProfile() {
             </div>
             <label className="flex cursor-pointer items-center gap-2 text-[13px] text-white/80" data-testid="auto-enrich">
               <input type="checkbox" checked={autoEnrich} onChange={(e) => setAutoEnrich(e.target.checked)} className="size-4 accent-[#cbe850]" />
-              Al terminar, enriquecer sitios web con Apify
+              Al terminar, buscar sitios web y redes de las empresas (gratis)
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] text-white/80" data-testid="include-independents" title="Personas naturales con negocio inscrito (RUES, REPS, SECOP). Se listan y puntúan, pero nunca se les escribe automáticamente.">
+              <input type="checkbox" checked={includeIndependents} onChange={(e) => setIncludeIndependents(e.target.checked)} className="size-4 accent-[#cbe850]" />
+              Incluir independientes (personas naturales con negocio)
             </label>
             {error && (
               <p role="alert" className="basis-full text-[13px] text-[var(--faro-danger)]">

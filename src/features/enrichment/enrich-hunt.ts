@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, like, sql } from "drizzle-orm";
 import { apiCalls, companies, companySources, contactPoints, hunts, icpProfiles, leads } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { SHARED_DOMAINS as COMPLIANCE_SHARED } from "@/features/compliance/optout";
@@ -6,7 +6,9 @@ import { domainOf, SHARED_DOMAINS as DEDUPE_SHARED } from "@/features/dedupe/nor
 import { IcpCriteria } from "@/features/icp/schema";
 import { scoreLeadsDeterministic } from "@/features/hunts/service";
 import { ApifyError, assertScrapableUrl, BlockedUrlError, type ApifyAdapter } from "@/integrations/apify";
+import type { WebSearchAdapter } from "@/integrations/web-search";
 import type { WebsiteFetchAdapter } from "@/integrations/website-fetch";
+import { guessWebsite, searchCompany } from "./free-discover";
 import { pickCompanyWebsite, websiteQuery } from "./discover";
 import { apifyContacts, enrichCompany, EnrichInputError, recordApifyCost, US_HINT } from "./enrich";
 
@@ -18,9 +20,11 @@ export const ENRICH_FRESH_MS = 24 * 3600 * 1000;
 export const APIFY_BATCH_SIZE = 25;
 export const DIRECT_CONCURRENCY = 4;
 /** Website discovery (web search) per call and per hunt: the best-scored companies without a site or company email. */
-export const DISCOVER_BATCH = 15;
-export const DISCOVER_RUNS = 4;
+export const DISCOVER_BATCH = 5;
+export const DISCOVER_RUNS = 4; // Apify free plan: max 5 concurrent runs (one left for the contact scraper)
 export const DISCOVER_MAX = 1000;
+/** Free discovery (domain guess + free search API) per call: keeps every call well under the 60 s limit. */
+export const FREE_DISCOVER_BATCH = 12;
 
 /** Own domain deducible from a generic company mailbox (`info@clinica.co` -> `clinica.co`); undefined for free/shared hosts. */
 export function deduceWebsite(emails: readonly string[]): string | undefined {
@@ -43,6 +47,12 @@ export interface EnrichHuntOptions {
   budgetMs?: number;
   fetch: WebsiteFetchAdapter;
   apify?: ApifyAdapter;
+  /** Free search API (Brave / Google Programmable Search); null = only the free domain guess. */
+  search?: WebSearchAdapter | null;
+  /** Max search API calls per calendar month (UTC), counted from api_calls. Never exceeded, so the free credit is never passed. */
+  searchMonthlyLimit?: number;
+  /** DNS check for guessed domains (tests inject it). */
+  resolve?: (host: string) => Promise<boolean>;
   now?: () => number;
 }
 
@@ -60,6 +70,8 @@ export interface EnrichHuntSummary {
   /** Website discovery: companies searched and own sites found in this call; `discovering` keeps the client looping. */
   sitiosBuscados: number;
   sitiosEncontrados: number;
+  /** Company social pages (Instagram, Facebook, LinkedIn, TikTok) found by the free search in this call. */
+  redesEncontradas?: number;
   discovering: boolean;
   cursor: number;
   nextCursor: number;
@@ -112,15 +124,30 @@ export async function enrichHunt(db: AppDb, huntId: string, opts: EnrichHuntOpti
   const emailsBy = new Map<string, string[]>();
   for (const e of emailRows) emailsBy.set(e.companyId, [...(emailsBy.get(e.companyId) ?? []), e.value]);
 
+  // Free discovery first (F22, no cost): guess the own domain, then (with a free search API) the own site and the
+  // company's social pages. Companies without a site or a company mailbox, best scores first, FREE_DISCOVER_BATCH per call.
+  if (cursor === 0) {
+    const progress = (row.progress ?? {}) as Record<string, unknown> & { websiteSearch?: { searched?: string[]; free?: string[] } };
+    const freeDone = new Set(progress.websiteSearch?.free ?? []);
+    if (freeDone.size < DISCOVER_MAX) {
+      const pending = [...leadRows]
+        .filter((l) => (l.isLegal || (criteria.success && criteria.data.includeIndependents === true)) && !l.website && !(emailsBy.get(l.companyId)?.length) && !freeDone.has(l.companyId))
+        .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0))
+        .filter((l, i, arr) => arr.findIndex((x) => x.companyId === l.companyId) === i)
+        .slice(0, FREE_DISCOVER_BATCH);
+      if (pending.length) return freeDiscovery(db, huntId, progress, pending, row.icp, criteria, opts, started, now);
+    }
+  }
+
   // Website discovery first (real Apify only): companies with neither a site nor a company mailbox get a web search, best
   // scores first, DISCOVER_BATCH per call up to DISCOVER_MAX per hunt. A found site is kept only if its domain carries a word
   // of the company name; the regular enrichment below then reads it.
-  if (opts.useApify && opts.apify?.findWebsites && !opts.apify.isMock && cursor === 0) {
+  if (opts.useApify && !opts.search && opts.apify?.findWebsites && !opts.apify.isMock && cursor === 0) {
     const progress = (row.progress ?? {}) as Record<string, unknown> & { websiteSearch?: { searched?: string[] } };
     const searched = new Set(progress.websiteSearch?.searched ?? []);
     if (searched.size < DISCOVER_MAX) {
       const pending = [...leadRows]
-        .filter((l) => l.isLegal && !l.website && !(emailsBy.get(l.companyId)?.length) && !searched.has(l.companyId))
+        .filter((l) => (l.isLegal || (criteria.success && criteria.data.includeIndependents === true)) && !l.website && !(emailsBy.get(l.companyId)?.length) && !searched.has(l.companyId))
         .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0))
         .filter((l, i, arr) => arr.findIndex((x) => x.companyId === l.companyId) === i)
         .slice(0, Math.min(DISCOVER_BATCH * DISCOVER_RUNS, DISCOVER_MAX - searched.size));
@@ -128,16 +155,20 @@ export async function enrichHunt(db: AppDb, huntId: string, opts: EnrichHuntOpti
         const base: EnrichHuntSummary = { revisados: 0, enriquecidos: 0, conAgenda: 0, conWhatsapp: 0, contactosNuevos: 0, costoApifyUsd: 0, promovidosAFit: 0, omitidosRecientes: 0, dominiosDeducidos: 0, sitiosBuscados: pending.length, sitiosEncontrados: 0, discovering: true, cursor: 0, nextCursor: 0, total: 0, done: false, notas: [] };
         const budget = opts.budgetMs ?? 50_000;
         const findWebsites = opts.apify.findWebsites.bind(opts.apify);
-        const waitSecs = Math.max(10, Math.min(45, Math.floor(budget / 1000) - 5));
+        const waitSecs = Math.max(10, Math.min(35, Math.floor(budget / 1000) - 15)); // stays well under the 60 s function limit
         // DISCOVER_RUNS actor runs in parallel (DISCOVER_BATCH companies each): one call searches up to 60 companies.
         const chunks: (typeof pending)[] = [];
         for (let i = 0; i < pending.length; i += DISCOVER_BATCH) chunks.push(pending.slice(i, i + DISCOVER_BATCH));
+        const searchedNow: string[] = [];
         const settled = await Promise.allSettled(chunks.map((chunk) => findWebsites(chunk.map((l) => ({ key: l.companyId, q: websiteQuery(l.name, l.city) })), { waitSecs })));
         for (let i = 0; i < chunks.length; i++) {
           const chunk = chunks[i]!;
           const r = settled[i]!;
           if (r.status === "fulfilled") {
             const res = r.value;
+            // Only companies the run actually answered count as searched; the rest are retried on the next call.
+            const answered = new Set(res.results.map((x) => x.key));
+            searchedNow.push(...chunk.filter((l) => answered.has(l.companyId)).map((l) => l.companyId));
             await db.insert(apiCalls).values({ service: "apify", endpoint: "google-search", status: 200, latencyMs: res.latencyMs, error: null, costUsd: 0, isMock: res.isMock });
             const share = res.usageTotalUsd / chunk.length;
             const evidence = `Apify ${res.runId ?? "run"} búsqueda de sitio web · usageTotalUsd ${res.usageTotalUsd.toFixed(6)} · ${chunk.length} empresas`;
@@ -162,9 +193,17 @@ export async function enrichHunt(db: AppDb, huntId: string, opts: EnrichHuntOpti
           }
         }
         base.costoApifyUsd = Math.round(base.costoApifyUsd * 1e6) / 1e6;
-        // Remember who was searched (found or not) so the next call moves on.
-        const next = { ...progress, websiteSearch: { searched: [...searched, ...pending.map((l) => l.companyId)] } };
-        await db.update(hunts).set({ progress: next }).where(eq(hunts.id, huntId));
+        // Remember only who was really searched (found or not); a failed run is retried on a later call.
+        if (searchedNow.length) {
+          const next = { ...progress, websiteSearch: { ...(progress.websiteSearch ?? {}), searched: [...searched, ...searchedNow] } };
+          await db.update(hunts).set({ progress: next }).where(eq(hunts.id, huntId));
+        } else {
+          // Every run failed (no Apify credit, 402/403, aborted): end this pass so the client does not loop forever.
+          base.discovering = false;
+          base.done = true;
+          base.notas.push("Apify no respondió (¿sin créditos?): no se buscaron sitios. Vuelve a intentarlo más tarde.");
+          return base;
+        }
         return base;
       }
     }
@@ -305,4 +344,112 @@ function sliceIndexAfter(slice: Array<{ companyId: string }>, todo: Array<{ comp
   if (processedCount === 0) return 0;
   const last = todo[processedCount - 1]!;
   return slice.findIndex((s) => s.companyId === last.companyId) + 1;
+}
+
+type PendingLead = { leadId: string; companyId: string; name: string; city: string | null; fitScore: number | null };
+
+/** One free-discovery pass (see enrichHunt). Searched companies are remembered in `progress.websiteSearch.free`. */
+async function freeDiscovery(
+  db: AppDb,
+  huntId: string,
+  progress: Record<string, unknown> & { websiteSearch?: { searched?: string[]; free?: string[] } },
+  pending: PendingLead[],
+  icp: { id: string; threshold: number },
+  criteria: ReturnType<typeof IcpCriteria.safeParse>,
+  opts: EnrichHuntOptions,
+  started: number,
+  now: () => number,
+): Promise<EnrichHuntSummary> {
+  const out: EnrichHuntSummary = { revisados: 0, enriquecidos: 0, conAgenda: 0, conWhatsapp: 0, contactosNuevos: 0, costoApifyUsd: 0, promovidosAFit: 0, omitidosRecientes: 0, dominiosDeducidos: 0, sitiosBuscados: 0, sitiosEncontrados: 0, redesEncontradas: 0, discovering: true, cursor: 0, nextCursor: 0, total: 0, done: false, notas: [] };
+  const budget = Math.min(opts.budgetMs ?? 45_000, 45_000);
+  const outOfTime = () => now() - started >= budget - 6000;
+  const done: string[] = [];
+  const touched = new Set<string>();
+  const save = async (companyId: string, contacts: Array<{ type: "email" | "phone" | "whatsapp" | "web_form" | "social"; value: string; isGeneric: boolean; evidenceUrl: string }>) => {
+    const uniq = new Map(contacts.map((c) => [`${c.type}|${c.value}`, c]));
+    for (const c of uniq.values()) {
+      const ins = await db
+        .insert(contactPoints)
+        .values({ companyId, type: c.type, value: c.value, isGeneric: c.isGeneric, sourceChannel: "website", evidenceUrl: c.evidenceUrl })
+        .onConflictDoNothing()
+        .returning({ id: contactPoints.id });
+      out.contactosNuevos += ins.length;
+      if (ins.length) touched.add(companyId);
+    }
+  };
+
+  // 1) Domain guess (DNS + one page), 4 at a time.
+  const notFound: PendingLead[] = [];
+  await pool(pending, 4, outOfTime, async (l) => {
+    const g = await guessWebsite(l.name, opts.fetch, { resolve: opts.resolve, city: l.city }).catch(() => ({ website: undefined, contacts: [], tried: 0 }));
+    out.sitiosBuscados++;
+    if (g.website) {
+      await db.update(companies).set({ website: g.website }).where(eq(companies.id, l.companyId));
+      out.sitiosEncontrados++;
+      out.dominiosDeducidos++;
+      done.push(l.companyId);
+    } else if (opts.search) notFound.push(l);
+    else done.push(l.companyId);
+  });
+
+  // 2) Free search API, one query per company (respecting the provider's rate limit).
+  if (opts.search) {
+    const search = opts.search;
+    const limit = Math.max(0, Math.trunc(opts.searchMonthlyLimit ?? 900));
+    const monthStart = new Date(Date.UTC(new Date(started).getUTCFullYear(), new Date(started).getUTCMonth(), 1));
+    const [{ n }] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(apiCalls)
+      .where(and(like(apiCalls.service, "web_search_%"), gte(apiCalls.at, monthStart)));
+    let remaining = limit - Number(n ?? 0);
+    let last = 0;
+    for (const l of notFound) {
+      if (outOfTime()) break;
+      if (remaining <= 0) {
+        // Monthly cap reached: these companies keep the domain-guess result only (no paid query is ever made).
+        out.notas.push(`Tope mensual de ${limit} búsquedas web alcanzado: el resto solo usó el dominio adivinado.`);
+        done.push(...notFound.slice(notFound.indexOf(l)).map((x) => x.companyId));
+        break;
+      }
+      remaining--;
+      const wait = search.minIntervalMs - (now() - last);
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      last = now();
+      try {
+        const r = await searchCompany(l.name, l.city, search, opts.fetch);
+        await db.insert(apiCalls).values({ service: `web_search_${search.provider}`, endpoint: "search", status: 200, latencyMs: r.latencyMs, error: null, costUsd: 0, isMock: false });
+        if (r.website) {
+          await db.update(companies).set({ website: r.website }).where(eq(companies.id, l.companyId));
+          out.sitiosEncontrados++;
+        }
+        out.redesEncontradas = (out.redesEncontradas ?? 0) + r.social.length;
+        await save(l.companyId, r.contacts);
+        done.push(l.companyId);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "error";
+        await db.insert(apiCalls).values({ service: `web_search_${search.provider}`, endpoint: "search", status: null, latencyMs: 0, error: msg, costUsd: 0, isMock: false });
+        // Quota or key problems: stop this pass; the rest is retried on a later call.
+        out.notas.push(`La búsqueda web no respondió (${msg}): estas empresas quedan solo con el dominio adivinado.`);
+        // Marked as done so the enrichment moves on instead of looping on a provider that keeps failing.
+        done.push(...notFound.slice(notFound.indexOf(l)).map((x) => x.companyId));
+        break;
+      }
+    }
+  }
+
+  if (done.length) {
+    const ws = progress.websiteSearch ?? {};
+    await db.update(hunts).set({ progress: { ...progress, websiteSearch: { ...ws, free: [...(ws.free ?? []), ...done] } } }).where(eq(hunts.id, huntId));
+  } else {
+    // Nothing could be processed (time or provider errors): end the pass so the client does not loop forever.
+    out.discovering = false;
+    out.done = true;
+    return out;
+  }
+  // Social pages and public phones can promote a lead right away; sites are read by the regular pass that follows.
+  if (touched.size && criteria.success) {
+    const ids = pending.filter((p) => touched.has(p.companyId)).map((p) => p.leadId);
+    out.promovidosAFit = await scoreLeadsDeterministic(db, ids, criteria.data, icp.id, icp.threshold);
+  }
+  return out;
 }

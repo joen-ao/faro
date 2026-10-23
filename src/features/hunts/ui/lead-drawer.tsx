@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowUpRight, Check, GitMerge, Mail, MapPin, Minus, Phone, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, AtSign, Check, GitMerge, Mail, MapPin, Minus, Phone, ShieldCheck, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { getLeadDetail } from "../service";
@@ -143,6 +143,11 @@ export function LeadDrawer({ huntId, leadId, name, onClose, mobile }: { huntId: 
             )}
             {data?.lead.isDemo && <span className="rounded-full border border-dashed border-white/40 px-2.5 py-1 font-semibold tracking-wide text-faro-text-2">DEMO</span>}
             {data && <span className="text-faro-text-3">{SOURCE_LABEL[data.lead.primarySource] ?? data.lead.primarySource}</span>}
+            {data && !data.company.isLegalEntity && (
+              <span className="rounded-full border border-white/25 px-2.5 py-1 font-medium text-white" title="Persona natural con negocio inscrito: no se le escribe automáticamente">
+                Independiente · revisión manual
+              </span>
+            )}
           </div>
           <h2 className="mt-2.5 text-[21px] leading-tight font-semibold break-words text-white">{name}</h2>
           {data && (data.company.city || data.company.address) && (
@@ -233,8 +238,8 @@ export function LeadDrawer({ huntId, leadId, name, onClose, mobile }: { huntId: 
                 <ul className="space-y-2">
                   {data.contacts.map((c, i) => (
                     <li key={i} className="flex items-center gap-2.5 text-[13px] text-white">
-                      {c.type === "email" ? <Mail className="size-4 shrink-0 text-faro-text-3" aria-hidden /> : <Phone className="size-4 shrink-0 text-faro-text-3" aria-hidden />}
-                      <span className="min-w-0 truncate">{c.value}</span>
+                      {c.type === "email" ? <Mail className="size-4 shrink-0 text-faro-text-3" aria-hidden /> : c.type === "social" ? <AtSign className="size-4 shrink-0 text-faro-text-3" aria-label="Red social de la empresa" /> : <Phone className="size-4 shrink-0 text-faro-text-3" aria-hidden />}
+                      <span className="min-w-0 truncate">{c.type === "social" ? c.value.replace(/^https?:\/\/(www\.)?/, "") : c.value}</span>
                       {c.evidenceUrl && (
                         <a href={c.evidenceUrl} target="_blank" rel="noopener noreferrer" className="ml-auto shrink-0 text-[11.5px] text-faro-accent underline-offset-2 hover:underline">
                           fuente

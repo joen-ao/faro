@@ -21,7 +21,8 @@ const usd = new Intl.NumberFormat("es-CO", { style: "currency", currency: "USD",
 const int = new Intl.NumberFormat("es-CO");
 
 export const formatUsd = (v: number | null): string => (v === null ? "—" : usd.format(v).replace(/\s/g, " "));
-export const formatCount = (v: number): string => int.format(v);
+/** Landing figures are rounded examples: from 100 up they read "+20.000". */
+export const formatCount = (v: number): string => (v >= 100 ? `+${int.format(v)}` : int.format(v));
 
 const ratioFmt = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
 

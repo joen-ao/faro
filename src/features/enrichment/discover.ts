@@ -13,14 +13,33 @@ const NOT_OWN_SITE = [
 /** Legal forms and filler words that never identify the company in a domain. */
 const STOP = new Set([
   "sas", "s.a.s", "ltda", "limitada", "sa", "s.a", "sociedad", "compania", "cia", "y", "e", "de", "del", "la", "las", "el", "los", "en",
-  "grupo", "colombia", "bogota", "medellin", "cali", "and", "the", "co", "com", "zomac", "bic", "eu", "s", "a",
+  "and", "the", "co", "com", "zomac", "bic", "eu", "s", "a", "liquidacion", "sigla",
+  // Cities: a domain with the city name says nothing about which company it is.
+  "colombia", "bogota", "medellin", "cali", "barranquilla", "cartagena", "bucaramanga", "pereira", "miami",
 ]);
 
-const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+/** Sector words shared by many companies ("abogados", "asesores"): never enough on their own to match a domain. */
+const GENERIC = new Set([
+  "abogados", "abogado", "asociados", "asociadas", "asesores", "asesoria", "asesorias", "consultores", "consultoria", "consultorias",
+  "consulting", "consultants", "juridica", "juridicas", "juridico", "juridicos", "lawyers", "legal", "law", "contadores", "contable",
+  "contables", "contabilidad", "contadores", "servicios", "soluciones", "gestion", "integral", "integrales", "empresarial", "empresariales",
+  "inversiones", "group", "grupo", "global", "internacional", "clinica", "clinicas", "dental", "odontologia", "odontologica", "spa",
+  "centro", "estetica", "medica", "salud", "comercial", "comercializadora", "distribuidora", "ingenieria", "tecnologia", "digital",
+]);
 
-/** Words of the company name that can identify it in a domain (4+ letters, no legal forms). */
+const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/** Distinctive words of the company name (3+ characters, no legal forms, cities or sector words), longest first. */
 export function nameTokens(name: string): string[] {
-  return [...new Set(fold(name).split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !STOP.has(w)))];
+  const words = [...new Set(fold(name).split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !STOP.has(w) && !GENERIC.has(w)))];
+  return words.sort((a, b) => b.length - a.length);
+}
+
+/** Country-code TLDs of other countries (".com.ar", ".mx", ".es"…) are someone else; ".co" and generic TLDs are fine. */
+const OK_TWO_LETTER = new Set(["co", "io", "ai", "me", "tv"]);
+function foreignTld(host: string): boolean {
+  const parts = host.split(".");
+  return parts.slice(1).some((p) => p.length === 2 && !OK_TWO_LETTER.has(p));
 }
 
 function hostOf(url: string): string | null {
@@ -43,12 +62,14 @@ const blocked = (host: string) => NOT_OWN_SITE.some((d) => host === d || host.en
 export function pickCompanyWebsite(name: string, urls: readonly string[]): string | null {
   const tokens = nameTokens(name);
   if (!tokens.length) return null;
+  // The most distinctive word must be in the domain ("THEILYNG LOPEZ ABOGADOS" never matches lopezasociados.net).
+  const key = tokens[0]!;
   for (const url of urls) {
     if (isGoogleMapsUrl(url)) continue;
     const host = hostOf(url);
-    if (!host || blocked(host)) continue;
-    const label = host.split(".").slice(0, -1).join("").replace(/[^a-z0-9]/g, "");
-    if (tokens.some((t) => label.includes(t))) return `https://${host}`;
+    if (!host || blocked(host) || foreignTld(host)) continue;
+    const label = host.split(".")[0]!.replace(/[^a-z0-9]/g, "");
+    if (label.includes(key)) return `https://${host}`;
   }
   return null;
 }

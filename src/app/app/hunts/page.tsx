@@ -77,7 +77,7 @@ function HuntCard({ x }: { x: HuntSummary }) {
         {x.leads > x.fit && x.fit >= 0 && !x.isDemo && (
           <p className="mt-2 text-[12.5px] leading-relaxed text-faro-text-3">
             <strong className="font-semibold text-white/80">Del perfil</strong> = encaja y tiene un correo de empresa para escribirle.{" "}
-            {(x.leads - x.fit).toLocaleString("es-CO")} siguen sin contacto público: enriquécelas con Apify desde el mapa.
+            {(x.leads - x.fit).toLocaleString("es-CO")} siguen sin contacto público: búscales sitio web y redes (gratis) desde el mapa.
           </p>
         )}
       </div>

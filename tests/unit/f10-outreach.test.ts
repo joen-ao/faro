@@ -9,7 +9,7 @@ import { handleAssisted, handlePreview, handleSend } from "@/features/outreach/a
 import { channelOptions, selectChannel } from "@/features/outreach/channel";
 import { escapeHtml, generateMessage, sanitizeCopy, textToHtml } from "@/features/outreach/generate";
 import { buildLinks } from "@/features/outreach/generate";
-import { assess, enqueue, loadLeadContext, clearPreviewCache, previewOutreach, processQueue, recordAssistedSend, type OutreachDeps } from "@/features/outreach/service";
+import { assess, enqueue, listOutreachRows, loadLeadContext, clearPreviewCache, outreachCounts, previewOutreach, processQueue, recordAssistedSend, recordManualContact, type OutreachDeps } from "@/features/outreach/service";
 import { createMockAnthropic, type AnthropicAdapter } from "@/integrations/anthropic";
 import { createMockEmail, createRealEmail, EmailSendError, getEmail, RESEND_ENDPOINT } from "@/integrations/email";
 import { parseEnv, type Env } from "@/lib/env";
@@ -518,5 +518,53 @@ describe("atomic claim and idempotency", () => {
     expect(ai).toHaveLength(1);
     await previewOutreach(db, { leadId: lead.id, refresh: true }, deps(envOff), SAT_10);
     expect((await db.select().from(costEntries).where(eq(costEntries.leadId, lead.id))).filter((c) => c.category === "ai")).toHaveLength(2);
+  });
+});
+
+describe("independents: manual contact and their own tab", () => {
+  it("records a manual contact for an independent, once, inside the window; companies cannot use it", async () => {
+    const [h] = await db.insert(hunts).values({ icpProfileId: icpId }).returning();
+    const ind = await mkLead({ name: "DANA LIZETH SORIANO BERMUDEZ", email: "dana.soriano@gmail.com", legal: false, registry: true, huntId: h!.id });
+    const emp = await mkLead({ registry: true, huntId: h!.id });
+    // Personal mailbox and natural person do not block a manual contact; the send window still does.
+    const sunday = await recordManualContact(db, { leadId: ind.lead.id, channel: "email", subject: "Hola", body: "Mensaje escrito a mano.", minutes: 3 }, deps(envOn), SUN_10);
+    expect(sunday.status).toBe("blocked");
+    expect(sunday.blocks.map((b) => b.rule)).toEqual(["outside_window"]);
+    const ok = await recordManualContact(db, { leadId: ind.lead.id, channel: "email", subject: "Hola", body: "Mensaje escrito a mano.", minutes: 3 }, deps(envOn), MON_10);
+    expect(ok).toMatchObject({ status: "sent", costUsd: 1.26 });
+    const [l] = await db.select().from(leads).where(eq(leads.id, ind.lead.id));
+    expect(l!.status).toBe("contacted");
+    const again = await recordManualContact(db, { leadId: ind.lead.id, channel: "email", body: "Otra vez.", minutes: 1 }, deps(envOn), MON_10);
+    expect(again.blocks.map((b) => b.rule)).toContain("already_contacted");
+    const company = await recordManualContact(db, { leadId: emp.lead.id, channel: "email", body: "x", minutes: 1 }, deps(envOn), MON_10);
+    expect(company.blocks[0]!.rule).toBe("not_independent");
+
+    const counts = await outreachCounts(db, h!.id);
+    expect(counts).toEqual({ empresas: { total: 1, contacted: 0 }, independientes: { total: 1, contacted: 1 } });
+    const rows = await listOutreachRows(db, h!.id, envOn, MON_10, { segment: "independientes" });
+    expect(rows.map((r) => [r.isIndependent, r.manual?.email])).toEqual([[true, "dana.soriano@gmail.com"]]);
+    expect((await listOutreachRows(db, h!.id, envOn, MON_10, { segment: "empresas" })).map((r) => r.isIndependent)).toEqual([false]);
+  });
+
+  it("greets an independent by first name", async () => {
+    const { firstName } = await import("@/features/outreach/generate");
+    expect(firstName("DANA LIZETH SORIANO BERMUDEZ")).toBe("Dana");
+  });
+});
+
+describe("greeting an independent", () => {
+  it("uses the first name only for a person's name, never for a business name", async () => {
+    const { isPersonName } = await import("@/features/outreach/generate");
+    expect(isPersonName("DANA LIZETH SORIANO BERMUDEZ")).toBe(true);
+    expect(isPersonName("Deposito Dental Alfo Ltda")).toBe(false);
+    expect(isPersonName("Consultorio Odontologico Dana Soriano")).toBe(false);
+  });
+  it("renders the premium email with the diagnostic as a button and a working opt-out link", async () => {
+    const { renderEmailHtml } = await import("@/features/outreach/email-html");
+    const html = renderEmailHtml(["Hola, Dana:", "Texto.", "Preparamos un breve diagnóstico público sobre su negocio: https://faro.test/d/x", "Quién escribe: Mokub, con Faro.", "Si no desea recibir mensajes nuestros, darse de baja toma un clic: https://faro.test/baja/t", "Mokub · Bogotá"].join("\n\n"));
+    expect(html).toContain('href="https://faro.test/d/x"');
+    expect(html).toContain("Ver su diagnóstico gratuito");
+    expect(html).toContain('<a href="https://faro.test/baja/t" style="color:#6b6b70;text-decoration:underline">darse de baja</a>');
+    expect(html).not.toContain("<script");
   });
 });

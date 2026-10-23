@@ -7,6 +7,8 @@ export interface SocrataQuery {
   order?: string;
   limit?: number;
   offset?: number;
+  /** Independents search: rows of natural persons are cached as they are (their registry data is the business record). */
+  keepPersonal?: boolean;
 }
 
 export type SocrataRow = Record<string, string | undefined>;

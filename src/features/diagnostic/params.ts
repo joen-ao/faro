@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /** Allowed values (SPEC §4). Anything else in the query string is dropped, never stored. */
 export const CONTACT_CHANNELS = ["email", "web_form", "whatsapp", "dapta_widget"] as const;
-export const SOURCE_CHANNELS = ["osm", "rues", "reps", "google_places", "website", "meta_ads", "sample"] as const;
+export const SOURCE_CHANNELS = ["osm", "rues", "reps", "secop", "rnt", "solidaria", "google_places", "website", "meta_ads", "sample"] as const;
 export const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const;
 
 const utmValue = z.string().trim().min(1).max(80).regex(/^[\w\-.~+ ]+$/);

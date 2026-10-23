@@ -1,5 +1,5 @@
 /** Source channels that produce `SourceCompany` records (subset of SPEC §4 `source_channel`). */
-export type SourceChannel = "osm" | "rues" | "reps" | "google_places";
+export type SourceChannel = "osm" | "rues" | "reps" | "google_places" | "secop" | "rnt" | "solidaria";
 
 /** Company record normalised across sources, ready for dedupe (F07). Never holds personal names. */
 export interface SourceCompany {

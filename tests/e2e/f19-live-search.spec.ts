@@ -19,7 +19,7 @@ test("new profile: conversation, editable chips and source cards", async ({ page
   await expect(page.getByTestId("thinking")).toBeVisible();
   const launch = page.getByTestId("launch");
   await expect(launch).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId("source-cards").locator("li")).toHaveCount(3);
+  await expect(page.getByTestId("source-cards").locator("li")).toHaveCount(6);
 
   // chips are editable: remove a signal and add another
   await page.getByRole("button", { name: "Quitar agenda en linea" }).click();

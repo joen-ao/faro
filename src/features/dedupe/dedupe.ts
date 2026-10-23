@@ -77,6 +77,8 @@ async function loadExisting(db: AppDb, generic?: readonly string[]) {
  * new companies, ALL company_sources (never drops a source), filled-in fields on kept companies and deduplicated contact_points.
  * Idempotent per `(source_channel, external_id)`. Pairs are stored in `hunts.progress.dedupe` (accumulated).
  */
+const COMPANY_LINE_SOURCES = new Set(["rues", "reps", "secop", "rnt", "solidaria", "osm"]);
+
 export async function dedupeAndPersist(db: AppDb, huntId: string, incoming: readonly DedupeInput[], opts: { generic?: readonly string[] } = {}): Promise<DedupeResult> {
   return db.transaction(async (tx) => {
     const { entities, skip } = await loadExisting(tx as unknown as AppDb, opts.generic);
@@ -126,7 +128,9 @@ export async function dedupeAndPersist(db: AppDb, huntId: string, incoming: read
     const points = new Map<string, typeof contactPoints.$inferInsert>();
     for (const { company: c, entityId, probe } of plan.assignments) {
       if (probe.phone) {
-        points.set(`${entityId}|phone|${probe.phone}`, { companyId: entityId, type: "phone", value: probe.phone, isGeneric: false, sourceChannel: c.sourceChannel, evidenceUrl: c.sourceUrl });
+        // A landline (+57 60x) published by an official registry or on the map is the company's line; mobiles may be a person's.
+        const companyLine = /^\+5760\d{8}$/.test(probe.phone) && COMPANY_LINE_SOURCES.has(c.sourceChannel);
+        points.set(`${entityId}|phone|${probe.phone}`, { companyId: entityId, type: "phone", value: probe.phone, isGeneric: companyLine, sourceChannel: c.sourceChannel, evidenceUrl: c.sourceUrl });
       }
       const email = c.email?.trim().toLowerCase();
       if (email && email.includes("@")) {

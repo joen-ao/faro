@@ -1,7 +1,7 @@
 import type { MergedPair } from "@/features/dedupe/plan";
 
 /** Sources a hunt can run (subset of `source_channel` that Faro queries by itself). */
-export const HUNT_SOURCES = ["osm", "rues", "reps"] as const;
+export const HUNT_SOURCES = ["osm", "rues", "reps", "secop", "rnt", "solidaria"] as const;
 export type HuntSource = (typeof HUNT_SOURCES)[number];
 
 /** Map-level lead status: what the colour of a point means. */

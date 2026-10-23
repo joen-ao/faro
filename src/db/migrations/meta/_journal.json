@@ -43,6 +43,20 @@
       "when": 1792297683550,
       "tag": "0005_offer",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792476625682,
+      "tag": "0006_new_registries",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792477757143,
+      "tag": "0007_social_contacts",
+      "breakpoints": true
     }
   ]
 }

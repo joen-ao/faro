@@ -12,7 +12,7 @@ export const MAX_DISTANCE_METERS = 80;
 export type MatchReason = "nit" | "name+distance" | "name+domain" | "name+phone";
 
 /** Official registries win over crowd-sourced data when choosing name/address. */
-export const SOURCE_PRIORITY: Record<string, number> = { rues: 3, reps: 3, google_places: 2, website: 1, osm: 1 };
+export const SOURCE_PRIORITY: Record<string, number> = { rues: 3, reps: 3, secop: 3, rnt: 3, solidaria: 3, google_places: 2, website: 1, osm: 1 };
 export const priorityOf = (channel: string): number => SOURCE_PRIORITY[channel] ?? 0;
 
 /** In-memory working record: one per (existing or new) company during a dedupe run. */

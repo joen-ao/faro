@@ -5,13 +5,16 @@ export const SOURCE_LABEL: Record<string, string> = {
   osm: "OpenStreetMap",
   rues: "RUES",
   reps: "REPS",
+  secop: "SECOP II",
+  rnt: "RNT",
+  solidaria: "Supersolidaria",
   google_places: "Google Places",
   website: "Sitio web",
   meta_ads: "Pauta",
   sample: "Muestra",
 };
 
-export const SOURCE_SHORT: Record<string, string> = { osm: "OSM", rues: "RUES", reps: "REPS", google_places: "Places", website: "Web", meta_ads: "Pauta", sample: "Muestra" };
+export const SOURCE_SHORT: Record<string, string> = { osm: "OSM", rues: "RUES", reps: "REPS", secop: "SECOP", rnt: "RNT", solidaria: "Solidaria", google_places: "Places", website: "Web", meta_ads: "Pauta", sample: "Muestra" };
 
 export const STATUS_LABEL: Record<PointStatus, string> = {
   found: "Encontrada",

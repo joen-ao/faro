@@ -5,7 +5,7 @@ import type { MetricsBucket } from "@/features/metrics/channels";
 import { contactLabel, fmtInt, fmtPct, fmtUsd, sourceLabel } from "./format";
 
 /** Public sources that cost nothing to query (Google Places is a paid API with a free tier, so it is not counted here). */
-export const FREE_PUBLIC_SOURCES = ["osm", "rues", "reps", "website"] as const;
+export const FREE_PUBLIC_SOURCES = ["osm", "rues", "reps", "secop", "rnt", "solidaria", "website"] as const;
 
 export type ChallengeStatus = "done" | "progress" | "pending";
 

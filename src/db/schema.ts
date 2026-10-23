@@ -19,12 +19,15 @@ export const sourceChannelEnum = pgEnum("source_channel", [
   "rues",
   "reps",
   "google_places",
+  "secop",
+  "rnt",
+  "solidaria",
   "website",
   "meta_ads",
   "sample",
 ]);
 export const contactChannelEnum = pgEnum("contact_channel", ["email", "web_form", "whatsapp", "dapta_widget"]);
-export const contactPointTypeEnum = pgEnum("contact_point_type", ["email", "phone", "whatsapp", "web_form"]);
+export const contactPointTypeEnum = pgEnum("contact_point_type", ["email", "phone", "whatsapp", "web_form", "social"]);
 export const huntStatusEnum = pgEnum("hunt_status", ["pending", "running", "paused", "completed", "failed"]);
 export const leadStatusEnum = pgEnum("lead_status", [
   "found",

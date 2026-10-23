@@ -13,13 +13,14 @@ interface Batch {
   promovidosAFit: number;
   sitiosBuscados?: number;
   sitiosEncontrados?: number;
+  redesEncontradas?: number;
   discovering?: boolean;
   nextCursor: number;
   total: number;
   done: boolean;
 }
-type Totals = Required<Pick<Batch, "revisados" | "enriquecidos" | "conAgenda" | "conWhatsapp" | "contactosNuevos" | "costoApifyUsd" | "promovidosAFit" | "sitiosBuscados" | "sitiosEncontrados">>;
-const ZERO: Totals = { revisados: 0, enriquecidos: 0, conAgenda: 0, conWhatsapp: 0, contactosNuevos: 0, costoApifyUsd: 0, promovidosAFit: 0, sitiosBuscados: 0, sitiosEncontrados: 0 };
+type Totals = Required<Pick<Batch, "revisados" | "enriquecidos" | "conAgenda" | "conWhatsapp" | "contactosNuevos" | "costoApifyUsd" | "promovidosAFit" | "sitiosBuscados" | "sitiosEncontrados" | "redesEncontradas">>;
+const ZERO: Totals = { revisados: 0, enriquecidos: 0, conAgenda: 0, conWhatsapp: 0, contactosNuevos: 0, costoApifyUsd: 0, promovidosAFit: 0, sitiosBuscados: 0, sitiosEncontrados: 0, redesEncontradas: 0 };
 
 /** Loops POST /api/hunts/[id]/enrich (nextCursor/done) so the whole hunt is enriched in <55 s batches. */
 export function EnrichButton({ huntId, auto = false, onFinished }: { huntId: string; auto?: boolean; onFinished?: () => void }) {
@@ -55,7 +56,7 @@ export function EnrichButton({ huntId, auto = false, onFinished }: { huntId: str
     const acc: Totals = { ...ZERO };
     try {
       for (;;) {
-        const res = await fetch(`/api/hunts/${huntId}/enrich?apify=1&cursor=${cursor}`, { method: "POST" });
+        const res = await fetch(`/api/hunts/${huntId}/enrich?apify=0&cursor=${cursor}`, { method: "POST" });
         if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `Error ${res.status}`);
         const b = (await res.json()) as Batch;
         for (const k of Object.keys(acc) as Array<keyof Totals>) acc[k] += b[k] ?? 0;
@@ -86,7 +87,7 @@ export function EnrichButton({ huntId, auto = false, onFinished }: { huntId: str
         className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-faro-accent/50 bg-faro-accent/[0.08] px-3 text-[14px] font-bold text-faro-accent transition-colors hover:border-faro-accent hover:bg-faro-accent/[0.14] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-faro-accent disabled:cursor-wait disabled:opacity-70"
       >
         <Globe className="size-4" aria-hidden />
-        {running && searching ? `Buscando sitios web… ${totals.sitiosEncontrados} de ${totals.sitiosBuscados} encontrados` : running ? `${autoMode ? "Enriqueciendo automáticamente" : "Enriqueciendo"}… ${progress ? `${progress.at} de ${progress.total}` : ""}` : finished ? "Volver a enriquecer sitios web (Apify)" : "Enriquecer sitios web (Apify)"}
+        {running && searching ? `Buscando sitios y redes… ${totals.sitiosEncontrados} sitios, ${totals.redesEncontradas} redes de ${totals.sitiosBuscados}` : running ? `${autoMode ? "Enriqueciendo automáticamente" : "Enriqueciendo"}… ${progress ? `${progress.at} de ${progress.total}` : ""}` : finished ? "Volver a buscar sitios y redes (gratis)" : "Buscar sitios web y redes (gratis)"}
       </button>
       {(running || finished) && (progress || totals.sitiosBuscados > 0) && (
         <div className="mt-2" aria-live="polite">
@@ -94,8 +95,8 @@ export function EnrichButton({ huntId, auto = false, onFinished }: { huntId: str
             <div className="h-full rounded-full bg-faro-accent transition-[width] duration-500" style={{ width: `${pct}%` }} />
           </div>
           <p className="mt-1.5 text-[11.5px] text-faro-text-2">
-            {totals.sitiosBuscados > 0 ? `${totals.sitiosEncontrados} sitios encontrados de ${totals.sitiosBuscados} buscados · ` : ""}
-            {totals.enriquecidos} sitios leídos · {totals.conAgenda} con agenda · {totals.conWhatsapp} con WhatsApp · {totals.contactosNuevos} contactos nuevos · {totals.promovidosAFit} subieron a perfil · Apify ${totals.costoApifyUsd.toFixed(4)}
+            {totals.sitiosBuscados > 0 ? `${totals.sitiosEncontrados} sitios y ${totals.redesEncontradas} redes encontradas de ${totals.sitiosBuscados} buscadas · ` : ""}
+            {totals.enriquecidos} sitios leídos · {totals.conAgenda} con agenda · {totals.conWhatsapp} con WhatsApp · {totals.contactosNuevos} contactos nuevos · {totals.promovidosAFit} subieron a perfil{totals.costoApifyUsd > 0 ? ` · Apify $${totals.costoApifyUsd.toFixed(4)}` : " · costo $0"}
           </p>
         </div>
       )}

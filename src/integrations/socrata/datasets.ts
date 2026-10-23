@@ -58,7 +58,7 @@ const requireText = (label: string, v: string): string => {
  * RUES where clause. The dataset has no municipio column: `camara_comercio` (e.g. BOGOTA) is the
  * geographic proxy. Only ACTIVA registrations and no PERSONA NATURAL.
  */
-export function ruesWhere(opts: { ciiu: string | readonly string[]; camara: string }): string {
+export function ruesWhere(opts: { ciiu: string | readonly string[]; camara: string; includeNatural?: boolean }): string {
   const codes = (Array.isArray(opts.ciiu) ? opts.ciiu : [opts.ciiu]).map(assertCiiu);
   if (!codes.length) throw new Error("At least one CIIU code is required");
   const ciiuClause =
@@ -67,7 +67,8 @@ export function ruesWhere(opts: { ciiu: string | readonly string[]; camara: stri
     ciiuClause,
     `camara_comercio=${soql(requireText("camara", opts.camara))}`,
     `estado_matricula='ACTIVA'`,
-    `organizacion_juridica!='PERSONA NATURAL'`,
+    // Independents (natural-person merchants) only when the hunt asks for them.
+    ...(opts.includeNatural ? [] : [`organizacion_juridica!='PERSONA NATURAL'`]),
   ].join(" AND ");
 }
 
@@ -127,15 +128,16 @@ export const HEALTH_SERVICE_KEYWORDS = { dental: DENTAL_NAME_KEYWORDS } as const
  * Independiente`) and non-NIT ids are excluded. Dental is detected by name keywords because REPS
  * lists providers/sites, not services, in this dataset.
  */
-export function repsWhere(opts: { municipio: string; municipioCode?: string; nameKeywords?: readonly string[] }): string {
+export function repsWhere(opts: { municipio: string; municipioCode?: string; nameKeywords?: readonly string[]; includeIndependents?: boolean }): string {
   // A DANE code (5 digits) is exact; the name LIKE is the fallback for cities without a preset code.
   if (opts.municipioCode !== undefined && !/^\d{5}$/.test(opts.municipioCode)) throw new Error("Invalid DANE municipio code");
   const parts = [
     opts.municipioCode
       ? `municipiosede=${soql(opts.municipioCode)}`
       : `upper(municipiosededesc) like ${soql(`%${accentInsensitive(requireText("municipio", opts.municipio))}%`)}`,
-    `claseprestador like 'Instituciones Prestadoras%'`,
-    `tipoid='NI'`,
+    ...(opts.includeIndependents
+      ? [`(claseprestador like 'Instituciones Prestadoras%' OR claseprestador='Profesional Independiente')`]
+      : [`claseprestador like 'Instituciones Prestadoras%'`, `tipoid='NI'`]),
   ];
   if (opts.nameKeywords?.length) {
     const kws = opts.nameKeywords.map((k) => sanitizeText(k)).filter(Boolean);
@@ -143,6 +145,13 @@ export function repsWhere(opts: { municipio: string; municipioCode?: string; nam
     if (ors.length) parts.push(`(${ors.join(" OR ")})`);
   }
   return parts.join(" AND ");
+}
+
+/** REPS rows of the given identification numbers (NIT or ID): how a RUES record gets its REPS contact. Digits only. */
+export function repsByIdsWhere(ids: readonly string[]): string {
+  const clean = [...new Set(ids.map((x) => x.replace(/\D/g, "")).filter((x) => x.length >= 6 && x.length <= 11))];
+  if (!clean.length) throw new Error("At least one identification number is required");
+  return `numeroidentificacion in (${clean.map(soql).join(",")})`;
 }
 
 export const REPS_FIELDS =
@@ -170,6 +179,13 @@ export function parseReps(rows: SocrataRow[]): RepsProvider[] {
 
 /** True when a raw row describes a natural person / independent professional (for cache redaction). */
 export function isPersonalRow(r: SocrataRow): boolean {
+  // SECOP II / RNT / Supersolidaria rows: only company NITs (9 digits starting with 8 or 9) are companies.
+  const registryName = r.nombre ?? r.razon_social_establecimiento ?? r.entidad ?? r.nombreentidad;
+  if (registryName !== undefined) {
+    if (r.tipo_empresa?.toUpperCase().startsWith("PERSONA NATURAL")) return true;
+    const d = (r.nit ?? "").replace(/\D/g, "");
+    if (!/^[89]\d{8}/.test(d)) return true;
+  }
   if (isNaturalPersonOrg(r.organizacion_juridica)) return true;
   if (r.claseprestador === "Profesional Independiente") return true;
   if (r.tipoid && r.tipoid !== "NI") return true;

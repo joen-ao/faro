@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { renderEmailHtml, brandFrom } from "@/features/outreach/email-html";
 import { ReplyDialog } from "./reply-dialog";
 
 type Channel = "email" | "web_form" | "whatsapp" | "dapta_widget";
@@ -41,6 +42,8 @@ export interface RowView {
   latest: { id: string; status: string; channel: string; blockedByRule: string | null; subject: string | null; recipient: string | null } | null;
   formUrl: string | null;
   suggestion?: string | null;
+  isIndependent?: boolean;
+  manual?: { email: string | null; phone: string | null } | null;
 }
 export interface QueueItem {
   id: string;
@@ -58,10 +61,14 @@ interface Preview {
   assessment: Assessment;
   message: { subject: string; text: string; diagnosticUrl: string; optOutUrl: string; sourceLabel: string; senderIdentified: boolean; replyTo: string | null } | null;
   isMockAi: boolean;
+  from?: string | null;
 }
 
+/** Rules that only guard automatic sending; a person contacting an independent by hand is not bound by them. */
+const AUTOMATIC_ONLY_RULES = ["natural_person", "personal_email", "legal_unverified", "channel_unavailable", "sender_incomplete", "sender_missing"];
+
 const CHANNEL_LABEL: Record<Channel, string> = { email: "Correo", web_form: "Formulario (asistido)", whatsapp: "WhatsApp", dapta_widget: "Widget" };
-const SOURCE_LABEL: Record<string, string> = { osm: "OSM", rues: "RUES", reps: "REPS", google_places: "Places", website: "Web", meta_ads: "Pauta", sample: "Demo" };
+const SOURCE_LABEL: Record<string, string> = { osm: "OSM", rues: "RUES", reps: "REPS", secop: "SECOP", rnt: "RNT", solidaria: "Solidaria", google_places: "Places", website: "Web", meta_ads: "Pauta", sample: "Demo" };
 const RULE_LABEL: Record<string, string> = {
   natural_person: "Persona natural",
   personal_email: "Correo personal",
@@ -119,11 +126,55 @@ const focusRing = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-
 const checkCls = "size-[18px] cursor-pointer accent-[var(--faro-accent)] disabled:cursor-not-allowed " + focusRing;
 const inputCls =
   "w-full rounded-button border border-border bg-faro-surface-2 px-3 py-2 text-sm text-white placeholder:text-faro-text-3 focus-visible:border-faro-accent focus-visible:outline-none";
-/** Fields drawn on the white "paper" of the email preview: dark text, dark focus ring (lime has no contrast on white). */
-const paperInput =
-  "mt-0.5 block w-full rounded-[6px] border border-transparent bg-transparent px-1.5 py-1 text-sm text-[#1a1a1c] hover:border-black/15 focus-visible:border-[#1a1a1c] focus-visible:outline-none";
 const btn =
   "inline-flex h-10 items-center justify-center rounded-button px-4 text-sm font-semibold transition-transform active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40";
+
+/** "Mokub <equipo@mokub.co>" -> name and address, as an inbox shows them. */
+function parseFrom(from: string | null | undefined, fallbackName: string): { name: string; address: string } {
+  const m = /^\s*"?([^"<]*)"?\s*<([^>]+)>\s*$/.exec(from ?? "");
+  if (m) return { name: m[1]!.trim() || fallbackName, address: m[2]!.trim() };
+  return { name: fallbackName, address: from?.trim() || "" };
+}
+
+/** The email as the recipient sees it in Gmail: subject, sender row, the HTML body exactly as sent. */
+function InboxView({ subject, from, to, text }: { subject: string; from: string | null | undefined; to: string | null; text: string }) {
+  const html = useMemo(() => renderEmailHtml(text), [text]);
+  const sender = parseFrom(from, brandFrom(text));
+  const [height, setHeight] = useState(520);
+  return (
+    <div className="overflow-hidden rounded-[12px] bg-white text-[#1f1f1f]" style={{ colorScheme: "light" }} data-testid="inbox-view">
+      <div className="px-5 pt-4 pb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-[19px] leading-snug font-normal [overflow-wrap:anywhere]">{subject || "(sin asunto)"}</h3>
+          <span className="rounded-[4px] bg-[#e8eaed] px-1.5 py-0.5 text-[11px] text-[#444746]">Recibidos</span>
+        </div>
+        <div className="mt-3.5 flex items-start gap-3">
+          <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#1a1a1c] text-[15px] font-bold text-[#cbe850]">
+            {sender.name.charAt(0).toUpperCase()}
+          </span>
+          <div className="min-w-0 flex-1 text-[13px] leading-tight">
+            <p className="[overflow-wrap:anywhere]">
+              <span className="font-semibold text-[#1f1f1f]">{sender.name}</span> {sender.address && <span className="text-[#5e5e5e]">&lt;{sender.address}&gt;</span>}
+            </p>
+            <p className="mt-1 text-[12px] text-[#5e5e5e] [overflow-wrap:anywhere]">para {to ?? "destinatario"}</p>
+          </div>
+          <span className="shrink-0 text-[12px] text-[#5e5e5e]">ahora</span>
+        </div>
+      </div>
+      <iframe
+        title="Correo tal como le llega"
+        srcDoc={`<!doctype html><html><head><meta charset="utf-8"><base target="_blank"></head><body style="margin:0">${html}</body></html>`}
+        sandbox="allow-same-origin allow-popups"
+        className="block w-full border-0"
+        style={{ height }}
+        onLoad={(e) => {
+          const doc = e.currentTarget.contentDocument;
+          if (doc) setHeight(Math.max(200, doc.documentElement.scrollHeight));
+        }}
+      />
+    </div>
+  );
+}
 
 export function OutreachClient(props: {
   huntId: string;
@@ -136,6 +187,10 @@ export function OutreachClient(props: {
   window: { allowed: boolean; reason: string; nextAllowedAt: string | null; policy?: "ley2300" | "extendida" | "custom"; label?: string };
   rows: RowView[];
   queue: QueueItem[];
+  segment?: "empresas" | "independientes";
+  counts?: Record<"empresas" | "independientes", { total: number; contacted: number }>;
+  page?: number;
+  pages?: number;
 }) {
   const router = useRouter();
   const { rows, queue, sendEnabled } = props;
@@ -154,6 +209,7 @@ export function OutreachClient(props: {
   const [copied, setCopied] = useState(false);
   const [replyFor, setReplyFor] = useState<RowView | null>(null);
   const [view, setView] = useState<"all" | "blocked" | "contacted">("all");
+  const [editing, setEditing] = useState(false);
 
   const active = rows.find((r) => r.leadId === activeId) ?? null;
   const channelOf = (r: RowView): Channel | null => override[r.leadId] ?? r.suggested;
@@ -271,6 +327,22 @@ export function OutreachClient(props: {
 
   const channel = preview?.channel ?? null;
   const isForm = channel === "web_form";
+  const independent = active?.isIndependent === true;
+  // Rules that only guard automatic sending do not apply when a person contacts an independent by hand.
+  const shownBlocks = preview ? (independent ? preview.assessment.blocks.filter((b) => !AUTOMATIC_ONLY_RULES.includes(b.rule)) : preview.assessment.blocks) : [];
+  const waDigits = active?.manual?.phone?.replace(/\D/g, "") ?? "";
+  const mailtoUrl = active?.manual?.email ? `mailto:${active.manual.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` : null;
+  const waUrl = waDigits.length >= 10 ? `https://wa.me/${waDigits}?text=${encodeURIComponent(body)}` : null;
+  const segmentHref = (seg: "empresas" | "independientes", page = 1) => `?tipo=${seg}${page > 1 ? `&pagina=${page}` : ""}`;
+  const markManual = async (via: "email" | "whatsapp") => {
+    if (!active) return;
+    setBusy(true);
+    const { ok, json } = await post("/api/outreach/manual", { leadId: active.leadId, channel: via, ...(via === "email" ? { subject } : {}), body, minutes: Number(minutes.replace(",", ".")) || 2 });
+    setBusy(false);
+    if (!ok) return setFeedback({ tone: "bad", text: json.error ?? json.blocks?.map((b: Block) => b.message).join(" ") ?? "No se pudo registrar" });
+    setFeedback({ tone: "ok", text: `Contacto manual registrado (${via === "email" ? "correo" : "WhatsApp"}). Costo humano: US$ ${Number(json.costUsd).toFixed(2)}.` });
+    router.refresh();
+  };
   const safeFormUrl = active?.formUrl && /^https?:\/\//i.test(active.formUrl) ? active.formUrl : null;
   const minutesNum = Number(minutes.replace(",", "."));
   const allEligibleSelected = eligible.length > 0 && eligible.every((r) => selected.has(r.leadId));
@@ -343,6 +415,28 @@ export function OutreachClient(props: {
         </p>
       )}
 
+      {props.counts && (
+        <nav aria-label="Tipo de lead" className="flex flex-wrap gap-2" data-testid="segment-tabs">
+          {(["empresas", "independientes"] as const).map((seg) => {
+            const c = props.counts![seg];
+            const on = props.segment === seg;
+            return (
+              <Link
+                key={seg}
+                href={segmentHref(seg)}
+                aria-current={on ? "page" : undefined}
+                className={cn(focusRing, "flex flex-col rounded-[12px] border px-4 py-2.5 text-sm transition-colors", on ? "border-faro-accent bg-faro-accent/[0.07] text-white" : "border-white/[0.14] text-faro-text-2 hover:text-white")}
+              >
+                <span className="font-semibold">
+                  {seg === "empresas" ? "Empresas · correo automático" : "Independientes · contacto manual"} <span className="tabular-nums">({c.total.toLocaleString("es-CO")})</span>
+                </span>
+                <span className="text-xs text-faro-text-3">{c.contacted.toLocaleString("es-CO")} ya contactados · al final de la lista</span>
+              </Link>
+            );
+          })}
+        </nav>
+      )}
+
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section aria-label="Leads" className="min-w-0 overflow-hidden rounded-card border border-white/10 bg-faro-surface-1">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] px-4 py-4 sm:px-5">
@@ -363,6 +457,7 @@ export function OutreachClient(props: {
                 </button>
               ))}
             </div>
+            {props.segment !== "independientes" && (
             <button
               type="button"
               data-testid="send-selected"
@@ -372,6 +467,7 @@ export function OutreachClient(props: {
             >
               {busy ? "Procesando…" : `${sendEnabled ? "Encolar" : "Encolar y simular"} ${selected.size || ""} ${selected.size === 1 ? "seleccionado" : "seleccionados"}`.replace(/\s+/g, " ").trim()}
             </button>
+            )}
           </div>
 
           {rows.length === 0 ? (
@@ -406,7 +502,8 @@ export function OutreachClient(props: {
                     const ch = channelOf(r);
                     const isActive = r.leadId === activeId;
                     const canPick = selectable(r);
-                    const hard = blocking(r.assessment);
+                    const manualRow = r.isIndependent === true;
+                    const hard = blocking(r.assessment).filter((b) => !manualRow || !AUTOMATIC_ONLY_RULES.includes(b.rule));
                     return (
                       <li
                         key={r.leadId}
@@ -484,7 +581,7 @@ export function OutreachClient(props: {
                         </div>
                         <span className={cn("hidden font-display text-[15px] tabular-nums md:block", hard.length === 0 && (r.fitScore ?? 0) >= 60 ? "font-bold text-faro-accent" : "text-white")}>{r.fitScore ?? "—"}</span>
                         <div className="col-start-2 flex min-w-0 flex-col items-start gap-1.5 md:col-start-auto">
-                          {r.latest ? <Chip tone={r.latest.status === "blocked" || r.latest.status === "failed" ? "bad" : r.latest.status === "queued" ? "wait" : "mute"}>{STATUS_LABEL[r.latest.status] ?? r.latest.status}</Chip> : verdict(r.assessment, sendEnabled)}
+                          {r.latest ? <Chip tone={r.latest.status === "blocked" || r.latest.status === "failed" ? "bad" : r.latest.status === "queued" ? "wait" : "mute"}>{STATUS_LABEL[r.latest.status] ?? r.latest.status}</Chip> : manualRow ? hard.length ? <Chip tone="wait">{RULE_LABEL[hard[0]!.rule] ?? hard[0]!.rule}</Chip> : <Chip tone="ok">Contacto manual</Chip> : verdict(r.assessment, sendEnabled)}
                           {hard.length > 0 && <p className="text-xs leading-snug text-[var(--faro-danger)]">{hard[0]!.message}</p>}
                         </div>
                       </li>
@@ -492,12 +589,33 @@ export function OutreachClient(props: {
                   })}
                 </ul>
               )}
+              {(props.pages ?? 1) > 1 && (
+                <nav aria-label="Páginas" className="flex items-center justify-between gap-3 border-t border-white/[0.08] px-4 py-3 text-sm sm:px-5" data-testid="pager">
+                  {(props.page ?? 1) > 1 ? (
+                    <Link href={segmentHref(props.segment ?? "empresas", (props.page ?? 1) - 1)} className={cn(focusRing, "rounded text-faro-accent hover:underline")}>
+                      ← Anterior
+                    </Link>
+                  ) : (
+                    <span />
+                  )}
+                  <span className="tabular-nums text-faro-text-3">
+                    Página {props.page} de {props.pages}
+                  </span>
+                  {(props.page ?? 1) < (props.pages ?? 1) ? (
+                    <Link href={segmentHref(props.segment ?? "empresas", (props.page ?? 1) + 1)} className={cn(focusRing, "rounded text-faro-accent hover:underline")}>
+                      Siguiente →
+                    </Link>
+                  ) : (
+                    <span />
+                  )}
+                </nav>
+              )}
             </>
           )}
         </section>
 
         <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6">
-          <section aria-label="Vista previa" aria-live="polite" className="rounded-card border border-white/10 bg-faro-surface-1 p-5" data-testid="preview-panel">
+          <section aria-label="Vista previa" aria-live="polite" className="rounded-card border border-white/10 bg-faro-surface-1 p-5 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto" data-testid="preview-panel">
             {!active ? (
               <div className="py-6 text-center">
                 <h2 className="font-display text-lg font-semibold">Vista previa</h2>
@@ -519,14 +637,20 @@ export function OutreachClient(props: {
                       {channel ? CHANNEL_LABEL[channel] : "Sin canal"} · {preview.recipient ?? "sin destinatario"}
                     </p>
                   </div>
-                  {verdict(preview.assessment, sendEnabled)}
+                  {independent ? <Chip tone={shownBlocks.length ? "wait" : "ok"}>{shownBlocks.length ? (RULE_LABEL[shownBlocks[0]!.rule] ?? shownBlocks[0]!.rule) : "Contacto manual"}</Chip> : verdict(preview.assessment, sendEnabled)}
                 </div>
 
                 <ul data-testid="blocks" className="flex flex-col gap-1.5">
-                  {preview.assessment.blocks.length === 0 && (
+                  {independent && (
+                    <li className="rounded-[10px] border border-white/25 px-3 py-2 text-sm">
+                      <strong className="text-white">Independiente.</strong>{" "}
+                      <span className="text-faro-text-2">Faro no le escribe automáticamente: envíalo tú desde tu correo o WhatsApp y márcalo como contactado.</span>
+                    </li>
+                  )}
+                  {shownBlocks.length === 0 && !independent && (
                     <li className="text-sm text-faro-text-2">Sin bloqueos de cumplimiento. {preview.assessment.note ?? ""}</li>
                   )}
-                  {preview.assessment.blocks.map((b) => (
+                  {shownBlocks.map((b) => (
                     <li key={b.rule} className={cn("rounded-[10px] border px-3 py-2 text-sm", b.rule === "outside_window" ? "border-white/25" : "border-[var(--faro-danger)]/40")}>
                       <strong className={b.rule === "outside_window" ? "text-white" : "text-[var(--faro-danger)]"}>{RULE_LABEL[b.rule] ?? b.rule}.</strong>{" "}
                       <span className="text-faro-text-2">{b.message}</span>
@@ -542,22 +666,92 @@ export function OutreachClient(props: {
                 {preview.message && (
                   <>
                     {preview.isMockAi && <p className="text-xs text-faro-text-3">Redactado con IA en modo demo (mock).</p>}
-                    <div className="rounded-[12px] bg-white p-4 text-[#1a1a1c] sm:p-[18px]">
-                      {channel === "email" && (
-                        <div className="mb-3">
-                          <label htmlFor="subject" className="block text-xs text-[#5c5c62]">
-                            Asunto
-                          </label>
-                          <input id="subject" className={cn(paperInput, "font-bold")} value={subject} maxLength={200} onChange={(e) => setSubject(e.target.value)} />
-                        </div>
-                      )}
-                      <label htmlFor="body" className="block text-xs text-[#5c5c62]">
-                        Mensaje (editable; debe conservar el enlace de baja)
-                      </label>
-                      <textarea id="body" data-testid="body" rows={14} className={cn(paperInput, "min-h-56 max-h-[30rem] resize-y overflow-y-auto leading-[1.55] [field-sizing:content]")} value={body} onChange={(e) => setBody(e.target.value)} />
+                    <div className="flex items-center justify-between gap-2">
+                      <div role="tablist" aria-label="Vista del mensaje" className="flex gap-1 rounded-[10px] border border-white/[0.14] p-1 text-sm">
+                        {[
+                          { id: false, label: channel === "email" ? "Como le llega" : "Mensaje" },
+                          { id: true, label: "Editar" },
+                        ].map((t) => (
+                          <button
+                            key={t.label}
+                            type="button"
+                            role="tab"
+                            aria-selected={editing === t.id}
+                            onClick={() => setEditing(t.id)}
+                            className={cn(focusRing, "h-8 rounded-[7px] px-3 transition-colors", editing === t.id ? "bg-white/[0.1] text-white" : "text-faro-text-3 hover:text-white")}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                      {editing && <span className="text-xs text-faro-text-3">Conserva el enlace de baja</span>}
                     </div>
+                    {editing ? (
+                      <div className="flex flex-col gap-2.5">
+                        {channel === "email" && (
+                          <div>
+                            <label htmlFor="subject" className="mb-1 block text-xs text-faro-text-3">
+                              Asunto
+                            </label>
+                            <input id="subject" className={cn(inputCls, "font-semibold")} value={subject} maxLength={200} onChange={(e) => setSubject(e.target.value)} />
+                          </div>
+                        )}
+                        <div>
+                          <label htmlFor="body" className="mb-1 block text-xs text-faro-text-3">
+                            Mensaje
+                          </label>
+                          <textarea id="body" data-testid="body" rows={14} className={cn(inputCls, "min-h-64 resize-y leading-[1.6] [field-sizing:content]")} value={body} onChange={(e) => setBody(e.target.value)} />
+                        </div>
+                      </div>
+                    ) : channel === "email" || independent ? (
+                      <InboxView subject={subject} from={preview.from} to={preview.recipient ?? active?.manual?.email ?? null} text={body} />
+                    ) : (
+                      <p className="whitespace-pre-wrap rounded-[12px] border border-white/[0.14] bg-faro-surface-2 p-4 text-sm leading-[1.6] text-white">{body}</p>
+                    )}
 
-                    {isForm ? (
+                    <div className="sticky -bottom-5 -mx-5 -mb-5 border-t border-white/[0.08] bg-faro-surface-1/95 px-5 pt-3 pb-5 backdrop-blur">
+                    {independent ? (
+                      <div className="flex flex-col gap-3 rounded-[12px] border border-white/[0.14] bg-faro-surface-2 p-3.5" data-testid="manual">
+                        <p className="text-sm text-faro-text-2">
+                          Contacto manual: abre el mensaje en tu correo o en WhatsApp, revísalo, envíalo y márcalo aquí. {active?.manual?.email ? `Correo: ${active.manual.email}.` : ""} {active?.manual?.phone ? `Teléfono: ${active.manual.phone}.` : ""}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {mailtoUrl && (
+                            <a href={mailtoUrl} className={cn(btn, focusRing, "border border-white/[0.14] hover:border-faro-accent")}>
+                              Abrir en mi correo
+                            </a>
+                          )}
+                          {waUrl && (
+                            <a href={waUrl} target="_blank" rel="noopener noreferrer" className={cn(btn, focusRing, "border border-white/[0.14] hover:border-faro-accent")}>
+                              Abrir WhatsApp
+                            </a>
+                          )}
+                          <button type="button" onClick={copy} className={cn(btn, focusRing, "border border-white/[0.14] hover:border-faro-accent")}>
+                            {copied ? "Copiado" : "Copiar texto"}
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-[7rem_1fr] items-end gap-3">
+                          <div>
+                            <label htmlFor="minutes-manual" className="mb-1 block text-xs text-faro-text-3">
+                              Minutos
+                            </label>
+                            <input id="minutes-manual" inputMode="decimal" className={inputCls} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {active?.manual?.email && (
+                              <button type="button" data-testid="manual-email" disabled={busy || shownBlocks.length > 0} onClick={() => markManual("email")} className={cn(btn, focusRing, "bg-faro-accent font-bold text-[var(--faro-accent-ink)]")}>
+                                Marcar contactado por correo
+                              </button>
+                            )}
+                            {waUrl && (
+                              <button type="button" data-testid="manual-whatsapp" disabled={busy || shownBlocks.length > 0} onClick={() => markManual("whatsapp")} className={cn(btn, focusRing, "border border-faro-accent font-bold text-faro-accent")}>
+                                Marcar por WhatsApp
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : isForm ? (
                       <div className="flex flex-col gap-3 rounded-[12px] border border-white/[0.14] bg-faro-surface-2 p-3.5" data-testid="assisted">
                         <p className="text-sm text-faro-text-2">Modo asistido: lo envías tú. Copia el texto, abre el formulario, pégalo y marca como enviado con el tiempo que te tomó.</p>
                         <div className="flex flex-wrap gap-2">
@@ -612,6 +806,7 @@ export function OutreachClient(props: {
                         </button>
                       </div>
                     )}
+                    </div>
                   </>
                 )}
               </div>

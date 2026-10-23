@@ -69,7 +69,7 @@ export function createRealApify(deps: RealApifyDeps): ApifyAdapter {
   }
 
   /** Starts an actor run, waits up to `waitSecs` (aborts after that) and returns the dataset rows plus the billed cost. */
-  async function runActor(actorId: string, input: Record<string, unknown>, waitSecs: number, limit: number) {
+  async function runActor(actorId: string, input: Record<string, unknown>, waitSecs: number, limit: number, keepPartial = false) {
     const started = now();
     let run = (
       await call<{ data: RunData }>(`/acts/${encodeURIComponent(actorId.replace("/", "~"))}/runs?waitForFinish=${Math.min(45, waitSecs)}`, {
@@ -83,9 +83,15 @@ export function createRealApify(deps: RealApifyDeps): ApifyAdapter {
     }
     const usage = typeof run.usageTotalUsd === "number" ? run.usageTotalUsd : 0;
     if (run.status !== "SUCCEEDED") {
-      if (run.id && !TERMINAL.has(run.status ?? "")) {
+      const timedOut = !!run.id && !TERMINAL.has(run.status ?? "");
+      if (timedOut) {
         const aborted = await call<{ data: RunData }>(`/actor-runs/${run.id}/abort`, { method: "POST" }).catch(() => undefined);
         run = aborted?.data ?? run;
+      }
+      // Our own time limit stopped it: what the run already stored is still good (and already paid for).
+      if (timedOut && keepPartial && run.defaultDatasetId) {
+        const rows = await call<Record<string, unknown>[]>(`/datasets/${run.defaultDatasetId}/items?clean=true&format=json&limit=${limit}`).catch(() => []);
+        return { rows, runId: run.id ?? null, usageTotalUsd: typeof run.usageTotalUsd === "number" ? run.usageTotalUsd : usage, latencyMs: now() - started };
       }
       throw new ApifyError(`La corrida de Apify terminó en estado ${run.status ?? "desconocido"}`, undefined, typeof run.usageTotalUsd === "number" ? run.usageTotalUsd : usage, run.id);
     }
@@ -107,6 +113,7 @@ export function createRealApify(deps: RealApifyDeps): ApifyAdapter {
         { queries: queries.map((q) => q.q).join("\n"), maxPagesPerQuery: 1, countryCode: "co", languageCode: "es", mobileResults: false, saveHtml: false, saveHtmlToKeyValueStore: false, includeIcons: false },
         waitSecs,
         Math.max(50, queries.length * 2),
+        true,
       );
       const keyByQ = new Map(queries.map((q) => [q.q.trim().toLowerCase(), q.key]));
       const results: ApifySearchResult["results"] = [];

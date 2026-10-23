@@ -8,7 +8,7 @@ import { E164, type WhatsappRow } from "./types";
 
 const MAX_LEADS = 500;
 /** Sources that prove a phone belongs to the company (an unverified OSM number may be a personal mobile). */
-const COMPANY_SOURCES = new Set(["rues", "reps", "google_places", "website"]);
+const COMPANY_SOURCES = new Set(["rues", "reps", "secop", "rnt", "solidaria", "google_places", "website"]);
 
 export interface WhatsappSelection {
   rows: WhatsappRow[];

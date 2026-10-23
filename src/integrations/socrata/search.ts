@@ -46,7 +46,17 @@ const stableId = (s: string) => {
 
 const emptyExcluded = () => ({ naturalPerson: 0, lookalike: 0, noName: 0 });
 
-export function ruesToSource(rows: SocrataRow[], isMock: boolean): Pick<SourceSearchResult, "companies" | "excluded"> {
+/** Options of an independents search: natural persons are kept as independents (`isLegalEntity: false`). */
+export interface IndependentsOpts {
+  includeNatural?: boolean;
+}
+
+const validEmail = (e?: string) => {
+  const v = e?.trim().toLowerCase();
+  return v && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) && !v.endsWith("@example.invalid") ? v : undefined;
+};
+
+export function ruesToSource(rows: SocrataRow[], isMock: boolean, opts: IndependentsOpts = {}): Pick<SourceSearchResult, "companies" | "excluded"> {
   const excluded = emptyExcluded();
   const companies: SourceCompany[] = [];
   const named = rows.filter((r) => r._personal !== "1" && r.razon_social?.trim());
@@ -54,12 +64,10 @@ export function ruesToSource(rows: SocrataRow[], isMock: boolean): Pick<SourceSe
   excluded.lookalike += rows.filter((r) => r._personal === "1").length;
   const seen = new Set<string>();
   for (const c of parseRues(named)) {
-    if (!c.isLegalEntity) {
-      excluded.naturalPerson++;
-      continue;
-    }
-    if (c.possibleNaturalPerson) {
-      excluded.lookalike++;
+    const independent = !c.isLegalEntity || c.possibleNaturalPerson;
+    if (independent && !opts.includeNatural) {
+      if (!c.isLegalEntity) excluded.naturalPerson++;
+      else excluded.lookalike++;
       continue;
     }
     const key = c.nit ?? `n-${stableId(c.razonSocial)}`;
@@ -74,16 +82,16 @@ export function ruesToSource(rows: SocrataRow[], isMock: boolean): Pick<SourceSe
       sourceChannel: "rues",
       sourceUrl: `https://www.datos.gov.co/resource/${RUES_DATASET}`,
       license: SOCRATA_LICENSE,
-      isLegalEntity: true,
-      possibleNaturalPerson: false,
-      raw: pick({ ciiu: c.ciiu, organizacion_juridica: c.organizacionJuridica, camara_comercio: c.camara }),
+      isLegalEntity: !independent,
+      possibleNaturalPerson: independent,
+      raw: pick({ ciiu: c.ciiu, organizacion_juridica: c.organizacionJuridica, camara_comercio: c.camara, ...(independent ? { independiente: "1" } : {}) }),
       isMock,
     });
   }
   return { companies, excluded };
 }
 
-export function repsToSource(rows: SocrataRow[], isMock: boolean): Pick<SourceSearchResult, "companies" | "excluded"> {
+export function repsToSource(rows: SocrataRow[], isMock: boolean, opts: IndependentsOpts = {}): Pick<SourceSearchResult, "companies" | "excluded"> {
   const excluded = emptyExcluded();
   excluded.lookalike += rows.filter((r) => r._personal === "1").length;
   const live = rows.filter((r) => r._personal !== "1");
@@ -92,12 +100,10 @@ export function repsToSource(rows: SocrataRow[], isMock: boolean): Pick<SourceSe
   const companies: SourceCompany[] = [];
   const seen = new Set<string>();
   for (const p of providers) {
-    if (!p.isLegalEntity) {
-      excluded.naturalPerson++;
-      continue;
-    }
-    if (p.possibleNaturalPerson) {
-      excluded.lookalike++;
+    const independent = !p.isLegalEntity || p.possibleNaturalPerson;
+    if (independent && !opts.includeNatural) {
+      if (!p.isLegalEntity) excluded.naturalPerson++;
+      else excluded.lookalike++;
       continue;
     }
     const externalId = `reps:${p.providerCode ?? `n-${stableId(p.name)}`}`;
@@ -109,14 +115,15 @@ export function repsToSource(rows: SocrataRow[], isMock: boolean): Pick<SourceSe
       address: p.address,
       city: titleCase(p.municipio),
       phone: p.phone && !PHONE_MASK.test(p.phone) ? p.phone : undefined,
-      email: genericEmailOnly(p.email),
+      // An independent's registry mailbox is their business contact (kept, never auto-contacted); companies: generic only.
+      email: independent ? validEmail(p.email) : genericEmailOnly(p.email),
       externalId,
       sourceChannel: "reps",
       sourceUrl: `https://www.datos.gov.co/resource/${REPS_DATASET}`,
       license: SOCRATA_LICENSE,
-      isLegalEntity: true,
-      possibleNaturalPerson: false,
-      raw: pick({ claseprestador: p.claseprestador, municipio: p.municipio }),
+      isLegalEntity: !independent,
+      possibleNaturalPerson: independent,
+      raw: pick({ claseprestador: p.claseprestador, municipio: p.municipio, ...(independent ? { independiente: "1" } : {}) }),
       isMock,
     });
   }

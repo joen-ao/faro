@@ -39,7 +39,7 @@ export const REDACTED = "[REDACTED]";
 export function redactRow(r: SocrataRow): SocrataRow {
   if (!isPersonalRow(r)) return r;
   const out: SocrataRow = { ...r, _personal: "1" };
-  for (const k of ["razon_social", "nombresede", "nombreprestador", "nit", "numeroidentificacion", "email_sede", "t_lefonosede", "direcci_nsede"]) {
+  for (const k of ["razon_social", "nombresede", "nombreprestador", "nit", "numeroidentificacion", "email_sede", "t_lefonosede", "direcci_nsede", "nombre", "razon_social_establecimiento", "nombreentidad", "entidad", "correo_entidad", "direccion_entidad", "correo", "correo_establecimiento", "correo_prestador", "telefono", "n_m_tel_fono", "direccion", "direcci_n_comercial_establecimiento"]) {
     if (k in out) out[k] = REDACTED;
   }
   return out;
@@ -95,7 +95,7 @@ export function createRealSocrata(opts: RealSocrataOptions = {}): SocrataAdapter
       if (!Array.isArray(res.data)) throw new Error("Socrata returned a non-array response");
       await log({ service: "socrata", endpoint, status: 200, latencyMs: res.latencyMs, error: null, costUsd: 0, isMock: false });
       if (maxEntries > 0) {
-        cache.set(url, { at: Date.now(), rows: res.data.map(redactRow), latencyMs: res.latencyMs });
+        cache.set(url, { at: Date.now(), rows: q.keepPersonal ? res.data : res.data.map(redactRow), latencyMs: res.latencyMs });
         while (cache.size > maxEntries) cache.delete(cache.keys().next().value!);
       }
       return { rows: res.data, latencyMs: res.latencyMs, fromCache: false, isMock: false };

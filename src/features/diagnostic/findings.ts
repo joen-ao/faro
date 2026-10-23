@@ -58,10 +58,13 @@ export interface RegistryNote {
 const REGISTRY: Record<string, { label: string; url: string }> = {
   reps: { label: "REPS (Registro Especial de Prestadores de Salud), datos.gov.co", url: "https://www.datos.gov.co/" },
   rues: { label: "RUES (Registro Único Empresarial), datos.gov.co", url: "https://www.datos.gov.co/" },
+  secop: { label: "SECOP II, proveedores registrados (datos.gov.co)", url: "https://www.datos.gov.co/" },
+  rnt: { label: "Registro Nacional de Turismo (datos.gov.co)", url: "https://www.datos.gov.co/" },
+  solidaria: { label: "Supersolidaria, entidades del sector solidario (datos.gov.co)", url: "https://www.datos.gov.co/" },
   google_places: { label: "Google Maps (Places API)", url: "https://maps.google.com/" },
   osm: { label: "OpenStreetMap", url: "https://www.openstreetmap.org/copyright" },
 };
-const REGISTRY_ORDER = ["reps", "rues", "google_places", "osm"];
+const REGISTRY_ORDER = ["reps", "rues", "secop", "rnt", "solidaria", "google_places", "osm"];
 
 /** Only http(s) URLs are ever linked (blocks javascript: and data: from stored source data). */
 export function safeHttpUrl(u: string | null | undefined): string | null {

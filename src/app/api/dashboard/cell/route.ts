@@ -8,7 +8,7 @@ import { withDb } from "@/lib/with-db";
 export const dynamic = "force-dynamic";
 
 const query = z.object({
-  source: z.enum(["osm", "rues", "reps", "google_places", "website", "meta_ads", "sample"]),
+  source: z.enum(["osm", "rues", "reps", "secop", "rnt", "solidaria", "google_places", "website", "meta_ads", "sample"]),
   contact: z.enum(["email", "web_form", "whatsapp", "dapta_widget"]).optional(),
   demo: z.enum(["0", "1"]).default("0"),
 });

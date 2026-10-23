@@ -3,7 +3,8 @@ import type { Country } from "@/features/compliance/windows";
 import type { ContactChannel } from "@/db/types";
 
 export interface ContactRow {
-  type: "email" | "phone" | "whatsapp" | "web_form";
+  /** `social` pages are shown to the team but never used to send (platform terms forbid automated DMs). */
+  type: "email" | "phone" | "whatsapp" | "web_form" | "social";
   value: string;
   isGeneric: boolean;
 }

@@ -9,6 +9,7 @@ export * from "./datasets";
 export { buildSocrataUrl, createRealSocrata, redactRow, REDACTED } from "./real";
 export { createSocrataSource, genericEmailOnly, repsToSource, ruesToSource } from "./search";
 export { createMockSocrata } from "./mock";
+export * from "./registries";
 
 /** Low-level adapter chosen by `SOCRATA_MODE` (mock rows are flagged `isMock`). */
 export function getSocrata(env: Env = getEnv(), onCall?: ApiCallLogger): SocrataAdapter {

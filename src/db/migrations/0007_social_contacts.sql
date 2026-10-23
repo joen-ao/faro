@@ -1,0 +1,1 @@
+ALTER TYPE "public"."contact_point_type" ADD VALUE IF NOT EXISTS 'social';
