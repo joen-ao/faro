@@ -8,6 +8,8 @@ import { CompliancePanel, Panel } from "@/components/dashboard/panels";
 import { getReadyDb } from "@/db/client";
 import type { AppDb } from "@/db/types";
 import { getDashboardData } from "@/features/dashboard/data";
+import { OutreachPanel } from "@/components/dashboard/outreach-panel";
+import { getOutreachMetrics } from "@/features/metrics/outreach";
 import { requireAppAccess } from "@/lib/app-access";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +26,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     );
   }
   const includeDemo = (await searchParams).demo === "1";
-  const data = await getDashboardData((await getReadyDb()) as unknown as AppDb, { includeDemo });
+  const db = (await getReadyDb()) as unknown as AppDb;
+  const [data, outreach] = await Promise.all([getDashboardData(db, { includeDemo }), getOutreachMetrics(db)]);
 
   return (
     <main>
@@ -39,6 +42,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </header>
 
         <div className="mt-7 space-y-7">
+          <OutreachPanel m={outreach} />
+
           <ChallengePanel items={data.challenge} />
 
           <section aria-label="Datos reales">

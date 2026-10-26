@@ -188,6 +188,8 @@ export function OutreachClient(props: {
   rows: RowView[];
   queue: QueueItem[];
   segment?: "empresas" | "independientes";
+  /** F24 · bulk WhatsApp panel for the current tab (rendered by the page). */
+  whatsappPanel?: React.ReactNode;
   counts?: Record<"empresas" | "independientes", { total: number; contacted: number }>;
   page?: number;
   pages?: number;
@@ -436,6 +438,8 @@ export function OutreachClient(props: {
           })}
         </nav>
       )}
+
+      {props.whatsappPanel}
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section aria-label="Leads" className="min-w-0 overflow-hidden rounded-card border border-white/10 bg-faro-surface-1">

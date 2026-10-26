@@ -18,7 +18,7 @@ import { isSuppressed } from "@/features/compliance/suppression";
 import { checkSendWindow, type Country, type SendWindowSetting } from "@/features/compliance/windows";
 import { getSendWindow } from "@/features/settings/send-window";
 import { suggestionLine, type Recommendation } from "@/features/offer/match";
-import { loadEffectiveOffer, recommendForLead, type EffectiveOffer } from "@/features/offer/resolve";
+import { improvementsForLead, loadEffectiveOffer, recommendForLead, type EffectiveOffer, type Improvement } from "@/features/offer/resolve";
 import { dbCallRecorder, loadAiRates, recordAiCost } from "@/features/scoring/cost";
 import { REGISTRY_CHANNELS } from "@/features/scoring/fit";
 import { AiError, type AnthropicAdapter } from "@/integrations/anthropic";
@@ -110,6 +110,16 @@ export async function loadLeadContext(db: AppDb, leadId: string): Promise<LeadCo
 /** Service recommended for the lead from its website findings and the hunt's offer (or the team catalog). */
 export function leadPitch(ctx: LeadContext, offer: EffectiveOffer): Recommendation | null {
   return recommendForLead(
+    { name: ctx.company.name, address: ctx.company.address, city: ctx.company.city, website: ctx.company.website },
+    ctx.sources.map((x) => ({ sourceChannel: x.sourceChannel, sourceUrl: x.sourceUrl, license: x.license, isMock: x.isMock, raw: x.raw as Record<string, unknown> })),
+    ctx.contacts.map((c) => ({ type: c.type, sourceChannel: c.sourceChannel })),
+    offer,
+  );
+}
+
+/** Concrete findings of the lead and the service that helps with each (F25 email lists). */
+export function leadImprovements(ctx: LeadContext, offer: EffectiveOffer): Improvement[] {
+  return improvementsForLead(
     { name: ctx.company.name, address: ctx.company.address, city: ctx.company.city, website: ctx.company.website },
     ctx.sources.map((x) => ({ sourceChannel: x.sourceChannel, sourceUrl: x.sourceUrl, license: x.license, isMock: x.isMock, raw: x.raw as Record<string, unknown> })),
     ctx.contacts.map((c) => ({ type: c.type, sourceChannel: c.sourceChannel })),
@@ -281,8 +291,9 @@ export async function previewOutreach(
     const offer = await loadEffectiveOffer(db, ctx.icp.offer);
     const pitch = leadPitch(ctx, offer);
     const sellerName = offer.company ?? null;
+    const improvements = channel === "email" ? leadImprovements(ctx, offer) : [];
     // Draft cache per lead/channel/recipient/pitch: repeated previews do not spend AI again.
-    const cacheKey = `${ctx.lead.id}|${channel}|${recipient}|${ctx.company.name}|${ctx.workspace.offerDescription ?? ""}|${pitch ? `${pitch.service.id}:${pitch.service.name}:${pitch.service.entryOffer ?? ""}:${pitch.service.price ?? ""}:${pitch.finding ?? ""}` : ""}|${sellerName ?? ""}`;
+    const cacheKey = `${ctx.lead.id}|${channel}|${recipient}|${ctx.company.name}|${ctx.workspace.offerDescription ?? ""}|${pitch ? `${pitch.service.id}:${pitch.service.name}:${pitch.service.entryOffer ?? ""}:${pitch.service.price ?? ""}:${pitch.finding ?? ""}` : ""}|${sellerName ?? ""}|${improvements.map((i) => `${i.fact}>${i.help ?? ""}`).join(";")}`;
     const hit = previewCache.get(cacheKey);
     if (hit && !input.refresh && Date.now() - hit.at < PREVIEW_TTL_MS) {
       message = hit.message;
@@ -293,7 +304,7 @@ export async function previewOutreach(
         { name: ctx.company.name, city: ctx.company.city, independent: !ctx.company.isLegalEntity },
         { criteria: ctx.icp.criteria },
         { name: ctx.workspace.name, offerDescription: ctx.workspace.offerDescription, senderEmail: ctx.workspace.senderEmail, country: ctx.workspace.country },
-        { ai: deps.ai, channel, recipient, env, recorder: dbCallRecorder(db, ctx.hunt?.id), pitch, sellerName },
+        { ai: deps.ai, channel, recipient, env, recorder: dbCallRecorder(db, ctx.hunt?.id), pitch, sellerName, improvements },
       );
       await recordAiCost(db, {
         leadId: ctx.lead.id,

@@ -57,6 +57,16 @@ export const envSchema = z.object({
   DAPTA_CREDITS_PER_AI_REPLY: num(40),
   WHATSAPP_ENABLED: bool(false),
   WHATSAPP_WEBHOOK_SECRET: optStr,
+  /** F24: `dapta_flow` sends approved templates through a Dapta FlowStudio webhook; `off` sends nothing. */
+  WHATSAPP_SEND_MODE: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["off", "dapta_flow"]).default("off")),
+  /** Webhook URL of the Dapta flow "Faro · Enviar plantilla WhatsApp" (carries its own key: secret). */
+  DAPTA_WA_FLOW_URL: optStr,
+  /** Dapta ids of templates created after the clinic one (empty -> that template is not offered). */
+  DAPTA_WA_TEMPLATE_EMPRESA: optStr,
+  DAPTA_WA_TEMPLATE_INDEPENDIENTE: optStr,
+  WHATSAPP_DAILY_LIMIT: num(50),
+  /** Vercel Cron sends `Authorization: Bearer $CRON_SECRET` (F25). */
+  CRON_SECRET: optStr,
   META_ADS_CAMPAIGN_ID: optStr,
   NEXT_PUBLIC_MAP_STYLE_URL: optStr,
   SENDER_LEGAL_NAME: optStr,
