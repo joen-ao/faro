@@ -27,3 +27,7 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F20 | Recomendación + bandit | P2 | DONE | feat/F20-bandit | 2 | Thompson sampling por fuente con P(mejor), datos insuficientes honestos, simulación siempre etiquetada; 2 MINOR (F20-r2) |
 | F19b | Ajuste de recall de nombres de negocio (seguimiento de F19) | P1 | DONE | squash | 2 | Filtro de nombres por categoría: restaurantes 97% y dental 94% conservados, 0 personas; enmascarados sin datos personales; fixtures sintéticos; README F19 actualizado |
 | F21 | README + HANDOFF | P0 | DONE | feat/F21-readme | 1 | README completo (arquitectura, fuentes/licencias, costos, cómo correr verificado desde cero); requireAppAccess en receipt/matrix; F19 pendiente de actualizar en README |
+| F23 | Faro solo con login (sin evaluador) | P0 | DONE | main | 1 | Evaluador eliminado; icp/parse y leads/score detrás de la clave |
+| F24 | Envío de WhatsApp por Dapta | P1 | DONE | main | 1 | Flujo Dapta (webhook → Send WhatsApp Template v2); plantilla clínica aprobada, empresa/independiente por crear |
+| F25 | Cron diario de 30 correos HTML | P1 | DONE | main | 1 | Vercel Cron L–S 9:00; hallazgos + servicios en el correo; apagado por defecto |
+| F26 | Métricas de contacto | P1 | DONE | main | 1 | Contactados/aperturas/respuestas por canal y día en el tablero |

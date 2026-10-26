@@ -32,38 +32,5 @@ export function requireAppAccess(req: Request, env: Record<string, string | unde
   }
   const given = req.headers.get("x-app-key") ?? cookieValue(req.headers.get("cookie"), "faro_key");
   if (given && safeEqual(given, key)) return null;
-  if (given && safeEqual(given, evaluatorToken(key))) {
-    if (evaluatorMayDo(req)) return null;
-    return Response.json({ ok: false, error: "Modo evaluador: solo lectura. Enviar correos, enriquecer con Apify y cambiar la configuración están reservados al equipo." }, { status: 403 });
-  }
   return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
-}
-
-/**
- * Evaluators enter with one click and never see the team key: their cookie holds a token derived from it. They can read
- * everything and try a search; anything that sends messages, spends on Apify or changes settings stays team-only.
- */
-export function evaluatorToken(key: string): string {
-  return createHash("sha256").update(`faro-evaluator:${key}`).digest("hex");
-}
-
-const EVALUATOR_WRITES = [/^\/api\/hunts\/?$/, /^\/api\/hunts\/[^/]+\/run\/?$/, /^\/api\/icp\/(parse|angles)\/?$/, /^\/api\/outreach\/preview\/?$/, /^\/api\/auth\/logout\/?$/];
-
-export function evaluatorMayDo(req: Request): boolean {
-  const method = req.method.toUpperCase();
-  if (method === "GET" || method === "HEAD") return true;
-  let path = "/";
-  try {
-    path = new URL(req.url).pathname;
-  } catch {
-    return false;
-  }
-  return EVALUATOR_WRITES.some((re) => re.test(path));
-}
-
-/** True when the request carries the evaluator token (read-only mode badge). */
-export function isEvaluator(cookieHeader: string | null, env: Record<string, string | undefined> = process.env): boolean {
-  const key = env.APP_ACCESS_KEY;
-  const given = cookieValue(cookieHeader, "faro_key");
-  return !!key && !!given && safeEqual(given, evaluatorToken(key));
 }

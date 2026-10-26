@@ -16,11 +16,13 @@ const LIME = "#cbe850";
 
 const linkify = (escaped: string, color: string) => escaped.replace(URL_RE, (u) => `<a href="${u}" style="color:${color};text-decoration:underline">${u}</a>`);
 
-type Kind = "greeting" | "offer" | "cta" | "why" | "who" | "optout" | "signature" | "body";
+type Kind = "greeting" | "findings" | "services" | "offer" | "cta" | "why" | "who" | "optout" | "signature" | "body";
 
 function kindOf(p: string, index: number, afterOptOut: boolean): Kind {
   if (afterOptOut) return "signature";
   if (index === 0 && /^(hola|buen[oa]s)/i.test(p)) return "greeting";
+  if (/^lo que vimos:/i.test(p)) return "findings";
+  if (/^c[oó]mo le ayudamos:/i.test(p)) return "services";
   if (/^si le interesa/i.test(p)) return "offer";
   if (/^preparamos un breve diagn[oó]stico/i.test(p) && URL_RE.test(p)) return "cta";
   if (/^por qu[eé] le escribimos/i.test(p)) return "why";
@@ -33,6 +35,33 @@ function kindOf(p: string, index: number, afterOptOut: boolean): Kind {
 export function brandFrom(text: string): string {
   const m = /qui[eé]n escribe:\s*([^,.(\n]+)/i.exec(text);
   return (m?.[1] ?? "Faro").trim().slice(0, 40);
+}
+
+/** "Lo que vimos:\n• a\n• b" -> ["a", "b"] */
+const bullets = (p: string) =>
+  p
+    .split("\n")
+    .slice(1)
+    .map((l) => l.replace(/^\s*[•\-*]\s*/, "").trim())
+    .filter(Boolean);
+
+function listCard(title: string, items: string[], marker: "finding" | "service"): string {
+  const mark =
+    marker === "finding"
+      ? `<div style="width:8px;height:8px;border-radius:999px;background:#f2a93b;margin-top:7px;line-height:8px;font-size:0">&nbsp;</div>`
+      : `<div style="width:18px;height:18px;border-radius:999px;background:#1a1a1c;color:${LIME};font-size:11px;font-weight:700;line-height:18px;text-align:center">&#10003;</div>`;
+  const rows = items
+    .map(
+      (it) =>
+        `<tr><td style="vertical-align:top;width:26px;padding:6px 0">${mark}</td><td style="padding:6px 0;font-size:14.5px;line-height:1.55;color:${INK}">${escapeHtml(it)}</td></tr>`,
+    )
+    .join("");
+  const bg = marker === "finding" ? "#fbf7ee" : "#f5fadf";
+  return (
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 18px"><tr><td style="background:${bg};border-radius:10px;padding:14px 16px">` +
+    `<p style="margin:0 0 6px;font-size:11.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${MUTED}">${escapeHtml(title)}</p>` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table></td></tr></table>`
+  );
 }
 
 export interface EmailHtmlOptions {
@@ -60,6 +89,12 @@ export function renderEmailHtml(text: string, opts: EmailHtmlOptions = {}): stri
     switch (kind) {
       case "greeting":
         main.push(`<p style="margin:0 0 18px;font-size:17px;font-weight:600;color:${INK}">${esc}</p>`);
+        break;
+      case "findings":
+        main.push(listCard("Lo que vimos en su presencia digital", bullets(p), "finding"));
+        break;
+      case "services":
+        main.push(listCard("Cómo le ayudamos", bullets(p), "service"));
         break;
       case "offer":
         main.push(

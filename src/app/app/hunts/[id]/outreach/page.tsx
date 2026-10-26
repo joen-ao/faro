@@ -11,6 +11,7 @@ import { requireAppAccess } from "@/lib/app-access";
 import { getEnv } from "@/lib/env";
 import { areaLabel } from "@/features/icp/presets";
 import { OutreachClient, type QueueItem } from "./outreach-client";
+import { WhatsappPanel } from "./whatsapp-panel";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Contacto · Faro", robots: { index: false, follow: false } };
@@ -120,6 +121,7 @@ export default async function OutreachPage({
       }))}
       queue={queue}
       segment={segment}
+      whatsappPanel={isDemo ? null : <WhatsappPanel huntId={huntId} segment={segment} />}
       counts={counts}
       page={page}
       pages={pages}

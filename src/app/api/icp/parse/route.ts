@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAppAccess } from "@/lib/app-access";
 import { getDb } from "@/db/client";
 import { handleIcpParse } from "@/features/icp/api";
 import { dbCallRecorder, loadAiRates, recordAiCost } from "@/features/scoring/cost";
@@ -7,6 +8,8 @@ import { getAnthropic } from "@/integrations/anthropic";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  const denied = requireAppAccess(req);
+  if (denied) return denied;
   let json: unknown;
   try {
     json = await req.json();

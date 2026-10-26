@@ -7,10 +7,10 @@ Proyecto del **30X Hackathon · Reto Dapta "Más leads, menor costo"**. Pregunta
 - Especificación maestra: [`SPEC.md`](SPEC.md) · sub-specs por feature: [`specs/`](specs) · decisiones: [`DECISIONS.md`](DECISIONS.md).
 - Nombre de trabajo "Faro" (configurable con `NEXT_PUBLIC_PRODUCT_NAME`).
 
-## Para evaluadores
+## Acceso
 
-- **App en vivo:** https://faro-eight-sage.vercel.app
-- **Entrar al panel:** en [`/app/login`](https://faro-eight-sage.vercel.app/app/login) usa **"Entrar como evaluador"**: un clic, sin clave. Puedes ver todo (tablero, búsquedas, mapa, leads, diagnósticos, contacto, configuración) y lanzar búsquedas nuevas. Enviar correos, enriquecer con Apify y cambiar la configuración quedan reservados al equipo (la API responde 403 "Modo evaluador: solo lectura").
+- **App en vivo:** https://faro-eight-sage.vercel.app (ganadora del 30X Hackathon · Reto Dapta).
+- **Panel solo con login:** [`/app/login`](https://faro-eight-sage.vercel.app/app/login) con la clave del equipo (`APP_ACCESS_KEY`). El acceso de evaluador del hackathon se retiró (F23). Siguen públicas la landing, los diagnósticos `/d/*`, la baja y los webhooks (con secreto).
 - **Qué mirar, en orden:**
   1. `/app/dashboard`: panel **"Reto Dapta: cumplimiento en vivo"**, cada requisito del brief con su número real (los datos de prueba no cuentan).
   2. `/app/hunts`: búsquedas reales (clínicas dentales en Bogotá; contabilidad en Bogotá y Medellín) y "Ver mapa y leads".
@@ -42,7 +42,7 @@ Dapta ayuda a las pymes a convertir leads, pero 3 de cada 5 leads que llegan a D
 - **Tus servicios y valor por lead:** catálogo "Mis servicios" (inicial: los de Mokub), sugerencias de Claude para el catálogo y para los ángulos de valor de cada segmento, y un servicio sugerido por lead según lo que vimos en su sitio.
 - **Diagnóstico con oportunidades reales:** Claude lee el texto del sitio de la empresa y lo cruza con los servicios de la búsqueda; cada oportunidad cita una frase textual del sitio (verificada) y se guarda para no gastar IA en cada visita. El texto se adapta al sector (salud: clínicas/pacientes; resto: empresas/clientes).
 - **Varias ciudades o país:** hasta 5 ciudades por búsqueda o "Colombia" (Bogotá, Medellín, Cali, Barranquilla, Cartagena); cada fuente recorre las ciudades en secuencia, dedupe global, benchmark por ciudad.
-- **Horario de envío editable** en `/app/settings/envio` (Ley 2300, extendida o personalizada), **sidebar** en el panel, **acceso de evaluador** y nodos aproximados en el mapa para empresas sin coordenadas (RUES).
+- **Horario de envío editable** en `/app/settings/envio` (Ley 2300, extendida o personalizada), **sidebar** en el panel y nodos aproximados en el mapa para empresas sin coordenadas (RUES).
 
 ### Registro de respuestas (F11)
 
@@ -263,7 +263,7 @@ Con un **loop de ingeniería** definido en [`LOOP.md`](LOOP.md): `SPEC.md` es la
 - **Dapta:** el modo de entrega de leads al entorno de prueba (API, webhook, CSV o secuencia) depende de lo que confirmen los organizadores; por eso hay tres modos. WhatsApp está bloqueado por la cuenta de Meta y es opcional.
 - **Envíos reales:** solo con `SEND_ENABLED=true`, fuera de domingo y festivos, activado a mano por la persona responsable.
 - **Google Places:** SKU y reglas de caché de Google pueden cambiar el costo real; se muestra el valor de lista.
-- **Autenticación:** una clave del equipo (`APP_ACCESS_KEY`) y un acceso de evaluador de solo lectura derivado de ella; no hay multiusuario. Cerrar la venta, CRM y seguimientos automáticos están fuera de alcance.
+- **Autenticación:** una clave del equipo (`APP_ACCESS_KEY`); no hay multiusuario. Cerrar la venta, CRM y seguimientos automáticos están fuera de alcance.
 - **Contacto en el RUES:** el dataset público no trae correo ni sitio web, así que en sectores que solo salen del RUES (p. ej. contabilidad) los leads "del perfil" dependen de encontrar el sitio con Apify (≈ 26 % de acierto en la prueba).
 - **Respuestas:** a la hora de la entrega ninguna empresa había respondido aún; el tablero lo muestra como "en curso" en lugar de inventar datos.
 - **Datos de ejemplo:** todo lo marcado demo o mock (incluido el video de la landing, "Demostración con datos de ejemplo") no representa resultados reales.

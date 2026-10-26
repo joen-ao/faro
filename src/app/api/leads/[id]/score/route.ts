@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAppAccess } from "@/lib/app-access";
 import { getDb } from "@/db/client";
 import { handleLeadScore } from "@/features/scoring/api";
 import { getAnthropic } from "@/integrations/anthropic";
@@ -6,6 +7,8 @@ import { getAnthropic } from "@/integrations/anthropic";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const denied = requireAppAccess(req);
+  if (denied) return denied;
   const { id } = await ctx.params;
   let json: unknown;
   try {
