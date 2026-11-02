@@ -24,6 +24,7 @@ function realDouble(rows: MetaInsightRow[], currency = "COP"): MetaAdsAdapter {
     getAccount: async () => ({ id: "act_1", name: "Mokub Ads", currency, timezone: "America/Bogota", status: 1, pageId: "9", isMock: false }),
     listCampaigns: async () => [],
     getInsights: async () => rows,
+    getAdInsights: async () => [],
     createPausedCampaign: async () => {
       throw new Error("unused");
     },

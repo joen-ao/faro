@@ -4,7 +4,7 @@ import * as s from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { attributeAdSpend } from "@/features/metrics/costs";
 import type { Env } from "@/lib/env";
-import type { MetaAdsAdapter, MetaApiCall, MetaCampaign, PausedCampaignSpec } from "@/integrations/meta-ads";
+import type { MetaAdsAdapter, MetaApiCall, MetaCampaign } from "@/integrations/meta-ads";
 
 const SYNC_KEY = "meta_ads_sync";
 
@@ -57,7 +57,7 @@ export function campaignInputSchema(env: Env) {
       if (v.ageMax < v.ageMin) ctx.addIssue({ code: "custom", path: ["ageMax"], message: "La edad máxima debe ser mayor o igual a la mínima" });
     });
 }
-export type CampaignInput = PausedCampaignSpec;
+export type CampaignInput = z.output<ReturnType<typeof campaignInputSchema>>;
 
 export type ActivationRefusal = "spend_disabled" | "confirm_mismatch" | "over_budget" | "unknown_budget";
 
@@ -91,6 +91,8 @@ export interface SyncSummary {
   fx: number | null;
   rows: number;
   saved: number;
+  /** F29: ad-day rows upserted into ad_insights (real mode only). */
+  adRows?: number;
   campaigns: string[];
   spendLocal: number;
   usd: number;
@@ -144,9 +146,34 @@ export async function syncMetaAds(db: AppDb, adapter: MetaAdsAdapter, env: Env, 
   });
   const campaigns = [...new Set(insights.map((r) => r.campaignId))];
   for (const campaign of campaigns) await attributeAdSpend(db, { campaign });
-  const summary: SyncSummary = { ...base, saved: insights.length, campaigns, spendLocal, usd: spendLocal / fx };
+  const adRows = await syncAdInsights(db, adapter, { since, until }, account.currency, fx);
+  const summary: SyncSummary = { ...base, saved: insights.length, adRows, campaigns, spendLocal, usd: spendLocal / fx };
   await saveSyncSummary(db, summary);
   return summary;
+}
+
+/** F29 · Upserts per-ad, per-day insights (real mode only; the caller already refused mock and unknown currencies). */
+async function syncAdInsights(db: AppDb, adapter: MetaAdsAdapter, range: { since: string; until: string }, currency: string, fx: number): Promise<number> {
+  const rows = await adapter.getAdInsights(range);
+  if (!rows.length) return 0;
+  await db.transaction(async (tx) => {
+    for (const r of rows) {
+      const values = {
+        adName: r.adName,
+        campaignId: r.campaignId,
+        currency,
+        spendLocal: r.spend,
+        usd: Math.round((r.spend / fx) * 1e6) / 1e6,
+        impressions: r.impressions,
+        clicks: r.clicks,
+        linkClicks: r.linkClicks,
+        frequency: r.frequency,
+        conversations: r.conversations,
+      };
+      await tx.insert(s.adInsights).values({ adId: r.adId, date: r.date, ...values }).onConflictDoUpdate({ target: [s.adInsights.adId, s.adInsights.date], set: values });
+    }
+  });
+  return rows.length;
 }
 
 async function saveSyncSummary(db: AppDb, summary: SyncSummary) {

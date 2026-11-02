@@ -3,8 +3,11 @@ import {
   CONVERSATION_ACTIONS,
   currencyOffset,
   MetaAdsError,
+  URL_TAGS,
+  type CreatedAd,
   type CreatedCampaign,
   type MetaAccount,
+  type MetaAdInsightRow,
   type MetaAdsAdapter,
   type MetaApiCallLogger,
   type MetaCampaign,
@@ -40,8 +43,14 @@ export function withUtm(url: string, campaignId: string): string {
 
 type Json = Record<string, unknown>;
 
+function countConversations(actions: unknown): number {
+  return ((actions as { action_type?: string; value?: string }[] | undefined) ?? [])
+    .filter((a) => (CONVERSATION_ACTIONS as readonly string[]).includes(a.action_type ?? ""))
+    .reduce((s, a) => s + Number(a.value ?? 0), 0);
+}
+
 export function createRealMetaAds(opts: RealMetaOptions): MetaAdsAdapter {
-  const version = opts.apiVersion ?? "v23.0";
+  const version = opts.apiVersion ?? "v25.0";
   const base = `https://graph.facebook.com/${version}`;
   const doFetch = opts.fetchImpl ?? fetch;
   const account = opts.adAccountId.startsWith("act_") ? opts.adAccountId : `act_${opts.adAccountId}`;
@@ -148,10 +157,7 @@ export function createRealMetaAds(opts: RealMetaOptions): MetaAdsAdapter {
         limit: "500",
       });
       return rows.map((r) => {
-        const actions = (r.actions as { action_type?: string; value?: string }[] | undefined) ?? [];
-        const conversations = actions
-          .filter((a) => (CONVERSATION_ACTIONS as readonly string[]).includes(a.action_type ?? ""))
-          .reduce((s, a) => s + Number(a.value ?? 0), 0);
+        const conversations = countConversations(r.actions);
         return {
           campaignId: String(r.campaign_id),
           campaignName: String(r.campaign_name ?? ""),
@@ -164,7 +170,30 @@ export function createRealMetaAds(opts: RealMetaOptions): MetaAdsAdapter {
       });
     },
 
+    async getAdInsights(range): Promise<MetaAdInsightRow[]> {
+      const rows = await list(`${account}/insights`, {
+        level: "ad",
+        time_increment: "1",
+        time_range: { since: range.since, until: range.until },
+        fields: "ad_id,ad_name,campaign_id,spend,impressions,clicks,inline_link_clicks,frequency,actions,date_start",
+        limit: "500",
+      });
+      return rows.map((r) => ({
+        adId: String(r.ad_id),
+        adName: String(r.ad_name ?? ""),
+        campaignId: String(r.campaign_id ?? ""),
+        date: String(r.date_start),
+        spend: Number(r.spend ?? 0),
+        impressions: Number(r.impressions ?? 0),
+        clicks: Number(r.clicks ?? 0),
+        linkClicks: Number(r.inline_link_clicks ?? 0),
+        frequency: Number(r.frequency ?? 0),
+        conversations: countConversations(r.actions),
+      }));
+    },
+
     async createPausedCampaign(spec: PausedCampaignSpec): Promise<CreatedCampaign> {
+      if (spec.ads.length < 1 || spec.ads.length > 6) throw new MetaAdsError("Una campaña lleva entre 1 y 6 anuncios", 400);
       const cur = await accountCurrency();
       const campaign = await call("POST", `${account}/campaigns`, {
         name: spec.name,
@@ -174,7 +203,7 @@ export function createRealMetaAds(opts: RealMetaOptions): MetaAdsAdapter {
         is_adset_budget_sharing_enabled: "false",
       });
       const campaignId = String(campaign.id);
-      const link = withUtm(spec.url, campaignId);
+      const link = `${withUtm(spec.url, campaignId)}&utm_content={{ad.id}}`;
       try {
         const geo =
           spec.geo === "co"
@@ -191,27 +220,34 @@ export function createRealMetaAds(opts: RealMetaOptions): MetaAdsAdapter {
           targeting: { geo_locations: geo, age_min: spec.ageMin, age_max: spec.ageMax, targeting_automation: { advantage_audience: 0 } },
           status: "PAUSED",
         });
-        const creative = await call("POST", `${account}/adcreatives`, {
-          name: `${spec.name} · creativo`,
-          object_story_spec: {
-            page_id: opts.pageId,
-            link_data: {
-              link,
-              message: spec.primaryText,
-              name: spec.headline,
-              ...(spec.description ? { description: spec.description } : {}),
-              ...(spec.imageUrl ? { picture: spec.imageUrl } : {}),
-              call_to_action: { type: spec.cta, value: { link } },
+        const ads: CreatedAd[] = [];
+        for (const [i, a] of spec.ads.entries()) {
+          const adName = a.name || `${spec.name} · anuncio ${i + 1}`;
+          const creative = await call("POST", `${account}/adcreatives`, {
+            name: `${adName} · creativo`,
+            // Meta appends these to every click; {{ad.id}} becomes utm_content so each lead knows its ad.
+            url_tags: URL_TAGS,
+            object_story_spec: {
+              page_id: opts.pageId,
+              link_data: {
+                link: spec.url,
+                message: a.primaryText,
+                name: a.headline,
+                ...(a.description ? { description: a.description } : {}),
+                ...(a.imageUrl ? { picture: a.imageUrl } : {}),
+                call_to_action: { type: a.cta, value: { link: spec.url } },
+              },
             },
-          },
-        });
-        const ad = await call("POST", `${account}/ads`, {
-          name: `${spec.name} · anuncio`,
-          adset_id: String(adSet.id),
-          creative: { creative_id: String(creative.id) },
-          status: "PAUSED",
-        });
-        return { campaignId, adSetId: String(adSet.id), creativeId: String(creative.id), adId: String(ad.id), link, isMock: false };
+          });
+          const ad = await call("POST", `${account}/ads`, {
+            name: adName,
+            adset_id: String(adSet.id),
+            creative: { creative_id: String(creative.id) },
+            status: "PAUSED",
+          });
+          ads.push({ adId: String(ad.id), creativeId: String(creative.id), name: adName });
+        }
+        return { campaignId, adSetId: String(adSet.id), ads, link, urlTags: URL_TAGS, isMock: false };
       } catch (e) {
         // Leave nothing half-built: the campaign (paused, never active) is removed with its children.
         await call("DELETE", campaignId).catch(() => undefined);

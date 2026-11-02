@@ -329,6 +329,52 @@ export const adSpend = pgTable(
   (t) => [uniqueIndex("ad_spend_platform_campaign_date_demo_uq").on(t.platform, t.campaign, t.date, t.isDemo)],
 );
 
+/** F29 · Ads created by the copilot: which concept/hypothesis each Meta ad carries (for learning by angle). */
+export const adVariants = pgTable(
+  "ad_variants",
+  {
+    id: id(),
+    adId: text("ad_id").notNull(),
+    campaignId: text("campaign_id").notNull(),
+    briefId: text("brief_id").notNull(),
+    angle: text("angle").notNull(),
+    formatHint: text("format_hint").notNull(),
+    hook: text("hook").notNull(),
+    primaryText: text("primary_text").notNull(),
+    headline: text("headline").notNull(),
+    description: text("description"),
+    cta: text("cta").notNull(),
+    hypothesis: text("hypothesis").notNull(),
+    /** The brief that produced it (service, audience, destination, budget). */
+    brief: jsonb("brief").$type<Record<string, unknown>>().notNull().default({}),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("ad_variants_ad_uq").on(t.adId)],
+);
+
+/** F29 · Meta insights per ad and day (real API only; money in account currency + USD). */
+export const adInsights = pgTable(
+  "ad_insights",
+  {
+    id: id(),
+    adId: text("ad_id").notNull(),
+    adName: text("ad_name"),
+    campaignId: text("campaign_id").notNull(),
+    date: text("date").notNull(),
+    currency: text("currency").notNull(),
+    spendLocal: doublePrecision("spend_local").notNull().default(0),
+    usd: doublePrecision("usd").notNull().default(0),
+    impressions: integer("impressions").notNull().default(0),
+    clicks: integer("clicks").notNull().default(0),
+    linkClicks: integer("link_clicks").notNull().default(0),
+    frequency: doublePrecision("frequency").notNull().default(0),
+    conversations: integer("conversations").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("ad_insights_ad_date_uq").on(t.adId, t.date), index("ad_insights_campaign_idx").on(t.campaignId)],
+);
+
 export const suppression = pgTable(
   "suppression",
   {

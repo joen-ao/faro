@@ -81,7 +81,7 @@ export const envSchema = z.object({
   /** `act_<id>` of the ad account the system user can manage. */
   META_AD_ACCOUNT_ID: optStr,
   META_PAGE_ID: optStr,
-  META_API_VERSION: strDefault("v23.0"),
+  META_API_VERSION: strDefault("v25.0"),
   /** COP per USD used to store COP spend as USD in `ad_spend.usd` (the rate used is saved per row). */
   META_COP_PER_USD: num(4000),
   /** Comma-separated hosts an ad may link to (the app's own host is always allowed). */

@@ -64,6 +64,13 @@
       "when": 1793652307134,
       "tag": "0008_meta_ads_api",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793658341304,
+      "tag": "0009_copilot_ads",
+      "breakpoints": true
     }
   ]
 }

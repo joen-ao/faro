@@ -86,16 +86,14 @@ describe("real adapter", () => {
       name: "Mokub prueba",
       url: "https://www.mokub.co/",
       dailyBudget: 20000,
-      primaryText: "Texto",
-      headline: "Título",
-      imageUrl: "https://www.mokub.co/og.png",
-      cta: "LEARN_MORE",
       geo: "bogota",
       ageMin: 25,
       ageMax: 60,
+      ads: [{ name: "A", primaryText: "Texto", headline: "Título", imageUrl: "https://www.mokub.co/og.png", cta: "LEARN_MORE" }],
     });
-    expect(out).toMatchObject({ campaignId: "111", adSetId: "222", creativeId: "333", adId: "444", isMock: false });
+    expect(out).toMatchObject({ campaignId: "111", adSetId: "222", ads: [{ adId: "444", creativeId: "333", name: "A" }], isMock: false });
     expect(new URL(out.link).searchParams.get("utm_campaign")).toBe("111");
+    expect(out.urlTags).toContain("utm_content={{ad.id}}");
     const post = (p: string) => g.calls.find((c) => c.method === "POST" && c.url.endsWith(p))!.body;
     expect(post("/campaigns").get("status")).toBe("PAUSED");
     expect(post("/campaigns").get("objective")).toBe("OUTCOME_TRAFFIC");
@@ -105,8 +103,9 @@ describe("real adapter", () => {
     expect(post("/ads").get("status")).toBe("PAUSED");
     const story = JSON.parse(post("/adcreatives").get("object_story_spec")!);
     expect(story.page_id).toBe("999");
-    expect(story.link_data.link).toBe(out.link);
-    expect(story.link_data.call_to_action.value.link).toBe(out.link);
+    expect(story.link_data.link).toBe("https://www.mokub.co/");
+    expect(story.link_data.call_to_action.value.link).toBe("https://www.mokub.co/");
+    expect(post("/adcreatives").get("url_tags")).toBe("utm_source=meta&utm_medium=paid_social&utm_campaign={{campaign.id}}&utm_content={{ad.id}}");
   });
 
   it("multiplies the budget by 100 for USD accounts", async () => {
@@ -117,7 +116,7 @@ describe("real adapter", () => {
       "POST act_123/adcreatives": () => ({ json: { id: "3" } }),
       "POST act_123/ads": () => ({ json: { id: "4" } }),
     });
-    await adapter(g.fetchImpl).createPausedCampaign({ name: "x", url: "https://www.mokub.co/", dailyBudget: 5, primaryText: "t", headline: "h", cta: "LEARN_MORE", geo: "co", ageMin: 18, ageMax: 65 });
+    await adapter(g.fetchImpl).createPausedCampaign({ name: "x", url: "https://www.mokub.co/", dailyBudget: 5, geo: "co", ageMin: 18, ageMax: 65, ads: [{ name: "a", primaryText: "t", headline: "h", cta: "LEARN_MORE" }] });
     const adset = g.calls.find((c) => c.url.endsWith("/adsets"))!.body;
     expect(adset.get("daily_budget")).toBe("500");
     expect(JSON.parse(adset.get("targeting")!).geo_locations).toEqual({ countries: ["CO"] });
@@ -132,7 +131,7 @@ describe("real adapter", () => {
       "DELETE 777": () => ({ json: { success: true } }),
     });
     const err = await adapter(g.fetchImpl, logs)
-      .createPausedCampaign({ name: "x", url: "https://www.mokub.co/", dailyBudget: 5000, primaryText: "t", headline: "h", cta: "LEARN_MORE", geo: "bogota", ageMin: 18, ageMax: 65 })
+      .createPausedCampaign({ name: "x", url: "https://www.mokub.co/", dailyBudget: 5000, geo: "bogota", ageMin: 18, ageMax: 65, ads: [{ name: "a", primaryText: "t", headline: "h", cta: "LEARN_MORE" }] })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(MetaAdsError);
     expect((err as Error).message).not.toContain(TOKEN);

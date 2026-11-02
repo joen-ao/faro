@@ -1,14 +1,27 @@
 import { NextResponse } from "next/server";
-import { apiCallLogger, campaignInputSchema } from "@/features/ads";
+import { apiCallLogger, campaignInputSchema, type CampaignInput } from "@/features/ads";
 import { metaErrorResponse } from "@/features/ads/meta-http";
 import { readJsonCapped } from "@/features/diagnostic/limits";
-import { getMetaAds } from "@/integrations/meta-ads";
+import { getMetaAds, type PausedCampaignSpec } from "@/integrations/meta-ads";
 import { requireAppAccess } from "@/lib/app-access";
 import { getEnv } from "@/lib/env";
 import { withDb } from "@/lib/with-db";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+/** F28 single-ad form -> campaign spec with one ad. */
+function toSpec(d: CampaignInput): PausedCampaignSpec {
+  return {
+    name: d.name,
+    url: d.url,
+    dailyBudget: d.dailyBudget,
+    geo: d.geo,
+    ageMin: d.ageMin,
+    ageMax: d.ageMax,
+    ads: [{ name: `${d.name} · anuncio`, primaryText: d.primaryText, headline: d.headline, description: d.description, imageUrl: d.imageUrl, cta: d.cta }],
+  };
+}
 
 /** Lists the ad account's campaigns, live from Meta. */
 export async function GET(req: Request) {
@@ -38,7 +51,7 @@ export async function POST(req: Request) {
   return withDb(async (db) => {
     const ads = getMetaAds(env, apiCallLogger(db));
     try {
-      return NextResponse.json({ ok: true, mock: ads.isMock, created: await ads.createPausedCampaign(input.data) });
+      return NextResponse.json({ ok: true, mock: ads.isMock, created: await ads.createPausedCampaign(toSpec(input.data)) });
     } catch (e) {
       return metaErrorResponse(e);
     }

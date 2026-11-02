@@ -216,6 +216,7 @@ export function AppShell({ data, children }: { data: AppShellData; children: Rea
   ];
   const settings: Item[] = [
     { href: "/app/settings/envio", label: "Horario de envío", icon: "clock", active: path.startsWith("/app/settings/envio") },
+    { href: "/app/ads/copilot", label: "Copiloto de pauta", icon: "spark", active: path.startsWith("/app/ads/copilot") },
     { href: "/app/settings/ads", label: "Pauta", icon: "megaphone", active: path.startsWith("/app/settings/ads") },
     { href: "/app/settings/oferta", label: "Tu oferta", icon: "check", active: path.startsWith("/app/settings/oferta") },
   ];
