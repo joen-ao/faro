@@ -31,3 +31,4 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F24 | Envío de WhatsApp por Dapta | P1 | DONE | main | 1 | Flujo Dapta (webhook → Send WhatsApp Template v2); plantilla clínica aprobada, empresa/independiente por crear |
 | F25 | Cron diario de 30 correos HTML | P1 | DONE | main | 1 | Vercel Cron L–S 9:00; hallazgos + servicios en el correo; apagado por defecto |
 | F26 | Métricas de contacto | P1 | DONE | main | 1 | Contactados/aperturas/respuestas por canal y día en el tablero |
+| F27 | Respuestas de correo conectadas a Faro | P0 | DONE | main | 1 | Reply-To por lead en respuestas.mokub.co, lectura del correo recibido, reenvío a equipo@mokub.co |

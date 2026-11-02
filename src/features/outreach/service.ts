@@ -25,7 +25,7 @@ import { AiError, type AnthropicAdapter } from "@/integrations/anthropic";
 import { EmailSendError, type EmailAdapter } from "@/integrations/email";
 import { getEnv, type Env } from "@/lib/env";
 import { channelOptions, optionFor, selectChannel, type ChannelOption } from "./channel";
-import { buildLinks, generateMessage, senderSignature, textToHtml, type GeneratedMessage } from "./generate";
+import { buildLinks, generateMessage, replyAddress, senderSignature, textToHtml, type GeneratedMessage } from "./generate";
 
 export type OutreachRule = BlockRule | "legal_unverified" | "missing_unsubscribe" | "no_channel" | "channel_unavailable" | "sender_incomplete" | "not_independent";
 
@@ -179,7 +179,7 @@ export async function assess(
   });
   const alreadyContacted = await companyAlreadyContacted(db, ctx.company.id, extra.excludeMessageId);
   const enabled = sendEnabled(env);
-  const replyTo = env.EMAIL_REPLY_TO ?? ctx.workspace?.senderEmail ?? null;
+  const replyTo = replyAddress(env, ctx.lead.slug, ctx.workspace?.senderEmail);
   const ev = evaluateOutreach(
     { country: ctx.country, isLegalEntity: ctx.company.isLegalEntity, legalVerified: ctx.legalVerified, suppressed, alreadyContacted },
     contact,
@@ -583,7 +583,7 @@ export async function processQueue(
         m.recipient,
         env,
       );
-      const replyTo = env.EMAIL_REPLY_TO ?? ctx.workspace?.senderEmail ?? undefined;
+      const replyTo = replyAddress(env, ctx.lead.slug, ctx.workspace?.senderEmail) ?? undefined;
       const sent = await deps.email.send({
         to: m.recipient!,
         from: env.EMAIL_FROM ?? "",

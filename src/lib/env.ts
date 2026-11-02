@@ -65,6 +65,12 @@ export const envSchema = z.object({
   DAPTA_WA_TEMPLATE_EMPRESA: optStr,
   DAPTA_WA_TEMPLATE_INDEPENDIENTE: optStr,
   WHATSAPP_DAILY_LIMIT: num(50),
+  /** F27: replies go to r.<slug>@EMAIL_REPLY_DOMAIN (a Resend receiving subdomain), so each reply names its lead. */
+  EMAIL_REPLY_DOMAIN: optStr,
+  /** F27: every inbound reply is forwarded here (the team's real mailbox). */
+  REPLY_FORWARD_TO: optStr,
+  /** F27: full-access Resend key to read received emails (a sending-only key cannot); falls back to RESEND_API_KEY. */
+  RESEND_INBOUND_API_KEY: optStr,
   /** Vercel Cron sends `Authorization: Bearer $CRON_SECRET` (F25). */
   CRON_SECRET: optStr,
   META_ADS_CAMPAIGN_ID: optStr,
