@@ -3,11 +3,13 @@ import { headers } from "next/headers";
 import { getReadyDb } from "@/db/client";
 import type { AppDb } from "@/db/types";
 import { ICP_PAGES } from "@/config/icp-pages";
-import { buildAdLink, listAdSpend, unattributedSpend } from "@/features/ads";
+import { allowedAdHosts, apiCallLogger, bogotaDate, buildAdLink, getLastSync, listAdSpend, metaCampaignStats, unattributedSpend } from "@/features/ads";
+import { getMetaAds, metaAdsConfigured, MetaAdsError } from "@/integrations/meta-ads";
 import { getChannelMetrics } from "@/features/metrics";
 import { getEnv } from "@/lib/env";
 import { requireAppAccess } from "@/lib/app-access";
 import { AdsPanel } from "./ads-panel";
+import { MetaPanel, type LastSyncView, type MetaCampaignView, type MetaStatusView } from "./meta-panel";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Pauta · Configuración", robots: { index: false, follow: false } };
@@ -27,9 +29,9 @@ export default async function AdsSettingsPage() {
   }
 
   const db = (await getReadyDb()) as unknown as AppDb;
-  const [rows, metrics, orphan] = await Promise.all([listAdSpend(db), getChannelMetrics(db), unattributedSpend(db)]);
+  const [rows, metrics, orphan, meta] = await Promise.all([listAdSpend(db), getChannelMetrics(db), unattributedSpend(db), loadMeta(db)]);
   const orphanTotal = orphan.reduce((a, o) => a + o.usd, 0);
-  const meta = metrics.real.bySource.find((r) => r.source === "meta_ads");
+  const metaSource = metrics.real.bySource.find((r) => r.source === "meta_ads");
   const campaign = getEnv().META_ADS_CAMPAIGN_ID ?? "";
   const links = Object.keys(ICP_PAGES).map((slug) => ({
     slug,
@@ -48,7 +50,7 @@ export default async function AdsSettingsPage() {
         </p>
 
         <section aria-label="Resumen de pauta" className="mt-8 grid gap-4 sm:grid-cols-3">
-          <Stat label="CPL de meta_ads (real)" value={meta && meta.cpl !== null && meta.costUsd > 0 ? fmt(meta.cpl) : "Sin datos"} accent hint={meta ? `${meta.fit} leads del perfil · ${fmt(meta.costUsd)} de costo total` : "Aún no hay leads de pauta"} />
+          <Stat label="CPL de meta_ads (real)" value={metaSource && metaSource.cpl !== null && metaSource.costUsd > 0 ? fmt(metaSource.cpl) : "Sin datos"} accent hint={metaSource ? `${metaSource.fit} leads del perfil · ${fmt(metaSource.costUsd)} de costo total` : "Aún no hay leads de pauta"} />
           <Stat label="Gasto cargado" value={fmt(rows.filter((r) => !r.isDemo).reduce((a, r) => a + r.usd, 0))} hint="Sin filas de prueba" />
           <Stat label="Filas de prueba" value={String(rows.filter((r) => r.isDemo).length)} hint="Marcadas DEMO, fuera de los totales reales" />
         </section>
@@ -58,6 +60,11 @@ export default async function AdsSettingsPage() {
             Gasto sin leads atribuidos aún: <strong className="text-foreground">{fmt(orphanTotal)}</strong> ({orphan.map((o) => o.campaign).join(", ")}). No entra al CPL hasta que lleguen leads con ese <code className="text-faro-accent">utm_campaign</code>; revisa que el nombre coincida.
           </p>
         )}
+
+        <MetaPanel status={meta.status} campaigns={meta.campaigns} lastSync={meta.lastSync} />
+
+        <h2 className="mt-12 text-xl font-semibold tracking-tight">Carga manual y enlace UTM</h2>
+        <p className="mt-1 text-sm text-faro-text-2">Para gasto de otras cuentas o si la API no está conectada. Una fila sincronizada desde Meta reemplaza la manual del mismo día y campaña.</p>
 
         <AdsPanel
           links={links}
@@ -77,4 +84,47 @@ function Stat({ label, value, hint, accent }: { label: string; value: string; hi
       <p className="mt-1 text-xs text-faro-text-2">{hint}</p>
     </div>
   );
+}
+
+/** Live Meta account + campaigns (best effort: an API failure shows as an error, never breaks the page). */
+async function loadMeta(db: AppDb): Promise<{ status: MetaStatusView; campaigns: MetaCampaignView[]; lastSync: LastSyncView | null }> {
+  const env = getEnv();
+  const ads = getMetaAds(env, apiCallLogger(db));
+  const status: MetaStatusView = {
+    mock: ads.isMock,
+    configured: metaAdsConfigured(env),
+    accountName: null,
+    currency: null,
+    pageId: env.META_PAGE_ID ?? null,
+    spendEnabled: env.ADS_SPEND_ENABLED,
+    maxDailyBudget: env.ADS_MAX_DAILY_BUDGET_COP,
+    allowedHosts: allowedAdHosts(env),
+    error: null,
+  };
+  let campaigns: MetaCampaignView[] = [];
+  try {
+    const [account, list, stats] = await Promise.all([ads.getAccount(), ads.listCampaigns(), metaCampaignStats(db, bogotaDate(29))]);
+    status.accountName = account.name;
+    status.currency = account.currency;
+    campaigns = list.map((c) => {
+      const st = ads.isMock ? undefined : stats.get(c.id);
+      return {
+        id: c.id,
+        name: c.name,
+        status: c.status,
+        effectiveStatus: c.effectiveStatus,
+        dailyBudget: c.dailyBudget,
+        spendLocal: st?.spendLocal ?? 0,
+        usd: st?.usd ?? 0,
+        impressions: st?.impressions ?? 0,
+        clicks: st?.clicks ?? 0,
+        conversations: st?.conversations ?? 0,
+      };
+    });
+  } catch (e) {
+    status.error = e instanceof MetaAdsError ? `Meta: ${e.message}` : "No se pudo leer la cuenta de Meta.";
+  }
+  const last = await getLastSync(db);
+  const lastSync: LastSyncView | null = last ? { at: last.at, mode: last.mode, saved: last.saved, rows: last.rows, since: last.since, until: last.until, error: last.error } : null;
+  return { status, campaigns, lastSync };
 }

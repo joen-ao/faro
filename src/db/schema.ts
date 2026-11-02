@@ -314,6 +314,15 @@ export const adSpend = pgTable(
     usd: usd("usd").notNull(),
     impressions: integer("impressions").notNull().default(0),
     clicks: integer("clicks").notNull().default(0),
+    /** F28: 'manual' (form/CSV) or 'meta_api' (synced from the Marketing API). */
+    source: text("source").notNull().default("manual"),
+    /** F28: account currency and spend in it; `fx` = units of that currency per USD used for `usd`. */
+    currency: text("currency"),
+    spendLocal: doublePrecision("spend_local"),
+    fx: doublePrecision("fx"),
+    /** F28: messaging conversations started (Meta action), 0 when not applicable. */
+    conversations: integer("conversations").notNull().default(0),
+    campaignName: text("campaign_name"),
     isDemo: boolean("is_demo").notNull().default(false),
     createdAt: createdAt(),
   },

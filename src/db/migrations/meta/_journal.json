@@ -57,6 +57,13 @@
       "when": 1792477757143,
       "tag": "0007_social_contacts",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793652307134,
+      "tag": "0008_meta_ads_api",
+      "breakpoints": true
     }
   ]
 }

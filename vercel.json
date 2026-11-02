@@ -1,4 +1,7 @@
 {
   "regions": ["pdx1"],
-  "crons": [{ "path": "/api/cron/daily-outreach", "schedule": "0 14 * * 1-6" }]
+  "crons": [
+    { "path": "/api/cron/daily-outreach", "schedule": "0 14 * * 1-6" },
+    { "path": "/api/cron/meta-ads-sync", "schedule": "0 11 * * *" }
+  ]
 }
