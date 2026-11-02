@@ -3,11 +3,12 @@ import { headers } from "next/headers";
 import { getReadyDb } from "@/db/client";
 import type { AppDb } from "@/db/types";
 import { allowedAdHosts, bogotaDate } from "@/features/ads";
-import { adPerformance } from "@/features/copilot";
+import { adPerformance, DEFAULT_SETTINGS, evaluateRules, getCopilotSettings, listActions, listRecommendations } from "@/features/copilot";
 import { getServiceCatalog } from "@/features/settings/services";
 import { getMetaAds } from "@/integrations/meta-ads";
 import { requireAppAccess } from "@/lib/app-access";
 import { getEnv, resolveMode } from "@/lib/env";
+import { ControlPanel } from "./control-panel";
 import { CopilotPanel } from "./copilot-panel";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,16 @@ export default async function CopilotPage() {
   }
   const env = getEnv();
   const db = (await getReadyDb()) as unknown as AppDb;
-  const [catalog, perf] = await Promise.all([getServiceCatalog(db), adPerformance(db, bogotaDate(29))]);
+  const metaMock = getMetaAds(env).isMock;
+  const [catalog, perf, settings, recs, actions] = await Promise.all([
+    getServiceCatalog(db),
+    adPerformance(db, bogotaDate(29)),
+    getCopilotSettings(db),
+    listRecommendations(db, metaMock),
+    listActions(db, metaMock),
+  ]);
+  // Which rules cannot run with the current targets (no Meta call needed for this).
+  const { skipped } = evaluateRules({ settings, maxBudget: 0, minBudget: 0, campaigns: [], adSets: [], ads: [], faroCampaignIds: new Set(), perf: { d3: new Map(), d7: new Map(), prev7: new Map(), d14: new Map() }, lastBudgetChange: new Map(), now: new Date() });
 
   return (
     <main className="relative isolate min-h-dvh px-4 py-10 sm:py-14">
@@ -44,9 +54,21 @@ export default async function CopilotPage() {
           allowedHosts={allowedAdHosts(env)}
           maxBudget={env.ADS_MAX_DAILY_BUDGET_COP}
           aiMock={resolveMode("anthropic", env) === "mock"}
-          metaMock={getMetaAds(env).isMock}
+          metaMock={metaMock}
           performance={perf}
         />
+        <div className="mt-12">
+          <p className="text-xs uppercase tracking-[0.25em] text-faro-text-3">Recomendaciones y piloto</p>
+          <div className="mt-4">
+            <ControlPanel
+              settings={settings ?? DEFAULT_SETTINGS}
+              skipped={skipped}
+              spendEnabled={env.ADS_SPEND_ENABLED}
+              recs={recs.map((r) => ({ id: r.id, rule: r.rule, action: r.action, title: r.title, evidence: r.evidence, requiresApproval: r.requiresApproval, status: r.status, appliedBy: r.appliedBy, createdAt: r.createdAt.toISOString() }))}
+              actions={actions.map((a) => ({ id: a.id, actor: a.actor, action: a.action, entityId: a.entityId, before: a.before, after: a.after, ok: a.ok, error: a.error, revertOf: a.revertOf, at: a.at.toISOString() }))}
+            />
+          </div>
+        </div>
       </div>
     </main>
   );

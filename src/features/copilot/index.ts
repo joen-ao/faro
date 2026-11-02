@@ -4,3 +4,5 @@ export * from "./lint";
 export * from "./performance";
 export * from "./propose";
 export * from "./stats";
+export * from "./rules";
+export * from "./run";

@@ -29,6 +29,10 @@ function realDouble(rows: MetaInsightRow[], currency = "COP"): MetaAdsAdapter {
       throw new Error("unused");
     },
     setCampaignStatus: async () => undefined,
+    listAds: async () => [],
+    listAdSets: async () => [],
+    setAdStatus: async () => undefined,
+    setAdSetBudget: async () => undefined,
   };
 }
 

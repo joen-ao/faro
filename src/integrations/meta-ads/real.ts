@@ -7,7 +7,9 @@ import {
   type CreatedAd,
   type CreatedCampaign,
   type MetaAccount,
+  type MetaAd,
   type MetaAdInsightRow,
+  type MetaAdSet,
   type MetaAdsAdapter,
   type MetaApiCallLogger,
   type MetaCampaign,
@@ -42,6 +44,12 @@ export function withUtm(url: string, campaignId: string): string {
 }
 
 type Json = Record<string, unknown>;
+
+/** Meta object ids are numeric; anything else could address another path of the Graph API. */
+function checkId(id: string): string {
+  if (!/^\d{5,25}$/.test(id)) throw new MetaAdsError("ID de Meta inválido", 400);
+  return id;
+}
 
 function countConversations(actions: unknown): number {
   return ((actions as { action_type?: string; value?: string }[] | undefined) ?? [])
@@ -256,8 +264,41 @@ export function createRealMetaAds(opts: RealMetaOptions): MetaAdsAdapter {
     },
 
     async setCampaignStatus(campaignId, status) {
-      if (!/^\d{5,25}$/.test(campaignId)) throw new MetaAdsError("ID de campaña inválido", 400);
-      await call("POST", campaignId, { status });
+      await call("POST", checkId(campaignId), { status });
+    },
+
+    async listAds(): Promise<MetaAd[]> {
+      const rows = await list(`${account}/ads`, { fields: "id,name,campaign_id,adset_id,status,effective_status", limit: "200" });
+      return rows.map((a) => ({
+        id: String(a.id),
+        name: String(a.name ?? ""),
+        campaignId: String(a.campaign_id ?? ""),
+        adSetId: String(a.adset_id ?? ""),
+        status: String(a.status ?? ""),
+        effectiveStatus: String(a.effective_status ?? ""),
+      }));
+    },
+
+    async listAdSets(): Promise<MetaAdSet[]> {
+      const cur = await accountCurrency();
+      const rows = await list(`${account}/adsets`, { fields: "id,name,campaign_id,status,daily_budget", limit: "200" });
+      return rows.map((a) => ({
+        id: String(a.id),
+        name: String(a.name ?? ""),
+        campaignId: String(a.campaign_id ?? ""),
+        status: String(a.status ?? ""),
+        dailyBudget: a.daily_budget ? Number(a.daily_budget) / currencyOffset(cur) : null,
+      }));
+    },
+
+    async setAdStatus(adId, status) {
+      await call("POST", checkId(adId), { status });
+    },
+
+    async setAdSetBudget(adSetId, dailyBudget) {
+      const cur = await accountCurrency();
+      if (!(dailyBudget > 0)) throw new MetaAdsError("Presupuesto inválido", 400);
+      await call("POST", checkId(adSetId), { daily_budget: String(Math.round(dailyBudget * currencyOffset(cur))) });
     },
   };
 }

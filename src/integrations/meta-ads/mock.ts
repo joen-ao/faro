@@ -7,6 +7,11 @@ export function createMockMetaAds(): MetaAdsAdapter {
     { id: "900000000000001", name: "DEMO · Mokub sitio web", status: "PAUSED", effectiveStatus: "PAUSED", objective: "OUTCOME_TRAFFIC", dailyBudget: 20000, createdTime: "2026-11-01T12:00:00-0500" },
   ];
   let seq = 2;
+  const adStatus = new Map<string, string>([
+    ["9000000000000011", "ACTIVE"],
+    ["9000000000000012", "ACTIVE"],
+  ]);
+  let adSetBudget = 20000;
   return {
     isMock: true,
     async getAccount(): Promise<MetaAccount> {
@@ -42,6 +47,18 @@ export function createMockMetaAds(): MetaAdsAdapter {
     async setCampaignStatus(campaignId, status) {
       const c = campaigns.find((x) => x.id === campaignId);
       if (c) c.status = c.effectiveStatus = status;
+    },
+    async listAds() {
+      return [...adStatus.entries()].map(([id, st]) => ({ id, name: `DEMO · anuncio ${id.slice(-1)}`, campaignId: campaigns[campaigns.length - 1]!.id, adSetId: "900000000000009", status: st, effectiveStatus: st }));
+    },
+    async listAdSets() {
+      return [{ id: "900000000000009", name: "DEMO · conjunto", campaignId: campaigns[campaigns.length - 1]!.id, status: "ACTIVE", dailyBudget: adSetBudget }];
+    },
+    async setAdStatus(adId, status) {
+      adStatus.set(adId, status);
+    },
+    async setAdSetBudget(_adSetId, dailyBudget) {
+      adSetBudget = dailyBudget;
     },
   };
 }

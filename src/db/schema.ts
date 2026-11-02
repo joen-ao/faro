@@ -375,6 +375,56 @@ export const adInsights = pgTable(
   (t) => [uniqueIndex("ad_insights_ad_date_uq").on(t.adId, t.date), index("ad_insights_campaign_idx").on(t.campaignId)],
 );
 
+/** F29-B · What the rules engine proposes. `requires_approval` = it raises spend or changes strategy. */
+export const adRecommendations = pgTable(
+  "ad_recommendations",
+  {
+    id: id(),
+    rule: text("rule").notNull(),
+    /** 'pause_ad' | 'lower_budget' | 'raise_budget' | 'activate_campaign' | 'alert' */
+    action: text("action").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    campaignId: text("campaign_id"),
+    title: text("title").notNull(),
+    /** Action parameters (e.g. adSetId, fromBudget, toBudget). */
+    params: jsonb("params").$type<Record<string, unknown>>().notNull().default({}),
+    /** Metrics, window and n that justified it. */
+    evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull().default({}),
+    requiresApproval: boolean("requires_approval").notNull(),
+    /** 'proposed' | 'applied' | 'dismissed' | 'expired' | 'failed' */
+    status: text("status").notNull().default("proposed"),
+    appliedBy: text("applied_by"),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (t) => [index("ad_recommendations_status_idx").on(t.status, t.createdAt)],
+);
+
+/** F29-B · Audit log of every change the copilot (or a human through it) made in Meta. */
+export const adActions = pgTable(
+  "ad_actions",
+  {
+    id: id(),
+    recommendationId: uuid("recommendation_id").references(() => adRecommendations.id, { onDelete: "set null" }),
+    /** 'autopilot' | 'human' */
+    actor: text("actor").notNull(),
+    action: text("action").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    campaignId: text("campaign_id"),
+    before: jsonb("before").$type<Record<string, unknown>>().notNull().default({}),
+    after: jsonb("after").$type<Record<string, unknown>>().notNull().default({}),
+    ok: boolean("ok").notNull(),
+    error: text("error"),
+    revertOf: uuid("revert_of"),
+    isDemo: boolean("is_demo").notNull().default(false),
+    at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("ad_actions_campaign_idx").on(t.campaignId, t.at)],
+);
+
 export const suppression = pgTable(
   "suppression",
   {

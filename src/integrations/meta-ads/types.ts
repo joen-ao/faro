@@ -92,6 +92,25 @@ export interface MetaAdInsightRow {
   conversations: number;
 }
 
+/** An ad with its live delivery status. */
+export interface MetaAd {
+  id: string;
+  name: string;
+  campaignId: string;
+  adSetId: string;
+  status: string;
+  effectiveStatus: string;
+}
+
+/** An ad set with its daily budget (account currency major units; null when budget lives on the campaign). */
+export interface MetaAdSet {
+  id: string;
+  name: string;
+  campaignId: string;
+  status: string;
+  dailyBudget: number | null;
+}
+
 export interface MetaApiCall {
   service: "meta_ads";
   endpoint: string;
@@ -111,6 +130,11 @@ export interface MetaAdsAdapter {
   getAdInsights(range: { since: string; until: string }): Promise<MetaAdInsightRow[]>;
   createPausedCampaign(spec: PausedCampaignSpec): Promise<CreatedCampaign>;
   setCampaignStatus(campaignId: string, status: "ACTIVE" | "PAUSED"): Promise<void>;
+  /** F29 */
+  listAds(): Promise<MetaAd[]>;
+  listAdSets(): Promise<MetaAdSet[]>;
+  setAdStatus(adId: string, status: "ACTIVE" | "PAUSED"): Promise<void>;
+  setAdSetBudget(adSetId: string, dailyBudget: number): Promise<void>;
 }
 
 export class MetaAdsError extends Error {

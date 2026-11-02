@@ -15,6 +15,8 @@ export interface AdPerformance {
   impressions: number;
   linkClicks: number;
   frequency: number;
+  /** Days with Meta data in the window. */
+  days: number;
   /** Link CTR (link clicks / impressions), null without impressions. */
   ctr: number | null;
   ctrInterval: Interval | null;
@@ -42,6 +44,7 @@ type Row = {
   impressions: number | string | null;
   link_clicks: number | string | null;
   frequency: number | string | null;
+  days: number | string | null;
   leads: number | string | null;
   qualified: number | string | null;
 };
@@ -52,13 +55,14 @@ const num = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
  * Per-ad performance since `since` (yyyy-mm-dd, Bogotá): Meta insights (ad_insights) joined with what only Faro
  * knows — leads whose events carry `utm_content=<ad id>` and their real Dapta qualifications. Demo/mock never count.
  */
-export async function adPerformance(db: AppDb, since: string): Promise<AdPerformance[]> {
+export async function adPerformance(db: AppDb, since: string, until = "9999-12-31"): Promise<AdPerformance[]> {
   const res = await db.execute(sql`
     with ins as (
       select ad_id, max(ad_name) as ad_name, max(campaign_id) as campaign_id, max(currency) as currency,
              sum(spend_local)::float8 as spend_local, sum(usd)::float8 as usd,
-             sum(impressions)::int as impressions, sum(link_clicks)::int as link_clicks, max(frequency)::float8 as frequency
-      from ad_insights where date >= ${since} group by ad_id
+             sum(impressions)::int as impressions, sum(link_clicks)::int as link_clicks, max(frequency)::float8 as frequency,
+             count(distinct date)::int as days
+      from ad_insights where date >= ${since} and date <= ${until} group by ad_id
     ),
     v as (select * from ad_variants where not is_demo),
     ids as (select ad_id from ins union select ad_id from v),
@@ -67,6 +71,7 @@ export async function adPerformance(db: AppDb, since: string): Promise<AdPerform
       from events e join leads l on l.id = e.lead_id
       where e.utm ->> 'utm_source' = 'meta' and coalesce(e.utm ->> 'utm_content', '') <> ''
         and not l.is_demo and not e.is_demo and not e.is_mock and e.at >= ${since}::date
+        and e.at < (case when ${until} = '9999-12-31' then 'infinity'::timestamptz else (${until}::date + 1)::timestamptz end)
     ),
     lc as (select ad_id, count(*)::int as leads from ev group by ad_id),
     qc as (
@@ -77,7 +82,7 @@ export async function adPerformance(db: AppDb, since: string): Promise<AdPerform
     )
     select ids.ad_id, ins.ad_name, coalesce(ins.campaign_id, v.campaign_id) as campaign_id,
            v.angle, v.format_hint, v.hypothesis, ins.currency,
-           ins.spend_local, ins.usd, ins.impressions, ins.link_clicks, ins.frequency,
+           ins.spend_local, ins.usd, ins.impressions, ins.link_clicks, ins.frequency, ins.days,
            lc.leads, qc.qualified
     from ids
     left join ins on ins.ad_id = ids.ad_id
@@ -105,6 +110,7 @@ export async function adPerformance(db: AppDb, since: string): Promise<AdPerform
       impressions,
       linkClicks,
       frequency: num(r.frequency),
+      days: num(r.days),
       ctr: impressions > 0 ? linkClicks / impressions : null,
       ctrInterval: wilson(linkClicks, impressions),
       leads,

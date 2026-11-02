@@ -59,4 +59,28 @@ describe("F29 copilot endpoints", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).ok).toBe(true);
   });
+
+  it("phase B endpoints require the key and validate input", async () => {
+    const evaluate = await import("@/app/api/ads/copilot/evaluate/route");
+    const settings = await import("@/app/api/ads/copilot/settings/route");
+    const panic = await import("@/app/api/ads/copilot/panic/route");
+    const rec = await import("@/app/api/ads/copilot/recommendations/[id]/route");
+    const revert = await import("@/app/api/ads/copilot/actions/[id]/revert/route");
+    const id = "00000000-0000-4000-8000-000000000000";
+    const ctx = (x: string) => ({ params: Promise.resolve({ id: x }) });
+    expect((await evaluate.POST(post("/e", {}, {}))).status).toBe(401);
+    expect((await settings.POST(post("/s", { mode: "autopilot" }, {}))).status).toBe(401);
+    expect((await panic.POST(post("/p", {}, {}))).status).toBe(401);
+    expect((await rec.POST(post("/r", { decision: "apply" }, {}), ctx(id))).status).toBe(401);
+    expect((await revert.POST(post("/v", {}, {}), ctx(id))).status).toBe(401);
+
+    expect((await settings.POST(post("/s", { mode: "yolo" }))).status).toBe(400);
+    const saved = await settings.POST(post("/s", { mode: "autopilot", cplCap: "25000", cpqlCap: "" }));
+    expect(await saved.json()).toMatchObject({ ok: true, settings: { mode: "autopilot", cplCap: 25000, cpqlCap: null } });
+    expect((await evaluate.POST(post("/e", {}))).status).toBe(200);
+    expect((await panic.POST(post("/p", {}))).status).toBe(200);
+    expect((await rec.POST(post("/r", { decision: "apply" }), ctx("not-a-uuid"))).status).toBe(400);
+    expect((await rec.POST(post("/r", { decision: "apply" }), ctx(id))).status).toBe(409);
+    expect((await revert.POST(post("/v", {}), ctx(id))).status).toBe(409);
+  });
 });
