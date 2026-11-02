@@ -3,13 +3,14 @@ import { headers } from "next/headers";
 import { getReadyDb } from "@/db/client";
 import type { AppDb } from "@/db/types";
 import { allowedAdHosts, bogotaDate } from "@/features/ads";
-import { adPerformance, DEFAULT_SETTINGS, evaluateRules, getCopilotSettings, listActions, listRecommendations } from "@/features/copilot";
+import { adPerformance, DEFAULT_SETTINGS, evaluateRules, getCopilotSettings, listActions, listLearnings, listRecommendations } from "@/features/copilot";
 import { getServiceCatalog } from "@/features/settings/services";
 import { getMetaAds } from "@/integrations/meta-ads";
 import { requireAppAccess } from "@/lib/app-access";
 import { getEnv, resolveMode } from "@/lib/env";
 import { ControlPanel } from "./control-panel";
 import { CopilotPanel } from "./copilot-panel";
+import { LearningsPanel } from "./learnings-panel";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Copiloto de pauta", robots: { index: false, follow: false } };
@@ -28,12 +29,13 @@ export default async function CopilotPage() {
   const env = getEnv();
   const db = (await getReadyDb()) as unknown as AppDb;
   const metaMock = getMetaAds(env).isMock;
-  const [catalog, perf, settings, recs, actions] = await Promise.all([
+  const [catalog, perf, settings, recs, actions, learnings] = await Promise.all([
     getServiceCatalog(db),
     adPerformance(db, bogotaDate(29)),
     getCopilotSettings(db),
     listRecommendations(db, metaMock),
     listActions(db, metaMock),
+    listLearnings(db, metaMock),
   ]);
   // Which rules cannot run with the current targets (no Meta call needed for this).
   const { skipped } = evaluateRules({ settings, maxBudget: 0, minBudget: 0, campaigns: [], adSets: [], ads: [], faroCampaignIds: new Set(), perf: { d3: new Map(), d7: new Map(), prev7: new Map(), d14: new Map() }, lastBudgetChange: new Map(), now: new Date() });
@@ -68,6 +70,11 @@ export default async function CopilotPage() {
               actions={actions.map((a) => ({ id: a.id, actor: a.actor, action: a.action, entityId: a.entityId, before: a.before, after: a.after, ok: a.ok, error: a.error, revertOf: a.revertOf, at: a.at.toISOString() }))}
             />
           </div>
+        </div>
+        <div className="mt-6">
+          <LearningsPanel
+            learnings={learnings.map((l) => ({ id: l.id, dimension: l.dimension, metric: l.metric, winner: l.winner, statement: l.statement, confidence: l.confidence, source: l.source, periodStart: l.periodStart, periodEnd: l.periodEnd }))}
+          />
         </div>
       </div>
     </main>

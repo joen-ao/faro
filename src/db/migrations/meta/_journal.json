@@ -78,6 +78,13 @@
       "when": 1793658972472,
       "tag": "0010_copilot_recommendations",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793659650414,
+      "tag": "0011_copilot_learnings",
+      "breakpoints": true
     }
   ]
 }

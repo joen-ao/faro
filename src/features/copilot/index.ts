@@ -6,3 +6,6 @@ export * from "./propose";
 export * from "./stats";
 export * from "./rules";
 export * from "./run";
+export * from "./learnings";
+export * from "./learnings-stats";
+export * from "./learnings-run";

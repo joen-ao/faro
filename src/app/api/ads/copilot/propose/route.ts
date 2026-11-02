@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { destinationError } from "@/features/ads";
-import { BriefSchema, proposeAds } from "@/features/copilot";
+import { BriefSchema, learningsForProposals, proposeAds } from "@/features/copilot";
 import { readJsonCapped } from "@/features/diagnostic/limits";
 import { dbCallRecorder, loadAiRates, recordAiCost } from "@/features/scoring/cost";
 import { getServiceCatalog } from "@/features/settings/services";
 import { AiError, getAnthropic } from "@/integrations/anthropic";
+import { getMetaAds } from "@/integrations/meta-ads";
 import { requireAppAccess } from "@/lib/app-access";
 import { getEnv } from "@/lib/env";
 import { withDb } from "@/lib/with-db";
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
     try {
       const res = await proposeAds(
         brief,
-        { service, catalogPrices: catalog.services.flatMap((x) => [x.price, x.entryOffer]), company: catalog.company, learnings: [] },
+        { service, catalogPrices: catalog.services.flatMap((x) => [x.price, x.entryOffer]), company: catalog.company, learnings: await learningsForProposals(db, getMetaAds(env).isMock) },
         ai,
         { recorder: dbCallRecorder(db) },
       );

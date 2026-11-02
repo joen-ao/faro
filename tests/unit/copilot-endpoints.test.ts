@@ -83,4 +83,12 @@ describe("F29 copilot endpoints", () => {
     expect((await rec.POST(post("/r", { decision: "apply" }), ctx(id))).status).toBe(409);
     expect((await revert.POST(post("/v", {}), ctx(id))).status).toBe(409);
   });
+
+  it("learnings endpoint requires the key and runs in mock", async () => {
+    const learn = await import("@/app/api/ads/copilot/learnings/route");
+    expect((await learn.POST(post("/l", {}, {}))).status).toBe(401);
+    const res = await learn.POST(post("/l", {}));
+    expect(res.status).toBe(200);
+    expect((await res.json()).result).toMatchObject({ isMock: true });
+  });
 });

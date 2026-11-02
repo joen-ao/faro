@@ -425,6 +425,30 @@ export const adActions = pgTable(
   (t) => [index("ad_actions_campaign_idx").on(t.campaignId, t.at)],
 );
 
+/** F29-C · Weekly learnings: statistical finding + narrative grounded in its evidence. */
+export const adLearnings = pgTable(
+  "ad_learnings",
+  {
+    id: id(),
+    dimension: text("dimension").notNull(),
+    metric: text("metric").notNull(),
+    winner: text("winner").notNull(),
+    statement: text("statement").notNull(),
+    /** 'insuficiente' | 'baja' | 'media' | 'alta' */
+    confidence: text("confidence").notNull(),
+    evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull().default({}),
+    /** 'ai' when Claude's text passed the number check, 'template' otherwise. */
+    source: text("source").notNull(),
+    periodStart: text("period_start").notNull(),
+    periodEnd: text("period_end").notNull(),
+    /** 'vigente' | 'reemplazado' */
+    status: text("status").notNull().default("vigente"),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [index("ad_learnings_status_idx").on(t.status, t.createdAt)],
+);
+
 export const suppression = pgTable(
   "suppression",
   {
