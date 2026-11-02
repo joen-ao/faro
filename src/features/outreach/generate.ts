@@ -132,6 +132,23 @@ export function buildLinks(lead: GenLead, channel: ContactChannel, recipient: st
 }
 
 /**
+ * Reply address for one lead (F27): `r.<slug>@EMAIL_REPLY_DOMAIN` when a receiving domain is set, so an inbound reply
+ * names its lead even from another mailbox; otherwise the shared EMAIL_REPLY_TO (or the workspace sender).
+ */
+export function replyAddress(env: Pick<Env, "EMAIL_REPLY_DOMAIN" | "EMAIL_REPLY_TO">, slug: string, fallback?: string | null): string | null {
+  const domain = env.EMAIL_REPLY_DOMAIN?.trim().toLowerCase();
+  if (domain && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain) && /^[a-z0-9_-]{1,64}$/i.test(slug)) return `r.${slug.toLowerCase()}@${domain}`;
+  return env.EMAIL_REPLY_TO ?? fallback ?? null;
+}
+
+/** "r.abc123@respuestas.mokub.co" -> "abc123" */
+export function slugFromReplyAddress(address: string, domain: string | undefined): string | null {
+  if (!domain) return null;
+  const m = /^r\.([a-z0-9_-]{1,64})@(.+)$/i.exec(address.trim());
+  return m && m[2]!.toLowerCase() === domain.trim().toLowerCase() ? m[1]!.toLowerCase() : null;
+}
+
+/**
  * Footer signature: the seller (when set), then "enviado con Faro · proyecto del 30X Hackathon", then the legal name
  * only when it adds something (a SENDER_LEGAL_NAME that repeats the product name is dropped).
  */
@@ -206,7 +223,7 @@ export async function generateMessage(
   const subject = sanitizeCopy(res.data.subject, 90);
   const opening = sanitizeCopy(res.data.opening, 320);
   const value = sanitizeCopy(res.data.value, 320);
-  const replyTo = env.EMAIL_REPLY_TO ?? workspace.senderEmail ?? null;
+  const replyTo = replyAddress(env, lead.slug, workspace.senderEmail);
   const { diagnosticUrl, optOutUrl, oneClickUrl } = buildLinks(lead, opts.channel, opts.recipient, env);
 
   const who = senderSignature(env, seller);
@@ -225,7 +242,7 @@ export async function generateMessage(
       : []),
     `Preparamos un breve diagnóstico público sobre su ${company.independent ? "negocio" : "empresa"}: ${diagnosticUrl}`,
     `Por qué le escribimos: su ${company.independent ? "negocio" : "empresa"} aparece en ${sourceLabel}. Es un único mensaje; no haremos seguimientos automáticos.`,
-    `Quién escribe: ${seller ? `${seller}, con ${product} (proyecto del 30X Hackathon)` : `${product}, un proyecto del 30X Hackathon`}. ${replyTo ? `Puede responder a este correo (${replyTo}).` : "Puede responder a este mensaje."}`,
+    `Quién escribe: ${seller ? `${seller}, con ${product} (proyecto del 30X Hackathon)` : `${product}, un proyecto del 30X Hackathon`}. ${replyTo ? (env.EMAIL_REPLY_DOMAIN ? "Puede responder directamente a este correo." : `Puede responder a este correo (${replyTo}).`) : "Puede responder a este mensaje."}`,
     `Si no desea recibir mensajes nuestros, darse de baja toma un clic: ${optOutUrl}`,
     [who, env.SENDER_ADDRESS].filter(Boolean).join(" · "),
   ];

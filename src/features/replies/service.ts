@@ -4,6 +4,8 @@ import { companies, contactPoints, events, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { applyOptOut, createOptOutToken } from "@/features/compliance/optout";
 import { suppress } from "@/features/compliance/suppression";
+import { slugFromReplyAddress } from "@/features/outreach/generate";
+import type { ReceivedEmail } from "@/integrations/email/inbound";
 
 const ADVANCE_FROM = ["found", "fit", "contacted"] as const;
 
@@ -126,16 +128,67 @@ async function leadById(db: AppDb, id: string | undefined) {
   return (await db.select().from(leads).where(eq(leads.id, id)).limit(1))[0];
 }
 
-/** Processes one verified provider event. `svixId` makes reply/click/delivered writes idempotent. */
-export async function processEmailEvent(db: AppDb, event: z.infer<typeof emailEventSchema>, svixId: string): Promise<WebhookOutcome> {
-  // Serialize deliveries of the same svix-id (advisory lock) so check-then-insert is atomic without a migration.
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${svixId}))`);
-    return processEmailEventLocked(tx as unknown as AppDb, event, svixId);
-  });
+/** F27 · what an inbound reply needs: read its content, know our reply domain, forward it to the team. */
+export interface InboundDeps {
+  replyDomain?: string;
+  /** Reads the received email (text/html/headers); the webhook only carries metadata. */
+  fetchReceived?: (id: string) => Promise<ReceivedEmail | null>;
+  /** Forwards the reply to the team mailbox; absent = no forwarding. */
+  forward?: (f: ForwardInput) => Promise<void>;
 }
 
-async function processEmailEventLocked(db: AppDb, event: z.infer<typeof emailEventSchema>, svixId: string): Promise<WebhookOutcome> {
+export interface ForwardInput {
+  emailId: string;
+  from: string;
+  subject: string;
+  text: string;
+  html: string | null;
+  company: string | null;
+  outcome: string;
+}
+
+/** Processes one verified provider event. `svixId` makes reply/click/delivered writes idempotent. */
+export async function processEmailEvent(db: AppDb, event: z.infer<typeof emailEventSchema>, svixId: string, deps: InboundDeps = {}): Promise<WebhookOutcome> {
+  const inbound = ["email.received", "reply", "email.reply"].includes(event.type.toLowerCase());
+  let received: ReceivedEmail | null = null;
+  if (inbound && deps.fetchReceived && typeof event.data.email_id === "string") received = await deps.fetchReceived(event.data.email_id);
+  // The webhook has no body or headers: merge them from the received email so matching and "baja" detection see them.
+  const data = received
+    ? { ...event.data, text: event.data.text ?? received.text, subject: event.data.subject ?? received.subject, headers: event.data.headers ?? received.headers, from: event.data.from ?? received.from }
+    : event.data;
+  // Serialize deliveries of the same svix-id (advisory lock) so check-then-insert is atomic without a migration.
+  const out = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${svixId}))`);
+    return processEmailEventLocked(tx as unknown as AppDb, { ...event, data }, svixId, deps.replyDomain);
+  });
+  if (inbound && deps.forward && !out.duplicate) {
+    const from = addr(data.from) ?? "";
+    const company = out.leadId
+      ? ((await db.select({ name: companies.name }).from(leads).innerJoin(companies, eq(companies.id, leads.companyId)).where(eq(leads.id, out.leadId)).limit(1))[0]?.name ?? null)
+      : null;
+    await deps
+      .forward({ emailId: str(data.email_id, 100), from, subject: str(data.subject, 300), text: str(data.text, 50_000), html: received?.html ?? null, company, outcome: out.handled })
+      .catch((e) => console.error("[replies] forward failed:", e instanceof Error ? e.message : e));
+  }
+  return out;
+}
+
+/** Lead named by the reply address r.<slug>@<replyDomain> (any of the recipients). */
+async function leadByReplyAddress(db: AppDb, data: Record<string, unknown>, replyDomain: string | undefined) {
+  if (!replyDomain) return undefined;
+  const rcpts = [data.to, data.received_for, data.cc].flatMap((v) => (Array.isArray(v) ? v : typeof v === "string" ? [v] : []));
+  for (const r of rcpts) {
+    const a = addr(r);
+    const slug = a ? slugFromReplyAddress(a, replyDomain) : null;
+    if (slug) {
+      const [lead] = await db.select().from(leads).where(eq(leads.slug, slug)).limit(1);
+      if (lead) return lead;
+    }
+  }
+  return undefined;
+}
+
+async function processEmailEventLocked(db: AppDb, event: z.infer<typeof emailEventSchema>, svixId: string, replyDomain?: string): Promise<WebhookOutcome> {
   const type = event.type.toLowerCase();
   const data = event.data;
   const recipient = addr(data.to);
@@ -146,7 +199,7 @@ async function processEmailEventLocked(db: AppDb, event: z.infer<typeof emailEve
     if (await hasSvixEvent(db, svixId)) return { handled: "reply", matched: true, duplicate: true };
     const from = addr(data.from);
     const msg = await messageByProvider(db, data);
-    const lead = (await leadById(db, msg?.leadId)) ?? (await leadBySender(db, from));
+    const lead = (await leadByReplyAddress(db, data, replyDomain)) ?? (await leadById(db, msg?.leadId)) ?? (await leadBySender(db, from));
     if (isUnsubscribeText(`${str(data.subject, 500)}\n${str(data.text, 5000)}`)) {
       // Suppress the sender even when no lead matches (alias / forward).
       if (from) await suppress(db, from, "baja por respuesta");
