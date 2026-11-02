@@ -19,6 +19,8 @@ export function createReplyForwarder(opts: { email: EmailAdapter; from: string; 
   return async (f: ForwardInput): Promise<void> => {
     const sender = bare(f.from);
     if (!sender || own.has(sender) || (opts.replyDomain && sender.endsWith(`@${opts.replyDomain.toLowerCase()}`))) return;
+    // Already in the team mailbox (e.g. a Hostinger copy of a reply to equipo@): forwarding would duplicate it.
+    if ((f.to ?? []).some((t) => own.has(bare(t)))) return;
     const who = f.company ?? sender;
     const status = OUTCOME[f.outcome] ?? "No se pudo asociar a un lead";
     const subject = `[Faro] ${who}: ${f.subject || "(sin asunto)"}`.replace(/[\r\n]+/g, " ").slice(0, 200);

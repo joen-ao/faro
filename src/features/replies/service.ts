@@ -105,8 +105,17 @@ async function messageByProvider(db: AppDb, data: Record<string, unknown>) {
     collectIds(`${str(hv["in-reply-to"] ?? hv["In-Reply-To"], 2000)} ${str(hv["references"] ?? hv["References"], 4000)}`, ids);
   }
   if (!ids.size) return undefined;
-  const [m] = await db.select().from(messages).where(inArray(messages.providerId, [...ids].slice(0, 30))).limit(1);
-  return m;
+  const list = [...ids].slice(0, 30);
+  const [m] = await db.select().from(messages).where(inArray(messages.providerId, list)).limit(1);
+  if (m) return m;
+  // A reply's In-Reply-To carries the RFC Message-ID of our email (saved from its `email.delivered` event).
+  const [ev] = await db
+    .select({ messageId: sql<string>`${events.payload}->>'messageId'` })
+    .from(events)
+    .where(and(eq(events.type, "delivered"), inArray(sql<string>`${events.payload}->>'rfc_id'`, list)))
+    .limit(1);
+  if (!ev?.messageId) return undefined;
+  return (await db.select().from(messages).where(eq(messages.id, ev.messageId)).limit(1))[0];
 }
 
 async function leadBySender(db: AppDb, from: string | null) {
@@ -145,6 +154,8 @@ export interface ForwardInput {
   html: string | null;
   company: string | null;
   outcome: string;
+  /** Original recipients: a reply that already went to the team mailbox is never forwarded again. */
+  to?: string[];
 }
 
 /** Processes one verified provider event. `svixId` makes reply/click/delivered writes idempotent. */
@@ -167,7 +178,7 @@ export async function processEmailEvent(db: AppDb, event: z.infer<typeof emailEv
       ? ((await db.select({ name: companies.name }).from(leads).innerJoin(companies, eq(companies.id, leads.companyId)).where(eq(leads.id, out.leadId)).limit(1))[0]?.name ?? null)
       : null;
     await deps
-      .forward({ emailId: str(data.email_id, 100), from, subject: str(data.subject, 300), text: str(data.text, 50_000), html: received?.html ?? null, company, outcome: out.handled })
+      .forward({ emailId: str(data.email_id, 100), from, subject: str(data.subject, 300), text: str(data.text, 50_000), html: received?.html ?? null, company, outcome: out.handled, to: [...(received?.to ?? []), ...(Array.isArray(data.to) ? (data.to as unknown[]).filter((x): x is string => typeof x === "string") : [])] })
       .catch((e) => console.error("[replies] forward failed:", e instanceof Error ? e.message : e));
   }
   return out;
@@ -236,7 +247,9 @@ async function processEmailEventLocked(db: AppDb, event: z.infer<typeof emailEve
   if (type === "email.delivered") {
     if (await hasSvixEvent(db, svixId)) return { handled: "delivered", matched: true, duplicate: true, leadId: lead.id };
     if (msg.status === "sent") await db.update(messages).set({ status: "delivered" }).where(eq(messages.id, msg.id));
-    await db.insert(events).values({ leadId: lead.id, type: "delivered", payload: { messageId: msg.id, svix_id: svixId }, isDemo: lead.isDemo, isMock: msg.isMock });
+    // Keep the local part of the RFC Message-ID so a reply from any mailbox can be traced back by In-Reply-To.
+    const rfc = /<?([^<>\s@]+)@/.exec(str(data.message_id, 500))?.[1];
+    await db.insert(events).values({ leadId: lead.id, type: "delivered", payload: { messageId: msg.id, svix_id: svixId, ...(rfc ? { rfc_id: rfc } : {}) }, isDemo: lead.isDemo, isMock: msg.isMock });
     return { handled: "delivered", matched: true, leadId: lead.id };
   }
 
