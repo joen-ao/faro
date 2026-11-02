@@ -33,3 +33,4 @@ Orden de construcción (SPEC.md §14): F00 → F01 → F02 → F03 → F04 → F
 | F26 | Métricas de contacto | P1 | DONE | main | 1 | Contactados/aperturas/respuestas por canal y día en el tablero |
 | F27 | Respuestas de correo conectadas a Faro | P0 | DONE | main | 1 | Reply-To por lead en respuestas.mokub.co, lectura del correo recibido, reenvío a equipo@mokub.co |
 | F28 | Meta Ads por API (métricas automáticas y campañas en pausa) | P1 | IN_REVIEW | feat/F28-meta-ads-api | 0 | Adapter Graph API, sync diario a ad_spend (COP→USD), creación en pausa, activación con candado ADS_SPEND_ENABLED + nombre; probado contra la cuenta real Mokub Ads (solo lectura) |
+| F29 | Copiloto de pauta con IA (crear, medir por anuncio, recomendar, aprender) | P1 | SPEC | feat/F29-copiloto-pauta | 0 | Spec listo; base: docs/research/meta-ads-playbook-2026.md. Fases A (crear+métricas por anuncio), B (reglas+piloto con candado), C (aprendizajes) |
