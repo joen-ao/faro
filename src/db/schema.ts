@@ -314,10 +314,139 @@ export const adSpend = pgTable(
     usd: usd("usd").notNull(),
     impressions: integer("impressions").notNull().default(0),
     clicks: integer("clicks").notNull().default(0),
+    /** F28: 'manual' (form/CSV) or 'meta_api' (synced from the Marketing API). */
+    source: text("source").notNull().default("manual"),
+    /** F28: account currency and spend in it; `fx` = units of that currency per USD used for `usd`. */
+    currency: text("currency"),
+    spendLocal: doublePrecision("spend_local"),
+    fx: doublePrecision("fx"),
+    /** F28: messaging conversations started (Meta action), 0 when not applicable. */
+    conversations: integer("conversations").notNull().default(0),
+    campaignName: text("campaign_name"),
     isDemo: boolean("is_demo").notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("ad_spend_platform_campaign_date_demo_uq").on(t.platform, t.campaign, t.date, t.isDemo)],
+);
+
+/** F29 · Ads created by the copilot: which concept/hypothesis each Meta ad carries (for learning by angle). */
+export const adVariants = pgTable(
+  "ad_variants",
+  {
+    id: id(),
+    adId: text("ad_id").notNull(),
+    campaignId: text("campaign_id").notNull(),
+    briefId: text("brief_id").notNull(),
+    angle: text("angle").notNull(),
+    formatHint: text("format_hint").notNull(),
+    hook: text("hook").notNull(),
+    primaryText: text("primary_text").notNull(),
+    headline: text("headline").notNull(),
+    description: text("description"),
+    cta: text("cta").notNull(),
+    hypothesis: text("hypothesis").notNull(),
+    /** The brief that produced it (service, audience, destination, budget). */
+    brief: jsonb("brief").$type<Record<string, unknown>>().notNull().default({}),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("ad_variants_ad_uq").on(t.adId)],
+);
+
+/** F29 · Meta insights per ad and day (real API only; money in account currency + USD). */
+export const adInsights = pgTable(
+  "ad_insights",
+  {
+    id: id(),
+    adId: text("ad_id").notNull(),
+    adName: text("ad_name"),
+    campaignId: text("campaign_id").notNull(),
+    date: text("date").notNull(),
+    currency: text("currency").notNull(),
+    spendLocal: doublePrecision("spend_local").notNull().default(0),
+    usd: doublePrecision("usd").notNull().default(0),
+    impressions: integer("impressions").notNull().default(0),
+    clicks: integer("clicks").notNull().default(0),
+    linkClicks: integer("link_clicks").notNull().default(0),
+    frequency: doublePrecision("frequency").notNull().default(0),
+    conversations: integer("conversations").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("ad_insights_ad_date_uq").on(t.adId, t.date), index("ad_insights_campaign_idx").on(t.campaignId)],
+);
+
+/** F29-B · What the rules engine proposes. `requires_approval` = it raises spend or changes strategy. */
+export const adRecommendations = pgTable(
+  "ad_recommendations",
+  {
+    id: id(),
+    rule: text("rule").notNull(),
+    /** 'pause_ad' | 'lower_budget' | 'raise_budget' | 'activate_campaign' | 'alert' */
+    action: text("action").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    campaignId: text("campaign_id"),
+    title: text("title").notNull(),
+    /** Action parameters (e.g. adSetId, fromBudget, toBudget). */
+    params: jsonb("params").$type<Record<string, unknown>>().notNull().default({}),
+    /** Metrics, window and n that justified it. */
+    evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull().default({}),
+    requiresApproval: boolean("requires_approval").notNull(),
+    /** 'proposed' | 'applied' | 'dismissed' | 'expired' | 'failed' */
+    status: text("status").notNull().default("proposed"),
+    appliedBy: text("applied_by"),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (t) => [index("ad_recommendations_status_idx").on(t.status, t.createdAt)],
+);
+
+/** F29-B · Audit log of every change the copilot (or a human through it) made in Meta. */
+export const adActions = pgTable(
+  "ad_actions",
+  {
+    id: id(),
+    recommendationId: uuid("recommendation_id").references(() => adRecommendations.id, { onDelete: "set null" }),
+    /** 'autopilot' | 'human' */
+    actor: text("actor").notNull(),
+    action: text("action").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    campaignId: text("campaign_id"),
+    before: jsonb("before").$type<Record<string, unknown>>().notNull().default({}),
+    after: jsonb("after").$type<Record<string, unknown>>().notNull().default({}),
+    ok: boolean("ok").notNull(),
+    error: text("error"),
+    revertOf: uuid("revert_of"),
+    isDemo: boolean("is_demo").notNull().default(false),
+    at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("ad_actions_campaign_idx").on(t.campaignId, t.at)],
+);
+
+/** F29-C · Weekly learnings: statistical finding + narrative grounded in its evidence. */
+export const adLearnings = pgTable(
+  "ad_learnings",
+  {
+    id: id(),
+    dimension: text("dimension").notNull(),
+    metric: text("metric").notNull(),
+    winner: text("winner").notNull(),
+    statement: text("statement").notNull(),
+    /** 'insuficiente' | 'baja' | 'media' | 'alta' */
+    confidence: text("confidence").notNull(),
+    evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull().default({}),
+    /** 'ai' when Claude's text passed the number check, 'template' otherwise. */
+    source: text("source").notNull(),
+    periodStart: text("period_start").notNull(),
+    periodEnd: text("period_end").notNull(),
+    /** 'vigente' | 'reemplazado' */
+    status: text("status").notNull().default("vigente"),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [index("ad_learnings_status_idx").on(t.status, t.createdAt)],
 );
 
 export const suppression = pgTable(

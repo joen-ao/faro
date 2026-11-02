@@ -24,6 +24,7 @@ const PATHS = {
       <path d="M7 13v5h3" />
     </>
   ),
+  spark: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z" />,
   check: <path d="M20 7L9 18l-5-5" />,
   plus: <path d="M12 5v14M5 12h14" />,
   panel: (

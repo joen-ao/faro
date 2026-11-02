@@ -57,6 +57,34 @@
       "when": 1792477757143,
       "tag": "0007_social_contacts",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793652307134,
+      "tag": "0008_meta_ads_api",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793658341304,
+      "tag": "0009_copilot_ads",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793658972472,
+      "tag": "0010_copilot_recommendations",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793659650414,
+      "tag": "0011_copilot_learnings",
+      "breakpoints": true
     }
   ]
 }
