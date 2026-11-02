@@ -23,3 +23,10 @@ El correo de mokub.co (MX) lo recibe Hostinger. Las respuestas a `equipo@mokub.c
 2. "Darme de baja" en el cuerpo suprime al remitente.
 3. Cada respuesta llega a `equipo@mokub.co` una sola vez, con Reply-To = cliente.
 4. El texto de la respuesta no se guarda en la base.
+
+## Cambio F27b (2 nov 2026): el cliente solo ve mokub.co
+Una dirección de respuesta en otro dominio (resend.app) parece suplantación. Además, el plan gratis de Resend no admite un cuarto dominio.
+- Reply-To vuelve a `equipo@mokub.co` (Hostinger). `EMAIL_REPLY_DOMAIN` y `REPLY_FORWARD_TO` quedan vacíos.
+- Hostinger reenvía una copia de lo que llega a `equipo@mokub.co` a `faro@izeneakua.resend.app`. Esa dirección es interna y el cliente nunca la ve.
+- Faro solo registra la respuesta; no la reenvía, porque ya está en el buzón. Como protección contra bucles, nunca reenvía un correo dirigido al buzón del equipo.
+- Asociación al lead: por el remitente (el buzón al que escribimos) o por `In-Reply-To`. Para eso, el `Message-ID` RFC de cada correo se guarda desde su evento `email.delivered`.

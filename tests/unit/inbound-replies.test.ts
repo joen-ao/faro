@@ -87,8 +87,40 @@ describe("F27 · forwarder", () => {
     await fwd({ emailId: "e1", from: "gerencia@gmail.com", subject: "Re: hola", text: "Hablemos <b>ya</b>", html: null, company: "Clinica Sonrisas SAS", outcome: "reply" });
     await fwd({ emailId: "e2", from: "equipo@mokub.co", subject: "loop", text: "x", html: null, company: null, outcome: "reply" });
     await fwd({ emailId: "e3", from: "r.s1@respuestas.mokub.co", subject: "loop", text: "x", html: null, company: null, outcome: "reply" });
+    await fwd({ emailId: "e4", from: "cliente@x.co", subject: "Re", text: "x", html: null, company: null, outcome: "reply", to: ["Equipo <equipo@mokub.co>"] });
     expect(sent).toHaveLength(1);
     expect(sent[0]).toMatchObject({ to: "equipo@mokub.co", replyTo: "gerencia@gmail.com", subject: "[Faro] Clinica Sonrisas SAS: Re: hola", idempotencyKey: "faro-fwd-e1" });
     expect(sent[0]!.html).toContain("Hablemos &lt;b&gt;ya&lt;/b&gt;");
+  });
+});
+
+describe("F27b · replies to equipo@ copied to Faro", () => {
+  let conn: Awaited<ReturnType<typeof createTestDb>>;
+  let db: AppDb;
+  let leadId: string;
+  beforeAll(async () => {
+    conn = await createTestDb();
+    db = conn.db as unknown as AppDb;
+    const [ws] = await db.insert(workspaces).values({ name: "Mokub", country: "CO" }).returning();
+    const [icp] = await db.insert(icpProfiles).values({ workspaceId: ws!.id, prompt: "x", criteria: {} }).returning();
+    const [h] = await db.insert(hunts).values({ icpProfileId: icp!.id }).returning();
+    const [c] = await db.insert(companies).values({ name: "Contable Uno SAS", normalizedName: "contable uno" }).returning();
+    const [l] = await db.insert(leads).values({ companyId: c!.id, huntId: h!.id, status: "contacted", primarySource: "rues", slug: "c1" }).returning();
+    leadId = l!.id;
+    await db.insert(messages).values({ leadId, contactChannel: "email", body: "x", status: "sent", providerId: "resend-id-1", recipient: "info@contableuno.co" });
+  }, 60_000);
+  afterAll(async () => {
+    await conn.close();
+  });
+
+  it("saves the RFC Message-ID on delivery and matches a reply from another mailbox by In-Reply-To", async () => {
+    await processEmailEvent(db, { type: "email.delivered", data: { email_id: "resend-id-1", message_id: "<0103abc-000000@sa-east-1.amazonses.com>" } }, "svix-d-1");
+    const out = await processEmailEvent(
+      db,
+      { type: "email.received", data: { email_id: "33333333-3333-3333-3333-333333333333", from: "gerente@gmail.com", to: ["faro@izeneakua.resend.app"] } },
+      "svix-r-1",
+      { fetchReceived: async () => ({ id: "x", from: "gerente@gmail.com", to: ["equipo@mokub.co"], subject: "Re: hola", text: "Me interesa", html: null, headers: { "in-reply-to": "<0103abc-000000@sa-east-1.amazonses.com>" }, messageId: null }) },
+    );
+    expect(out).toMatchObject({ handled: "reply", matched: true, leadId });
   });
 });
