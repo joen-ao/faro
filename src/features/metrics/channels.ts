@@ -72,25 +72,45 @@ interface Raw {
  * or `dapta_widget` for inbound widget activity.
  */
 export const LEAD_FACTS = `
-with lf as (
+with mfirst as (
+  -- first real message per lead (same rule as before: sent/delivered, mock only counts on demo leads)
+  select distinct on (m.lead_id) m.lead_id, m.contact_channel::text as ch
+  from messages m join leads l2 on l2.id = m.lead_id
+  where m.status in ('sent','delivered') and (l2.is_demo or not m.is_mock)
+  order by m.lead_id, m.sent_at asc nulls last, m.created_at asc
+),
+ev as (
+  select e.lead_id,
+    bool_or(e.type in ('widget_open','widget_chat','form_submit')) as widget,
+    bool_or(e.type in ('reply','widget_chat','form_submit')) as responded,
+    bool_or(e.type = 'widget_open' or (e.type = 'click' and e.payload->>'kind' = 'page_view')) as opened,
+    bool_or(e.type = 'widget_chat') as chat
+  from events e join leads l2 on l2.id = e.lead_id
+  where (l2.is_demo or not (e.is_mock or e.is_demo))
+  group by e.lead_id
+),
+qa as (
+  select q.lead_id, bool_or(q.origin = 'dapta') as dapta, bool_or(q.qualified) as qualified
+  from qualifications q join leads l2 on l2.id = q.lead_id
+  where (l2.is_demo or not (q.is_mock or q.is_demo))
+  group by q.lead_id
+),
+-- Set-based (one pass per table) instead of 7 correlated subqueries per lead: leads are ~60k, activity is small.
+lf as (
   select l.id, l.primary_source::text as src, l.is_demo as demo,
     coalesce(l.fit_score >= coalesce(i.threshold, 60), false) as fit,
-    coalesce(
-      (select m.contact_channel::text from messages m
-        where m.lead_id = l.id and m.status in ('sent','delivered') and (l.is_demo or not m.is_mock)
-        order by m.sent_at asc nulls last, m.created_at asc limit 1),
-      (select 'dapta_widget' from events e
-        where e.lead_id = l.id and e.type in ('widget_open','widget_chat','form_submit') and (l.is_demo or not (e.is_mock or e.is_demo)) limit 1)
-    ) as ch,
-    exists (select 1 from events e where e.lead_id = l.id and e.type in ('reply','widget_chat','form_submit') and (l.is_demo or not (e.is_mock or e.is_demo))) as responded,
-    exists (select 1 from messages m where m.lead_id = l.id and m.status in ('sent','delivered') and (l.is_demo or not m.is_mock)) as contacted,
-    exists (select 1 from events e where e.lead_id = l.id and (e.type = 'widget_open' or (e.type = 'click' and e.payload->>'kind' = 'page_view')) and (l.is_demo or not (e.is_mock or e.is_demo))) as opened,
-    (exists (select 1 from events e where e.lead_id = l.id and e.type = 'widget_chat' and (l.is_demo or not (e.is_mock or e.is_demo)))
-      or exists (select 1 from qualifications q where q.lead_id = l.id and q.origin = 'dapta' and (l.is_demo or not (q.is_mock or q.is_demo)))) as chatted,
-    exists (select 1 from qualifications q where q.lead_id = l.id and q.qualified and (l.is_demo or not (q.is_mock or q.is_demo))) as qualified
+    coalesce(mf.ch, case when ev.widget then 'dapta_widget' end) as ch,
+    coalesce(ev.responded, false) as responded,
+    (mf.lead_id is not null) as contacted,
+    coalesce(ev.opened, false) as opened,
+    (coalesce(ev.chat, false) or coalesce(qa.dapta, false)) as chatted,
+    coalesce(qa.qualified, false) as qualified
   from leads l
   left join hunts h on h.id = l.hunt_id
   left join icp_profiles i on i.id = h.icp_profile_id
+  left join mfirst mf on mf.lead_id = l.id
+  left join ev on ev.lead_id = l.id
+  left join qa on qa.lead_id = l.id
 )`;
 
 const GROUP: Record<Dim, { sel: string; grp: string }> = {

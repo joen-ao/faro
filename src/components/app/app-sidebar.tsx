@@ -58,7 +58,7 @@ interface Item {
 function NavItem({ it, collapsed, onNavigate }: { it: Item; collapsed: boolean; onNavigate: () => void }) {
   return (
     <li>
-      <Link
+      <Link prefetch={false}
         href={it.href}
         onClick={onNavigate}
         aria-current={it.active ? "page" : undefined}
@@ -104,7 +104,7 @@ function Recent({ h, collapsed, onNavigate }: { h: RecentHunt; collapsed: boolea
   const st = HUNT_STATUS[h.status] ?? { label: h.status, dot: "bg-faro-text-3" };
   return (
     <li className={cn(collapsed && "lg:hidden")}>
-      <Link
+      <Link prefetch={false}
         href={`/app/hunts/${h.id}`}
         onClick={onNavigate}
         className={cn("flex min-h-12 items-center gap-3 rounded-[10px] px-2.5 py-1.5 text-white/75 hover:bg-white/[0.04] hover:text-white lg:min-h-10", FOCUS)}
@@ -126,7 +126,7 @@ function SendCard({ send, collapsed }: { send: AppShellData["send"]; collapsed: 
   const title = send.enabled ? "Envío real activo" : "Envío simulado";
   const windowText = `Ventana ${send.open ? "abierta" : "cerrada"} · ${send.hours ?? "hoy no se envía"}`;
   return (
-    <Link
+    <Link prefetch={false}
       href="/app/settings/envio"
       title={collapsed ? `${title}. ${windowText}` : undefined}
       className={cn(
@@ -235,11 +235,11 @@ export function AppShell({ data, children }: { data: AppShellData; children: Rea
         >
           <Icon name="menu" size={22} strokeWidth={2} />
         </button>
-        <Link href="/app/dashboard" className={cn("flex items-center gap-2 rounded-sm font-display font-semibold text-white", FOCUS)}>
+        <Link prefetch={false} href="/app/dashboard" className={cn("flex items-center gap-2 rounded-sm font-display font-semibold text-white", FOCUS)}>
           <span aria-hidden className="size-2.5 rounded-full bg-faro-accent" />
           Faro
         </Link>
-        <Link
+        <Link prefetch={false}
           href="/app/new"
           aria-label="Nueva búsqueda"
           className={cn("grid size-10 place-items-center rounded-[10px] bg-faro-accent text-faro-accent-ink hover:brightness-110", FOCUS)}
@@ -265,7 +265,7 @@ export function AppShell({ data, children }: { data: AppShellData; children: Rea
         )}
       >
         <div className={cn("flex items-center justify-between px-1.5 lg:px-2 lg:pt-1", collapsed && "lg:flex-col lg:gap-3 lg:px-0")}>
-          <Link
+          <Link prefetch={false}
             href="/app/dashboard"
             onClick={onNavigate}
             aria-label={collapsed ? "Faro, ir al tablero" : undefined}
@@ -295,7 +295,7 @@ export function AppShell({ data, children }: { data: AppShellData; children: Rea
           </button>
         </div>
 
-        <Link
+        <Link prefetch={false}
           href="/app/new"
           onClick={onNavigate}
           aria-current={path.startsWith("/app/new") ? "page" : undefined}
