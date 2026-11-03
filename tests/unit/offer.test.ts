@@ -193,10 +193,21 @@ describe("first email with the suggested service", () => {
     expect(prompts[0]).not.toContain("año viejo"); // only one finding goes in
     expect(g.text).toContain("Revisamos la información pública de Clínica Sonrisa Norte: su sitio no tiene un botón de WhatsApp.");
     expect(g.text).toContain("le proponemos Agentes de IA y automatización.");
-    expect(g.text).toContain("Si le interesa, el primer paso: Llamada de descubrimiento gratuita de 15–20 min.");
+    expect(g.text).toContain("El primer paso: Llamada de descubrimiento gratuita de 15–20 min.");
     expect(g.text).toContain("https://faro.test/d/sonrisa-norte?c=email&s=reps");
     expect(g.text).toContain("darse de baja toma un clic");
     expect(g.text.indexOf("primer paso")).toBeLessThan(g.text.indexOf("diagnóstico"));
+  });
+
+  it("F42: an unreviewed site is not used as the email's fact", async () => {
+    const prompts: string[] = [];
+    const base = createMockAnthropic();
+    const spy: AnthropicAdapter = { ...base, completeRaw: (p) => (prompts.push(p), base.completeRaw(p)) };
+    const pitch = { ...recommendService(opp("whatsapp"), mokub)!, finding: "site-unreviewed" as const };
+    await generateMessage(lead, { name: "Transporte Dimo", city: "Bogotá" }, { criteria: { sector: "transporte" } }, { name: "Mokub", country: "CO" }, { ai: spy, channel: "email", recipient: "info@dimo.co", env, pitch });
+    expect(prompts[0]).not.toContain("pudimos revisar");
+    expect(prompts[0]).not.toContain("Connect exactly ONE real fact");
+    expect(prompts[0]).toContain("Do not mention their website");
   });
 
   it("signs as the seller, keeps the price apart and never repeats the sender", async () => {
@@ -209,7 +220,7 @@ describe("first email with the suggested service", () => {
     const g = await generateMessage(lead, { name: "Clínica Sonrisa Norte", city: "Bogotá" }, { criteria: { sector: "dental" } }, { name: "Mokub", country: "CO" }, { ai: spy, channel: "email", recipient: "info@sonrisa.co", env: env2, pitch, sellerName: "Mokub" });
     expect(prompts[0]).toContain('"sender":"Mokub"');
     expect(prompts[0]).toContain('Never present "Faro" as the provider');
-    expect(g.text).toContain("Si le interesa, el primer paso: Propuesta gratuita en menos de 24 h. Precio de referencia: desde USD 450.");
+    expect(g.text).toContain("El primer paso: Propuesta gratuita en menos de 24 h. Precio de referencia: Desde USD 450.");
     expect(g.text).toContain("Quién escribe: Mokub.");
     expect(g.text).toContain("Mokub · Bogotá, Colombia");
     expect(g.text).not.toContain("Hackathon");

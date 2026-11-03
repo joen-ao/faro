@@ -178,6 +178,9 @@ export async function generateMessage(
   const sector = typeof icp.criteria.sector === "string" ? icp.criteria.sector : "";
   const sourceLabel = SOURCE_LABELS[lead.primarySource];
   const pitch = opts.pitch ?? null;
+  // F42: "we could not review your site yet" is not a fact worth opening a cold email with, and it led the model to
+  // promise to fix a site we never saw. Such leads get the company-only opening instead.
+  const finding = pitch?.finding && pitch.finding !== "site-unreviewed" ? pitch.finding : null;
   const seller = sanitizeCopy(opts.sellerName ?? "", 80) || null;
 
   const payload = {
@@ -193,7 +196,7 @@ export async function generateMessage(
             outcome: sanitizeCopy(pitch.service.outcome, 200),
             ...(pitch.service.proof ? { proof: sanitizeCopy(pitch.service.proof, 200) } : {}),
           },
-          ...(pitch.finding ? { finding: FACT[pitch.finding], help: LEAD_IN[pitch.finding] } : {}),
+          ...(finding ? { finding: FACT[finding], help: LEAD_IN[finding] } : {}),
         }
       : {}),
     sender: seller ?? product,
@@ -205,9 +208,9 @@ export async function generateMessage(
     'Reply ONLY with JSON: {"subject": string (max 70 chars), "opening": string (1 sentence about the company), "value": string (1-2 sentences about what the sender offers)}.',
     ...(pitch
       ? [
-          pitch.finding
+          finding
             ? "Connect exactly ONE real fact with ONE service: the opening states PAYLOAD.finding (a fact from the public diagnostic of their website); the value says how PAYLOAD.service helps with that fact and names its outcome."
-            : "The value presents PAYLOAD.service and its outcome; the opening only mentions the company, its sector and city.",
+            : "The value presents PAYLOAD.service and its outcome; the opening only mentions the company, its sector and city. Do not mention their website: we have not reviewed it.",
           "Use only facts present in the PAYLOAD; never invent figures, clients, prices or results (PAYLOAD.service.proof is the only allowed evidence). Mention no other problem or service.",
         ]
       : []),
@@ -238,7 +241,7 @@ export async function generateMessage(
     // The entry offer closes the pitch from a fixed template, never from the model.
     // Entry offer and price are separate sentences from a fixed template, never from the model.
     ...(entry || price
-      ? [[entry ? `Si le interesa, el primer paso: ${entry.replace(/\.?$/, ".")}` : "", price ? `Precio de referencia: ${price.charAt(0).toLowerCase()}${price.slice(1).replace(/\.?$/, ".")}` : ""].filter(Boolean).join(" ")]
+      ? [[entry ? `El primer paso: ${entry.replace(/\.?$/, ".")}` : "", price ? `Precio de referencia: ${price.replace(/\.?$/, ".")}` : ""].filter(Boolean).join(" ")]
       : []),
     `Preparamos un breve diagnóstico público sobre su ${company.independent ? "negocio" : "empresa"}: ${diagnosticUrl}`,
     `Por qué le escribimos: su ${company.independent ? "negocio" : "empresa"} aparece en ${sourceLabel}. Es un único mensaje; no haremos seguimientos automáticos.`,
