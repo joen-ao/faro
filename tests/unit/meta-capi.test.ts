@@ -19,7 +19,8 @@ vi.mock("@/db/client", async (orig) => {
   const real = await orig<typeof import("@/db/client")>();
   return { ...real, getReadyDb: async () => t.db };
 });
-vi.mock("next/server", async (orig) => ({ ...(await orig<typeof import("next/server")>()), after: () => undefined }));
+const scheduled = vi.hoisted(() => ({ n: 0 }));
+vi.mock("next/server", async (orig) => ({ ...(await orig<typeof import("next/server")>()), after: () => void scheduled.n++ }));
 
 beforeAll(async () => {
   t = await createTestDb();
@@ -147,13 +148,26 @@ describe("public lead (mokub.co form)", () => {
       expect((await POST(post(null, {}))).status).toBe(403);
       const pre = OPTIONS(new Request("https://faro.test/api/public/lead", { method: "OPTIONS", headers: { origin: "https://www.mokub.co" } }));
       expect(pre.headers.get("access-control-allow-origin")).toBe("https://www.mokub.co");
-      const ok = await POST(post("https://mokub.co", { company: "Cuatro SAS", email: "info@cuatro.co", consent: true, eventId: "evt-abcdef12" }));
+      const ok = await POST(post("https://mokub.co", { company: "Cuatro SAS", email: "info@cuatro.co", consent: true, adConsent: true, eventId: "evt-abcdef12" }));
       expect(ok.status).toBe(200);
       expect(await ok.json()).toEqual({ ok: true, eventId: "evt-abcdef12" });
       expect(ok.headers.get("access-control-allow-origin")).toBe("https://mokub.co");
       let last: Response | null = null;
       for (let i = 0; i < 6; i++) last = await POST(post("https://mokub.co", { company: "Cinco SAS", email: "info@cinco.co", consent: true }, "6.6.6.6"));
       expect(last!.status).toBe(429);
+    });
+
+    it("sends the Lead to Meta only with adConsent: true, and records the choice", async () => {
+      const { POST } = await import("@/app/api/public/lead/route");
+      const before = scheduled.n;
+      await POST(post("https://web.mokub.co", { company: "Seis SAS", email: "info@seis.co", consent: true }, "7.7.7.1"));
+      await POST(post("https://web.mokub.co", { company: "Siete SAS", email: "info@siete.co", consent: true, adConsent: "true" }, "7.7.7.2"));
+      expect(scheduled.n).toBe(before);
+      await POST(post("https://web.mokub.co", { company: "Ocho SAS", email: "info@ocho.co", consent: true, adConsent: true }, "7.7.7.3"));
+      expect(scheduled.n).toBe(before + 1);
+      const payloads = (await t.db.select({ p: s.events.payload }).from(s.events)).map((r) => r.p as { company?: string; adConsent?: boolean });
+      expect(payloads.find((p) => p.company === "Seis SAS")?.adConsent).toBe(false);
+      expect(payloads.find((p) => p.company === "Ocho SAS")?.adConsent).toBe(true);
     });
   });
 });

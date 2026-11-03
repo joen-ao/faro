@@ -56,7 +56,7 @@ Principios: una métrica norte; cada KPI con su definición, su período y la co
   - `META_CAPI_TEST_CODE` opcional para el modo de prueba de Events Manager;
   - ningún dato se guarda ni se registra en claro.
 - **Sin `META_PIXEL_ID`, no se envía nada.** Los fallos de la API se registran en `api_calls` y nunca rompen el flujo del lead.
-- **Endpoint para mokub.co** (`POST /api/public/lead`, con CORS solo para `mokub.co` y `www.mokub.co`, honeypot y freno de intentos): recibe el formulario de mokub.co con sus UTM y `fbclid`, crea el lead en Faro (fuente `meta_ads` si viene de Meta, si no `website`) y dispara el `Lead` por la API de Conversiones. Conectar el formulario de mokub.co se hace en el repo `mokub-web-services` y es trabajo aparte.
+- **Endpoint para mokub.co** (`POST /api/public/lead`, con CORS solo para `mokub.co` y `www.mokub.co`, honeypot y freno de intentos): recibe el formulario de mokub.co con sus UTM y `fbclid`, crea el lead en Faro (fuente `meta_ads` si viene de Meta, si no `website`) y dispara el `Lead` por la API de Conversiones **solo si llega `adConsent: true`** (lo que la persona eligió en el aviso de cookies de mokub.co). Sin eso, el lead se crea igual pero nada se comparte con Meta; la elección queda en el evento `form_submit`. Conectar el formulario de mokub.co se hace en el repo `mokub-web-services` y es trabajo aparte.
 
 ## No-alcance
 - Cambios en el repo de mokub.co.

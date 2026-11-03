@@ -51,10 +51,10 @@ export function parsePublicLead(input: unknown): PublicLeadParse {
 const fromMeta = (t: Tracking) => /^(meta|facebook|fb|instagram|ig)$/i.test(t.utm?.utm_source ?? "");
 
 /** Creates (or reuses, by email or phone) the inbound lead and logs `form_submit`. Returns the lead id. */
-export async function recordPublicLead(db: AppDb, input: PublicLeadInput, tracking: Tracking): Promise<string> {
+export async function recordPublicLead(db: AppDb, input: PublicLeadInput, tracking: Tracking, opts: { adConsent?: boolean } = {}): Promise<string> {
   const source = fromMeta(tracking) ? ("meta_ads" as const) : ("website" as const);
   const utm = tracking.utm && Object.keys(tracking.utm).length ? { ...tracking.utm, origin: "mokub.co" } : { origin: "mokub.co" };
-  const payload = { company: input.company, email: input.email ?? null, phone: input.phone ?? null, message: input.message ?? null, consent: true, origin: "mokub.co", unverified: true };
+  const payload = { company: input.company, email: input.email ?? null, phone: input.phone ?? null, message: input.message ?? null, consent: true, adConsent: opts.adConsent === true, origin: "mokub.co", unverified: true };
   return db.transaction(async (tx) => {
     const contacts = [
       ...(input.email ? [{ type: "email" as const, value: input.email }] : []),
