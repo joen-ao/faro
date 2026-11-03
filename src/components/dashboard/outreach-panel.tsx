@@ -33,8 +33,16 @@ export function OutreachPanel({ m }: { m: OutreachMetrics }) {
         </p>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Kpi label="Contactados" value={n(t.contacted)} note="empresas con mensaje enviado" accent />
+      {m.deliveryUnreported > 0 && (
+        <p className="mt-4 rounded-lg border border-faro-warn/40 bg-faro-warn/10 px-3 py-2 text-sm text-faro-warn">
+          {n(m.deliveryUnreported)} correos enviados hace más de una hora no tienen confirmación de entrega: revisa que el webhook de Resend apunte a /api/webhooks/email.
+        </p>
+      )}
+
+      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Kpi label="Contactados" value={n(t.contacted)} note="empresas y personas con mensaje enviado" accent />
+        <Kpi label="Entregados" value={n(t.delivered)} note={`tasa ${pct(t.deliveryRate)} · ${n(t.bounced)} rebotaron`} />
+        <Kpi label="Clic en el correo" value={n(t.clicked)} note="hicieron clic en un enlace" />
         <Kpi label="Abrieron el diagnóstico" value={n(t.opened)} note={`tasa ${pct(t.openRate)}`} />
         <Kpi label="Respondieron" value={n(t.replied)} note={`tasa ${pct(t.replyRate)}`} />
         <Kpi label="Calificados" value={n(t.qualified)} note="por el agente de Dapta o a mano" />
@@ -42,11 +50,11 @@ export function OutreachPanel({ m }: { m: OutreachMetrics }) {
       </div>
 
       <div className="mt-6 overflow-x-auto">
-        <table className="w-full min-w-[560px] text-sm">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="text-left text-[12.5px] text-faro-text-3">
               <th className="py-2 font-medium">Canal</th>
-              {["Contactados", "Abrieron", "Respondieron", "Calificados", "Bajas", "Simulados", "En cola", "Con error"].map((h) => (
+              {["Contactados", "Entregados", "Clic", "Abrieron", "Respondieron", "Calificados", "Bajas", "Simulados", "En cola", "Con error"].map((h) => (
                 <th key={h} className="py-2 text-right font-medium">{h}</th>
               ))}
             </tr>
@@ -58,6 +66,8 @@ export function OutreachPanel({ m }: { m: OutreachMetrics }) {
                 <tr key={c} className="tabular-nums">
                   <td className="py-2.5 font-semibold text-white">{LABEL[c]}</td>
                   <td className="py-2.5 text-right">{n(s.contacted)}</td>
+                  <td className="py-2.5 text-right">{n(s.delivered)} <span className="text-faro-text-3">({pct(s.deliveryRate)})</span></td>
+                  <td className="py-2.5 text-right">{n(s.clicked)}</td>
                   <td className="py-2.5 text-right">{n(s.opened)} <span className="text-faro-text-3">({pct(s.openRate)})</span></td>
                   <td className="py-2.5 text-right">{n(s.replied)} <span className="text-faro-text-3">({pct(s.replyRate)})</span></td>
                   <td className="py-2.5 text-right">{n(s.qualified)}</td>

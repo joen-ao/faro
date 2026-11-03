@@ -4,8 +4,8 @@ import type { AppDb, NewCostRate } from "./types";
 
 /** Default rates (SPEC §7). Real configuration, not demo data. Prices are list prices, editable in DB. */
 export const DEFAULT_COST_RATES: NewCostRate[] = [
-  { key: "anthropic_input_per_1m", category: "ai", unit: "USD/1M input tokens", usd: 3, description: "Anthropic input tokens (list price, configurable)" },
-  { key: "anthropic_output_per_1m", category: "ai", unit: "USD/1M output tokens", usd: 15, description: "Anthropic output tokens (list price, configurable)" },
+  { key: "anthropic_input_per_1m", category: "ai", unit: "USD/1M input tokens", usd: 2, description: "Anthropic input tokens (list price, configurable)" },
+  { key: "anthropic_output_per_1m", category: "ai", unit: "USD/1M output tokens", usd: 10, description: "Anthropic output tokens (list price, configurable)" },
   { key: "places_per_call", category: "data", unit: "USD/call", usd: 0.032, description: "Google Places API call; list value shown even if covered by free tier" },
   { key: "apify_per_result", category: "scraping", unit: "USD/result", usd: 0.005, description: "Apify per scraped result (real run usageTotalUsd preferred)" },
   { key: "email_per_message", category: "email", unit: "USD/email", usd: 0.0004, description: "Transactional email; list value even in free tier" },

@@ -27,7 +27,7 @@ const full: ScoreCompany = {
 describe("aiCostUsd", () => {
   it("multiplies tokens by per-1M rates", () => {
     expect(aiCostUsd({ input_tokens: 1_000_000, output_tokens: 0 }, { inputPer1M: 3, outputPer1M: 15 })).toBe(3);
-    expect(aiCostUsd({ input_tokens: 2000, output_tokens: 500 }, DEFAULT_AI_RATES)).toBeCloseTo(0.0135, 6);
+    expect(aiCostUsd({ input_tokens: 2000, output_tokens: 500 }, DEFAULT_AI_RATES)).toBeCloseTo(0.009, 6);
     expect(aiCostUsd({ input_tokens: 0, output_tokens: 0 }, DEFAULT_AI_RATES)).toBe(0);
   });
 });
@@ -188,7 +188,10 @@ describe("scoring service + endpoint handler (PGlite)", () => {
     expect((await getCostTotals(conn.db)).totalUsd).toBe(0);
     const calls = await conn.db.select().from(s.apiCalls);
     expect(calls[0]).toMatchObject({ service: "anthropic", endpoint: "score_signals", isMock: true });
-    expect(await loadAiRates(conn.db)).toEqual({ inputPer1M: 3, outputPer1M: 15 });
+    expect(await loadAiRates(conn.db)).toEqual({ inputPer1M: 2, outputPer1M: 10 });
+    // F42: known models use their list price, unknown ones fall back to cost_rates.
+    expect(await loadAiRates(conn.db, "claude-haiku-5-5")).toEqual({ inputPer1M: 0.1, outputPer1M: 0.5 });
+    expect(await loadAiRates(conn.db, "otro-modelo")).toEqual({ inputPer1M: 2, outputPer1M: 10 });
   });
 
   it("returns clear 400/404/422 errors", async () => {

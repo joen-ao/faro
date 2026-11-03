@@ -20,6 +20,14 @@ export function getAnthropic(env: Env = getEnv()): AnthropicAdapter {
   return createRealAnthropic({ apiKey: env.ANTHROPIC_API_KEY ?? "", model: env.ANTHROPIC_MODEL });
 }
 
+export const DEFAULT_OUTREACH_MODEL = "claude-haiku-5-5";
+
+/** F42 · Outreach emails: short copy over facts Faro already supplies, so a smaller model is enough. */
+export function getOutreachAnthropic(env: Env = getEnv()): AnthropicAdapter {
+  if (resolveMode("anthropic", env) === "mock") return createMockAnthropic();
+  return createRealAnthropic({ apiKey: env.ANTHROPIC_API_KEY ?? "", model: env.ANTHROPIC_OUTREACH_MODEL || DEFAULT_OUTREACH_MODEL });
+}
+
 /** Pulls the first JSON object out of a model reply (tolerates code fences / prose). */
 export function extractJson(text: string): unknown {
   const cleaned = text.replace(/```(?:json)?/gi, "");

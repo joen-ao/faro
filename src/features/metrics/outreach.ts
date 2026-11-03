@@ -14,6 +14,12 @@ export const OUTREACH_CHANNELS: readonly OutreachChannel[] = ["email", "whatsapp
 
 export interface ChannelStats {
   contacted: number;
+  /** F42 · companies whose email Resend confirmed as delivered. */
+  delivered: number;
+  /** F42 · companies that clicked a link inside the email. */
+  clicked: number;
+  /** F42 · emails that hard-bounced (status failed after the bounce webhook). */
+  bounced: number;
   opened: number;
   replied: number;
   optedOut: number;
@@ -21,6 +27,7 @@ export interface ChannelStats {
   simulated: number;
   failed: number;
   queued: number;
+  deliveryRate: number | null;
   openRate: number | null;
   replyRate: number | null;
 }
@@ -39,9 +46,11 @@ export interface OutreachMetrics {
   days: OutreachDay[];
   recentReplies: { company: string; channel: OutreachChannel; via: string | null; at: string }[];
   today: { emails: number; emailsPerDay: number; dailyEnabled: boolean; whatsapp: number; whatsappLimit: number };
+  /** F42 · emails sent more than an hour ago with no delivery event: the Resend webhook is probably not reporting. */
+  deliveryUnreported: number;
 }
 
-const empty = (): ChannelStats => ({ contacted: 0, opened: 0, replied: 0, optedOut: 0, qualified: 0, simulated: 0, failed: 0, queued: 0, openRate: null, replyRate: null });
+const empty = (): ChannelStats => ({ contacted: 0, delivered: 0, clicked: 0, bounced: 0, opened: 0, replied: 0, optedOut: 0, qualified: 0, simulated: 0, failed: 0, queued: 0, deliveryRate: null, openRate: null, replyRate: null });
 const rate = (k: number, n: number) => (n > 0 ? Math.round((k / n) * 1000) / 10 : null);
 const bogotaDay = (d: Date) => new Date(d.getTime() - 5 * 3600_000).toISOString().slice(0, 10);
 
@@ -58,7 +67,7 @@ export async function getOutreachMetrics(db: AppDb, opts: { now?: Date; days?: n
     .from(events)
     .innerJoin(leads, eq(leads.id, events.leadId))
     .innerJoin(companies, eq(companies.id, leads.companyId))
-    .where(and(eq(events.isDemo, false), eq(events.isMock, false), inArray(events.type, ["sent", "click", "widget_open", "reply", "opt_out"])));
+    .where(and(eq(events.isDemo, false), eq(events.isMock, false), inArray(events.type, ["sent", "delivered", "click", "widget_open", "reply", "opt_out"])));
   const qualifiedRows = await db.select({ companyId: leads.companyId }).from(leads).where(and(eq(leads.isDemo, false), eq(leads.status, "qualified")));
   const qualifiedSet = new Set(qualifiedRows.map((r) => r.companyId));
 
@@ -79,7 +88,11 @@ export async function getOutreachMetrics(db: AppDb, opts: { now?: Date; days?: n
   for (const m of msgs) {
     const ch = bucket(m);
     if (m.status === "simulated") byChannel[ch].simulated++;
-    else if (m.status === "failed") byChannel[ch].failed++;
+    else if (m.status === "failed") {
+      byChannel[ch].failed++;
+      // A failed message that has a send time left the provider and came back: a hard bounce.
+      if (m.sentAt) byChannel[ch].bounced++;
+    }
     else if (m.status === "queued" || m.status === "sending") byChannel[ch].queued++;
     if (m.status !== "sent" && m.status !== "delivered") continue;
     const at = m.sentAt ?? m.createdAt;
@@ -90,6 +103,9 @@ export async function getOutreachMetrics(db: AppDb, opts: { now?: Date; days?: n
   }
   for (const [, f] of first) byChannel[f.channel].contacted++;
 
+  const delivered = new Set<string>();
+  const clicked = new Set<string>();
+  const deliveredMsgs = new Set<string>();
   const opened = new Set<string>();
   const replied = new Set<string>();
   const opted = new Set<string>();
@@ -97,6 +113,17 @@ export async function getOutreachMetrics(db: AppDb, opts: { now?: Date; days?: n
   for (const e of evs) {
     const f = first.get(e.companyId);
     const p = e.payload as Record<string, unknown>;
+    if (e.type === "delivered" && f) {
+      deliveredMsgs.add(String(p.messageId ?? ""));
+      if (!delivered.has(e.companyId)) {
+        delivered.add(e.companyId);
+        byChannel[f.channel].delivered++;
+      }
+    }
+    if (e.type === "click" && p.kind === "email_click" && f && !clicked.has(e.companyId)) {
+      clicked.add(e.companyId);
+      byChannel[f.channel].clicked++;
+    }
     const isOpen = e.type === "widget_open" || (e.type === "click" && p.kind === "page_view");
     if (isOpen && f && e.at >= f.at && !opened.has(e.companyId)) {
       opened.add(e.companyId);
@@ -124,10 +151,12 @@ export async function getOutreachMetrics(db: AppDb, opts: { now?: Date; days?: n
   const totals = empty();
   for (const c of OUTREACH_CHANNELS) {
     const s = byChannel[c];
+    s.deliveryRate = rate(s.delivered, s.contacted);
     s.openRate = rate(s.opened, s.contacted);
     s.replyRate = rate(s.replied, s.contacted);
-    for (const k of ["contacted", "opened", "replied", "optedOut", "qualified", "simulated", "failed", "queued"] as const) totals[k] += s[k];
+    for (const k of ["contacted", "delivered", "clicked", "bounced", "opened", "replied", "optedOut", "qualified", "simulated", "failed", "queued"] as const) totals[k] += s[k];
   }
+  totals.deliveryRate = rate(totals.delivered, totals.contacted);
   totals.openRate = rate(totals.opened, totals.contacted);
   totals.replyRate = rate(totals.replied, totals.contacted);
 
@@ -138,6 +167,7 @@ export async function getOutreachMetrics(db: AppDb, opts: { now?: Date; days?: n
     byChannel,
     days: [...daysMap.values()],
     recentReplies: replies.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10),
+    deliveryUnreported: msgs.filter((m) => m.channel === "email" && m.status === "sent" && !deliveredMsgs.has(m.id) && (m.sentAt ?? m.createdAt).getTime() < now.getTime() - 3600_000).length,
     today: {
       emails: await emailsToday(db, now),
       emailsPerDay: daily.setting.emailsPerDay,

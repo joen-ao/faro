@@ -10,15 +10,24 @@ export interface AiRates {
   outputPer1M: number;
 }
 
-/** List-price fallback (matches the seed); real values live in `cost_rates`. */
-export const DEFAULT_AI_RATES: AiRates = { inputPer1M: 3, outputPer1M: 15 };
+/** List-price fallback (matches the seed, Sonnet 5.5); real values live in `cost_rates`. */
+export const DEFAULT_AI_RATES: AiRates = { inputPer1M: 2, outputPer1M: 10 };
+
+/** F42 · Anthropic list prices per model (USD per 1M tokens, prompts up to 100K). Unknown models use `cost_rates`. */
+export const MODEL_RATES: Record<string, AiRates> = {
+  "claude-sonnet-5-5": { inputPer1M: 2, outputPer1M: 10 },
+  "claude-haiku-5-5": { inputPer1M: 0.1, outputPer1M: 0.5 },
+  "claude-opus-5-5": { inputPer1M: 4, outputPer1M: 20 },
+};
 
 /** Pure: tokens x per-1M-token rate. */
 export function aiCostUsd(usage: Usage, rates: AiRates): number {
   return (usage.input_tokens * rates.inputPer1M + usage.output_tokens * rates.outputPer1M) / 1_000_000;
 }
 
-export async function loadAiRates(db: AppDb): Promise<AiRates> {
+export async function loadAiRates(db: AppDb, model?: string | null): Promise<AiRates> {
+  const known = model ? MODEL_RATES[model] : undefined;
+  if (known) return known;
   const rows = await db
     .select()
     .from(costRates)

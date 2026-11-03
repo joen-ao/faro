@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { readJsonCapped } from "@/features/diagnostic/limits";
 import { dailyOutreachInput, emailsToday, getDailyOutreach, runDailyOutreach, saveDailyOutreach } from "@/features/outreach/daily";
-import { getAnthropic } from "@/integrations/anthropic";
+import { getOutreachAnthropic } from "@/integrations/anthropic";
 import { getEmail } from "@/integrations/email";
 import { requireAppAccess } from "@/lib/app-access";
 import { getEnv } from "@/lib/env";
@@ -32,5 +32,5 @@ export async function POST(req: Request) {
   const denied = requireAppAccess(req);
   if (denied) return denied;
   const env = getEnv();
-  return withDb(async (db) => NextResponse.json({ ok: true, summary: await runDailyOutreach(db, { ai: getAnthropic(env), email: getEmail(env), env }, { trigger: "manual" }) }));
+  return withDb(async (db) => NextResponse.json({ ok: true, summary: await runDailyOutreach(db, { ai: getOutreachAnthropic(env), email: getEmail(env), env }, { trigger: "manual" }) }));
 }

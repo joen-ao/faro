@@ -310,7 +310,7 @@ export async function previewOutreach(
         leadId: ctx.lead.id,
         huntId: ctx.hunt?.id ?? null,
         usage: g.usage,
-        rates: await loadAiRates(db),
+        rates: await loadAiRates(db, g.model),
         isMock: g.isMock,
         evidence: `outreach_message ${g.model}`,
       });
@@ -333,7 +333,7 @@ export async function previewOutreach(
           leadId: ctx.lead.id,
           huntId: ctx.hunt?.id ?? null,
           usage: e.usage,
-          rates: await loadAiRates(db),
+          rates: await loadAiRates(db, e.model),
           isMock: e.isMock,
           evidence: `outreach_message ${e.model} (fallo)`,
         });

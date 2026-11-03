@@ -19,6 +19,8 @@ export const envSchema = z.object({
   DATABASE_URL: optStr,
   ANTHROPIC_API_KEY: optStr,
   ANTHROPIC_MODEL: optStr,
+  /** F42 · model for outreach emails (short, fully grounded copy); default claude-haiku-5-5. */
+  ANTHROPIC_OUTREACH_MODEL: optStr,
   ANTHROPIC_MODE: mode("mock"),
   OVERPASS_URL: strDefault("https://overpass-api.de/api/interpreter"),
   OVERPASS_MODE: mode("real"),
