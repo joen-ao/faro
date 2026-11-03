@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
-import { AlertTriangle, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, MessageSquare, Send, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FORMAT_HINTS, FORMAT_LABELS, type FormatHint } from "@/features/copilot/knowledge";
 import { allowedPriceNumbers, lintAd, type LintIssue } from "@/features/copilot/lint";
@@ -29,6 +29,9 @@ interface Draft {
   media: Media | null;
 }
 type Msg = { kind: "ok" | "error"; text: string; lines?: string[] } | null;
+type Turn = { role: "user" | "assistant"; text: string; lines?: string[] };
+type BriefState = { serviceId: string; url: string; dailyBudget: string; geo: string; audience: string; notes: string; count: string };
+const COPY_FIELDS = ["angle", "format_hint", "hook", "primaryText", "headline", "description", "cta", "hypothesis"] as const;
 
 const field = "w-full rounded-button border border-border bg-faro-surface-2 px-3 text-sm text-foreground placeholder:text-faro-text-3";
 const label = "mb-1 block text-xs text-faro-text-2";
@@ -68,9 +71,15 @@ export function CopilotPanel({
 }) {
   const router = useRouter();
   const allowed = useMemo(() => allowedPriceNumbers(prices), [prices]);
-  const [busy, setBusy] = useState<"propose" | "create" | null>(null);
+  const [busy, setBusy] = useState<"brief" | "propose" | "create" | null>(null);
   const [msg, setMsg] = useState<Msg>(null);
-  const [brief, setBrief] = useState({ serviceId: services[0]?.id ?? "", url: "https://www.mokub.co/", dailyBudget: "40000", geo: "bogota", audience: "", notes: "", count: "4" });
+  const [brief, setBrief] = useState<BriefState>({ serviceId: services[0]?.id ?? "", url: "https://www.mokub.co/", dailyBudget: "40000", geo: "bogota", audience: "", notes: "", count: "4" });
+  /** Brief text gathered so far while Faro is asking for missing data. */
+  const [pendingBrief, setPendingBrief] = useState("");
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [chatText, setChatText] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
+  const [changed, setChanged] = useState<Set<number>>(new Set());
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [name, setName] = useState("");
   const [proposedMock, setProposedMock] = useState(false);
@@ -80,12 +89,17 @@ export function CopilotPanel({
   const blocked = drafts.some((d, i) => d.include && lints[i]!.length > 0);
   const mediaPending = included.some((d) => d.media?.state === "uploading" || d.media?.state === "processing");
 
-  async function propose(e: FormEvent) {
+  function propose(e: FormEvent) {
     e.preventDefault();
+    void runPropose(brief);
+  }
+
+  async function runPropose(b: BriefState) {
     setBusy("propose");
     setMsg(null);
+    setChanged(new Set());
     try {
-      const res = await fetch("/api/ads/copilot/propose", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ brief }) });
+      const res = await fetch("/api/ads/copilot/propose", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ brief: b }) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) setMsg({ kind: "error", text: data.message ?? "Revisa el brief.", lines: data.issues });
       else {
@@ -99,13 +113,92 @@ export function CopilotPanel({
             media: null,
           })),
         );
-        const svc = services.find((s) => s.id === brief.serviceId);
-        setName((n) => n || `Mokub · ${svc?.name ?? "campaña"} · ${brief.geo === "bogota" ? "Bogotá" : "CO"}`.slice(0, 100));
+        const svc = services.find((s) => s.id === b.serviceId);
+        setName((n) => n || `Mokub · ${svc?.name ?? "campaña"} · ${b.geo === "bogota" ? "Bogotá" : "CO"}`.slice(0, 100));
       }
     } catch {
       setMsg({ kind: "error", text: "No hay conexión con el servidor." });
     } finally {
       setBusy(null);
+    }
+  }
+
+  /** F33 · one box: without variants it builds the brief (a statement), otherwise it chats. */
+  function ask(e: FormEvent) {
+    e.preventDefault();
+    const text = chatText.trim();
+    if (!text || busy !== null || chatBusy) return;
+    setChatText("");
+    if (drafts.length === 0 && !/\?\s*$/.test(text)) void fromText(text);
+    else void sendChat(text);
+  }
+
+  /** One sentence -> brief; proposes right away when nothing is missing. */
+  async function fromText(answer: string) {
+    const text = pendingBrief ? `${pendingBrief}. ${answer}` : answer;
+    setBusy("brief");
+    setMsg(null);
+    setTurns((t) => [...t, { role: "user", text: answer }]);
+    try {
+      const res = await fetch("/api/ads/copilot/brief", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        setTurns((t) => [...t, { role: "assistant", text: data.message ?? "No pude leer la descripción. Llena el formulario de abajo." }]);
+        return;
+      }
+      const b = data.brief as { serviceId: string | null; url: string; dailyBudget: number | null; geo: string; audience: string | null; notes: string | null; count: number };
+      const next: BriefState = {
+        serviceId: b.serviceId ?? brief.serviceId,
+        url: b.url,
+        dailyBudget: b.dailyBudget ? String(b.dailyBudget) : brief.dailyBudget,
+        geo: b.geo,
+        audience: b.audience ?? brief.audience,
+        notes: b.notes ?? brief.notes,
+        count: String(b.count),
+      };
+      setBrief(next);
+      const warnings = (data.warnings as string[]) ?? [];
+      setPendingBrief(data.question ? text.slice(0, 900) : "");
+      if (data.question || warnings.length) {
+        setTurns((t) => [...t, { role: "assistant", text: data.question ?? "Revisa esto antes de proponer:", lines: warnings }]);
+        return;
+      }
+      setTurns((t) => [...t, { role: "assistant", text: "Listo, armé el brief (puedes editarlo abajo). Estoy escribiendo las variantes…" }]);
+      setBusy(null);
+      await runPropose(next);
+    } catch {
+      setTurns((t) => [...t, { role: "assistant", text: "No hay conexión con el servidor." }]);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** F33 · chat: edits copy (re-linted server-side) or answers questions; never acts on Meta. */
+  async function sendChat(message: string) {
+    setChatBusy(true);
+    const history = turns.map(({ role, text }) => ({ role, text: text.slice(0, 1000) }));
+    setTurns((t) => [...t, { role: "user", text: message }]);
+    try {
+      const variants = drafts.map((d) => Object.fromEntries(COPY_FIELDS.map((k) => [k, d[k]])));
+      const res = await fetch("/api/ads/copilot/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message, history, brief: drafts.length ? brief : null, variants }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        setTurns((t) => [...t, { role: "assistant", text: data.message ?? "Revisa los anuncios: hay un campo que no cumple el formato.", lines: data.issues }]);
+        return;
+      }
+      const updated = data.variants as Record<(typeof COPY_FIELDS)[number], string | undefined>[];
+      const idx = new Set<number>(data.changed as number[]);
+      setDrafts((ds) => ds.map((d, i) => (idx.has(i) ? { ...d, ...Object.fromEntries(COPY_FIELDS.map((k) => [k, updated[i]?.[k] ?? (k === "description" ? "" : d[k])])) } : d)));
+      setChanged(idx);
+      setTurns((t) => [...t, { role: "assistant", text: data.reply, lines: data.rejected?.length ? data.rejected : undefined }]);
+    } catch {
+      setTurns((t) => [...t, { role: "assistant", text: "No hay conexión con el servidor." }]);
+    } finally {
+      setChatBusy(false);
     }
   }
 
@@ -189,11 +282,60 @@ export function CopilotPanel({
         )}
       </section>
 
+      <section aria-labelledby="chat-h" className="rounded-card border border-[var(--faro-border-active)] bg-card p-5">
+        <h2 id="chat-h" className="flex items-center gap-2 text-lg font-semibold">
+          <MessageSquare className="size-4 text-faro-accent" /> Habla con el copiloto
+        </h2>
+        <p className="mt-1 text-sm text-faro-text-2">
+          {drafts.length
+            ? "Pide cambios («haz la 2 más corta», «quita los emojis») o pregunta por el rendimiento. Crear y activar siguen en los botones."
+            : "Describe la campaña en una frase y Claude arma el brief y los anuncios. También puedes preguntar por el rendimiento (termina con «?»)."}
+        </p>
+        {turns.length > 0 && (
+          <ol className="mt-4 max-h-80 space-y-3 overflow-y-auto pr-1" aria-live="polite">
+            {turns.map((t, k) => (
+              <li key={k} className={`flex ${t.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[85%] rounded-card px-3 py-2 text-sm ${t.role === "user" ? "bg-faro-surface-2 text-foreground" : "border border-border text-faro-text-2"}`}>
+                  <p className="whitespace-pre-wrap break-words">{t.text}</p>
+                  {t.lines?.length ? (
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs">
+                      {t.lines.map((l) => <li key={l}>{l}</li>)}
+                    </ul>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+            {(busy === "brief" || chatBusy) && <li className="text-xs text-faro-text-3">Claude está pensando…</li>}
+          </ol>
+        )}
+        <form onSubmit={ask} className="mt-4 flex items-end gap-2">
+          <label htmlFor="chat-in" className="sr-only">Mensaje para el copiloto</label>
+          <textarea
+            id="chat-in"
+            rows={2}
+            maxLength={1000}
+            value={chatText}
+            onChange={(e) => setChatText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
+            placeholder={drafts.length ? "Ej.: haz la 2 más corta y con un tono más directo" : "Ej.: diagnóstico de agentes de IA para clínicas en Bogotá, 40 mil al día, a web.mokub.co"}
+            className={`${field} min-h-11 flex-1 resize-none py-2`}
+          />
+          <Button type="submit" disabled={!chatText.trim() || busy !== null || chatBusy} aria-label="Enviar" className="h-11 shrink-0">
+            {drafts.length ? <Send className="size-4" /> : <Wand2 className="size-4" />}
+          </Button>
+        </form>
+      </section>
+
       <form onSubmit={propose} aria-labelledby="brief-h" className="rounded-card border border-border bg-card p-5">
         <h2 id="brief-h" className="flex items-center gap-2 text-lg font-semibold">
-          <Sparkles className="size-4 text-faro-accent" /> Nueva campaña con IA
+          <Sparkles className="size-4 text-faro-accent" /> Brief de la campaña
         </h2>
-        <p className="mt-1 text-sm text-faro-text-2">Cuéntale a Claude qué quieres vender y a quién. Propone anuncios de conceptos distintos (no reescrituras del mismo).</p>
+        <p className="mt-1 text-sm text-faro-text-2">Se llena desde el chat; también puedes editarlo aquí. Claude propone anuncios de conceptos distintos (no reescrituras del mismo).</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>
             <label className={label} htmlFor="b-service">Servicio (de Tu oferta)</label>
@@ -253,6 +395,7 @@ export function CopilotPanel({
                 <label className="flex items-center gap-2 text-sm font-medium">
                   <input type="checkbox" className="size-4 accent-[#cbe850]" checked={d.include} onChange={(e) => set(i, { include: e.target.checked })} />
                   Anuncio {i + 1}
+                  {changed.has(i) && <Badge accent>EDITADO POR CLAUDE</Badge>}
                 </label>
                 <button type="button" onClick={() => setDrafts((ds) => ds.filter((_, j) => j !== i))} className="inline-flex items-center gap-1 text-xs text-faro-text-3 hover:text-foreground" aria-label={`Quitar anuncio ${i + 1}`}>
                   <Trash2 className="size-3.5" /> Quitar

@@ -2,6 +2,7 @@ import { mockIcpCriteria } from "@/features/icp/presets";
 import { mockOfferAngles, mockServicesSuggest } from "@/features/offer/angles";
 import { mockAdLearnings } from "@/features/copilot/mock-learnings";
 import { mockAdVariants } from "@/features/copilot/mock-variants";
+import { mockAdBrief, mockAdChat } from "@/features/copilot/mock-chat";
 import type { AnthropicAdapter, Usage } from "./types";
 
 export const MOCK_MODEL = "mock-claude";
@@ -55,6 +56,8 @@ export function mockResponse(prompt: string): string {
   // Opportunities need the real model: the mock returns none, so pages fall back to the website findings.
   if (task === "diagnostic_opportunities") return JSON.stringify({ opportunities: [] });
   if (task === "ad_learnings") return mockAdLearnings(after(prompt, "PAYLOAD:").split("\n")[0] ?? "");
+  if (task === "ad_brief") return mockAdBrief(after(prompt, "PAYLOAD:").split("\n")[0] ?? "");
+  if (task === "ad_chat") return mockAdChat(after(prompt, "PAYLOAD:").split("\n")[0] ?? "");
   if (task === "ad_variants") return mockAdVariants(after(prompt, "PAYLOAD:").split("\n")[0] ?? "");
   if (task === "offer_angles") return mockOfferAngles(after(prompt, "PAYLOAD:").split("\n")[0] ?? "");
   if (task === "outreach_message") {

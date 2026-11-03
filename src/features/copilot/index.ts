@@ -9,3 +9,4 @@ export * from "./run";
 export * from "./learnings";
 export * from "./learnings-stats";
 export * from "./learnings-run";
+export * from "./chat";
