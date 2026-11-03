@@ -6,12 +6,14 @@ import { URL_TAGS, type CreatedCampaign, type MetaAccount, type MetaAdInsightRow
 const uploads = new Map<string, { videoId: string; size: number; received: number }>();
 let uploadSeq = 1;
 
+/** Campaign ids survive across requests and restarts (the adapter is rebuilt per request; ad ids are unique in ad_variants). */
+let campaignSeq = 2 + (Date.now() % 1e11);
+
 /** Deterministic, in-memory Meta Ads. Everything it returns is flagged mock and never reaches `ad_spend`. */
 export function createMockMetaAds(): MetaAdsAdapter {
   const campaigns: MetaCampaign[] = [
     { id: "900000000000001", name: "DEMO · Mokub sitio web", status: "PAUSED", effectiveStatus: "PAUSED", objective: "OUTCOME_TRAFFIC", dailyBudget: 20000, createdTime: "2026-11-01T12:00:00-0500" },
   ];
-  let seq = 2;
   const adStatus = new Map<string, string>([
     ["9000000000000011", "ACTIVE"],
     ["9000000000000012", "ACTIVE"],
@@ -44,7 +46,7 @@ export function createMockMetaAds(): MetaAdsAdapter {
       ]);
     },
     async createPausedCampaign(spec: PausedCampaignSpec): Promise<CreatedCampaign> {
-      const id = String(900000000000000 + seq++);
+      const id = String(900000000000000 + campaignSeq++);
       campaigns.unshift({ id, name: spec.name, status: "PAUSED", effectiveStatus: "PAUSED", objective: "OUTCOME_TRAFFIC", dailyBudget: spec.dailyBudget, createdTime: new Date().toISOString() });
       const ads = spec.ads.map((a, i) => ({ adId: `${id}${i + 3}`, creativeId: `${id}${i + 3}0`, name: a.name || `${spec.name} · anuncio ${i + 1}` }));
       return { campaignId: id, adSetId: `${id}1`, ads, link: `${withUtm(spec.url, id)}&utm_content={{ad.id}}`, urlTags: URL_TAGS, isMock: true };

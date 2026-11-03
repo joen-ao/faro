@@ -41,7 +41,7 @@ async function toUploadableImage(file: File): Promise<Blob> {
   throw new Error("No se pudo reducir la imagen a 4 MB.");
 }
 
-export function MediaPicker({ id, media, onChange }: { id: string; media: Media | null; onChange: (m: Media | null) => void }) {
+export function MediaPicker({ id, media, onChange, hidePreview = false }: { id: string; media: Media | null; onChange: (m: Media | null) => void; hidePreview?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
@@ -115,6 +115,7 @@ export function MediaPicker({ id, media, onChange }: { id: string; media: Media 
       {media && media.state !== "error" ? (
         <div className="flex items-center gap-3 rounded-button border border-border bg-faro-surface-2 p-2">
           {media.preview &&
+            !hidePreview &&
             (media.kind === "video" ? (
               <video src={media.preview} className="size-14 shrink-0 rounded object-cover" muted playsInline />
             ) : (

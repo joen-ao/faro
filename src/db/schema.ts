@@ -88,7 +88,7 @@ export const workspaces = pgTable("workspaces", {
   senderEmail: text("sender_email"),
   country: text("country").notNull().default("CO"),
   createdAt: createdAt(),
-});
+}).enableRLS();
 
 export const icpProfiles = pgTable("icp_profiles", {
   id: id(),
@@ -101,7 +101,7 @@ export const icpProfiles = pgTable("icp_profiles", {
   offer: jsonb("offer").$type<Record<string, unknown>>(),
   version: integer("version").notNull().default(1),
   createdAt: createdAt(),
-});
+}).enableRLS();
 
 export const hunts = pgTable("hunts", {
   id: id(),
@@ -111,7 +111,7 @@ export const hunts = pgTable("hunts", {
   startedAt: timestamp("started_at", { withTimezone: true }),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
   createdAt: createdAt(),
-});
+}).enableRLS();
 
 export const companies = pgTable(
   "companies",
@@ -134,7 +134,7 @@ export const companies = pgTable(
     index("companies_normalized_name_idx").on(t.normalizedName),
     index("companies_is_demo_idx").on(t.isDemo),
   ],
-);
+).enableRLS();
 
 export const companySources = pgTable(
   "company_sources",
@@ -153,7 +153,7 @@ export const companySources = pgTable(
     uniqueIndex("company_sources_channel_external_uq").on(t.sourceChannel, t.externalId),
     index("company_sources_company_idx").on(t.companyId),
   ],
-);
+).enableRLS();
 
 export const contactPoints = pgTable(
   "contact_points",
@@ -168,7 +168,7 @@ export const contactPoints = pgTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("contact_points_company_type_value_uq").on(t.companyId, t.type, t.value)],
-);
+).enableRLS();
 
 export const fitAssessments = pgTable(
   "fit_assessments",
@@ -186,7 +186,7 @@ export const fitAssessments = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("fit_assessments_company_idx").on(t.companyId, t.icpProfileId)],
-);
+).enableRLS();
 
 export const leads = pgTable(
   "leads",
@@ -207,7 +207,7 @@ export const leads = pgTable(
     index("leads_status_idx").on(t.status),
     index("leads_hunt_idx").on(t.huntId),
   ],
-);
+).enableRLS();
 
 export const messages = pgTable(
   "messages",
@@ -227,7 +227,7 @@ export const messages = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("messages_lead_idx").on(t.leadId)],
-);
+).enableRLS();
 
 export const events = pgTable(
   "events",
@@ -242,7 +242,7 @@ export const events = pgTable(
     at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index("events_lead_type_idx").on(t.leadId, t.type)],
-);
+).enableRLS();
 
 export const qualifications = pgTable(
   "qualifications",
@@ -263,7 +263,7 @@ export const qualifications = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("qualifications_lead_idx").on(t.leadId)],
-);
+).enableRLS();
 
 export const costEntries = pgTable(
   "cost_entries",
@@ -288,7 +288,7 @@ export const costEntries = pgTable(
     index("cost_entries_hunt_idx").on(t.huntId),
     index("cost_entries_category_idx").on(t.category),
   ],
-);
+).enableRLS();
 
 export const costRates = pgTable(
   "cost_rates",
@@ -302,7 +302,7 @@ export const costRates = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [uniqueIndex("cost_rates_key_uq").on(t.key)],
-);
+).enableRLS();
 
 export const adSpend = pgTable(
   "ad_spend",
@@ -327,7 +327,7 @@ export const adSpend = pgTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("ad_spend_platform_campaign_date_demo_uq").on(t.platform, t.campaign, t.date, t.isDemo)],
-);
+).enableRLS();
 
 /** F29 · Ads created by the copilot: which concept/hypothesis each Meta ad carries (for learning by angle). */
 export const adVariants = pgTable(
@@ -354,7 +354,7 @@ export const adVariants = pgTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("ad_variants_ad_uq").on(t.adId)],
-);
+).enableRLS();
 
 /** F29 · Meta insights per ad and day (real API only; money in account currency + USD). */
 export const adInsights = pgTable(
@@ -376,7 +376,7 @@ export const adInsights = pgTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("ad_insights_ad_date_uq").on(t.adId, t.date), index("ad_insights_campaign_idx").on(t.campaignId)],
-);
+).enableRLS();
 
 /** F29-B · What the rules engine proposes. `requires_approval` = it raises spend or changes strategy. */
 export const adRecommendations = pgTable(
@@ -403,7 +403,7 @@ export const adRecommendations = pgTable(
     decidedAt: timestamp("decided_at", { withTimezone: true }),
   },
   (t) => [index("ad_recommendations_status_idx").on(t.status, t.createdAt)],
-);
+).enableRLS();
 
 /** F29-B · Audit log of every change the copilot (or a human through it) made in Meta. */
 export const adActions = pgTable(
@@ -426,7 +426,7 @@ export const adActions = pgTable(
     at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index("ad_actions_campaign_idx").on(t.campaignId, t.at)],
-);
+).enableRLS();
 
 /** F29-C · Weekly learnings: statistical finding + narrative grounded in its evidence. */
 export const adLearnings = pgTable(
@@ -450,7 +450,7 @@ export const adLearnings = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("ad_learnings_status_idx").on(t.status, t.createdAt)],
-);
+).enableRLS();
 
 /** F30 · Team login accounts (no sign-up: created with `npm run auth:set-password`). Only the scrypt hash is stored. */
 export const users = pgTable(
@@ -478,7 +478,7 @@ export const suppression = pgTable(
     at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [uniqueIndex("suppression_value_uq").on(t.value)],
-);
+).enableRLS();
 
 export const apiCalls = pgTable(
   "api_calls",
@@ -495,7 +495,7 @@ export const apiCalls = pgTable(
     at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index("api_calls_service_idx").on(t.service, t.at)],
-);
+).enableRLS();
 
 
 /** Team settings editable from /app/settings (key -> JSON value). */
@@ -503,7 +503,7 @@ export const appSettings = pgTable("app_settings", {
   key: text("key").primaryKey(),
   value: jsonb("value").$type<Record<string, unknown>>().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}).enableRLS();
 
 /** F31 · Precomputed dashboard metrics (one row per key and range). Read by the dashboard and Pauta; refreshed in the background. */
 export const metricsSnapshots = pgTable(

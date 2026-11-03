@@ -197,8 +197,18 @@ export function AppShell({ data, children }: { data: AppShellData; children: Rea
   const onNavigate = () => setOpenAt(null);
   const isOutreach = /^\/app\/hunts\/[^/]+\/outreach/.test(path);
   const queued = data.queued;
+  const home: Item = { href: "/app/dashboard", label: "Tablero", icon: "board", active: path.startsWith("/app/dashboard") };
+  const ads: Item[] = [
+    {
+      href: "/app/ads",
+      label: "Campañas",
+      icon: "megaphone",
+      active: path === "/app/ads",
+      badge: data.toDecide ? { text: `${data.toDecide} por decidir`, accent: true } : null,
+    },
+    { href: "/app/ads/copilot", label: "Copiloto", icon: "spark", active: path.startsWith("/app/ads/copilot") },
+  ];
   const prospect: Item[] = [
-    { href: "/app/dashboard", label: "Tablero", icon: "board", active: path.startsWith("/app/dashboard") },
     {
       href: "/app/hunts",
       label: "Búsquedas",
@@ -215,10 +225,8 @@ export function AppShell({ data, children }: { data: AppShellData; children: Rea
     },
   ];
   const settings: Item[] = [
-    { href: "/app/settings/envio", label: "Horario de envío", icon: "clock", active: path.startsWith("/app/settings/envio") },
-    { href: "/app/ads/copilot", label: "Copiloto de pauta", icon: "spark", active: path.startsWith("/app/ads/copilot") },
-    { href: "/app/settings/ads", label: "Pauta", icon: "megaphone", active: path.startsWith("/app/settings/ads") },
     { href: "/app/settings/oferta", label: "Tu oferta", icon: "check", active: path.startsWith("/app/settings/oferta") },
+    { href: "/app/settings/envio", label: "Horario de envío", icon: "clock", active: path.startsWith("/app/settings/envio") },
   ];
 
   return (
@@ -310,6 +318,14 @@ export function AppShell({ data, children }: { data: AppShellData; children: Rea
         </Link>
 
         <nav aria-label="Panel" className="mt-[22px]">
+          <ul className="flex flex-col gap-0.5">
+            <NavItem it={home} collapsed={collapsed} onNavigate={onNavigate} />
+          </ul>
+          <Group label="Pauta" collapsed={collapsed}>
+            {ads.map((it) => (
+              <NavItem key={it.label} it={it} collapsed={collapsed} onNavigate={onNavigate} />
+            ))}
+          </Group>
           <Group label="Prospección" collapsed={collapsed}>
             {prospect.map((it) => (
               <NavItem key={it.label} it={it} collapsed={collapsed} onNavigate={onNavigate} />

@@ -101,9 +101,9 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
   }
 
   return (
-    <div className="mt-8 space-y-6">
-      <section aria-labelledby="utm-h" className="rounded-card border border-border bg-card p-5">
-        <h2 id="utm-h" className="text-lg font-semibold">Enlace del anuncio</h2>
+    <div className="mt-4 space-y-4">
+      <section aria-labelledby="utm-h" className="rounded-button bg-faro-surface-2 p-4">
+        <h4 id="utm-h" className="font-semibold">Enlace del anuncio</h4>
         <p className="mt-1 text-sm text-faro-text-2">Usa este enlace como destino. Cada visita queda atribuida a meta_ads.</p>
         {links.some((l) => l.url) ? (
           <ul className="mt-4 space-y-3">
@@ -130,8 +130,8 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
-        <form onSubmit={submitManual} className="rounded-card border border-border bg-card p-5" aria-labelledby="manual-h">
-          <h2 id="manual-h" className="text-lg font-semibold">Carga manual</h2>
+        <form onSubmit={submitManual} className="rounded-button bg-faro-surface-2 p-4" aria-labelledby="manual-h">
+          <h4 id="manual-h" className="font-semibold">Carga manual</h4>
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <label className={label} htmlFor="platform">Plataforma</label>
@@ -161,8 +161,8 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
           <Button type="submit" disabled={busy} className="mt-4 w-full">Guardar gasto</Button>
         </form>
 
-        <form onSubmit={submitCsv} className="rounded-card border border-border bg-card p-5" aria-labelledby="csv-h">
-          <h2 id="csv-h" className="text-lg font-semibold">Carga por CSV</h2>
+        <form onSubmit={submitCsv} className="rounded-button bg-faro-surface-2 p-4" aria-labelledby="csv-h">
+          <h4 id="csv-h" className="font-semibold">Carga por CSV</h4>
           <p className="mt-1 text-sm text-faro-text-2">Máximo 1 MB. Columnas: <code className="break-all text-faro-accent">platform,campaign,date,usd,impressions,clicks</code> (platform, impressions y clics opcionales). Fecha yyyy-mm-dd.</p>
           <label className={`${label} mt-4`} htmlFor="file">Archivo</label>
           <input id="file" name="file" type="file" accept=".csv,text/csv" className="block w-full text-sm text-faro-text-2 file:mr-3 file:h-10 file:cursor-pointer file:rounded-button file:border file:border-border file:bg-faro-surface-2 file:px-3 file:text-sm file:text-foreground" />
@@ -185,8 +185,8 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
         )}
       </div>
 
-      <section aria-labelledby="list-h" className="rounded-card border border-border bg-card p-5">
-        <h2 id="list-h" className="text-lg font-semibold">Gasto cargado</h2>
+      <section aria-labelledby="list-h" className="rounded-button bg-faro-surface-2 p-4">
+        <h4 id="list-h" className="font-semibold">Gasto cargado</h4>
         {rows.length === 0 ? (
           <p className="mt-3 text-sm text-faro-text-2">Aún no hay gasto. Carga la primera fila o un CSV para ver el CPL de meta_ads.</p>
         ) : (

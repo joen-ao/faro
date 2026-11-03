@@ -9,12 +9,17 @@ const noHScroll = (page: Page) => page.evaluate(() => document.documentElement.s
 test("desktop sidebar: groups, real counts, send status, collapse to a rail that persists", async ({ page }, info) => {
   test.skip((info.project.use.viewport?.width ?? 1440) < 1024, "desktop only");
   await page.goto("/app/dashboard");
-  await expect(page.getByRole("heading", { name: "Reto Dapta: cumplimiento en vivo" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   const aside = page.getByTestId("app-sidebar");
   await expect(aside).toBeVisible();
   expect((await aside.boundingBox())?.width).toBe(264);
   const nav = aside.getByRole("navigation", { name: "Panel" });
   await expect(nav.getByRole("link", { name: "Tablero" })).toHaveAttribute("aria-current", "page");
+  // F35: Pauta (campaigns + copilot) is its own group, right after the dashboard.
+  await expect(nav.getByRole("link", { name: /^Campañas/ })).toHaveAttribute("href", "/app/ads");
+  await expect(nav.getByRole("link", { name: "Copiloto" })).toHaveAttribute("href", "/app/ads/copilot");
+  const order = await nav.getByRole("link").evaluateAll((els) => els.map((e) => e.textContent?.trim() ?? ""));
+  expect(order.findIndex((t) => t.startsWith("Campañas"))).toBeLessThan(order.findIndex((t) => t.startsWith("Búsquedas")));
   await expect(nav.getByRole("link", { name: /^Búsquedas/ })).toHaveAttribute("href", "/app/hunts");
   await expect(nav.getByRole("link", { name: /^Contacto/ })).toHaveAttribute("href", /^\/app\/hunts(\/[0-9a-f-]+\/outreach)?$/);
   await expect(nav.getByRole("link", { name: "Tu oferta" })).toHaveAttribute("href", "/app/settings/oferta");
@@ -49,7 +54,7 @@ test("desktop sidebar: groups, real counts, send status, collapse to a rail that
 test("mobile drawer: hamburger, Esc, click outside and navigation close it; focus stays inside", async ({ page }, info) => {
   test.skip((info.project.use.viewport?.width ?? 1440) >= 1024, "mobile only");
   await page.goto("/app/dashboard");
-  await expect(page.getByRole("heading", { name: "Reto Dapta: cumplimiento en vivo" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   const toggle = page.getByRole("button", { name: "Abrir menú" });
   const aside = page.getByTestId("app-sidebar");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -82,8 +87,8 @@ test("mobile drawer: hamburger, Esc, click outside and navigation close it; focu
   await expect(aside).toBeHidden();
 
   await toggle.click();
-  await aside.getByRole("link", { name: "Pauta" }).click();
-  await page.waitForURL("**/app/settings/ads");
+  await aside.getByRole("link", { name: /^Campañas/ }).click();
+  await page.waitForURL("**/app/ads");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(aside).toBeHidden();
   expect(await noHScroll(page)).toBe(true);

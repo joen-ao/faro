@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { HOLIDAYS_CO_2026, SEND_TIMEZONE_CO, SEND_WINDOWS_CO } from "@/config/holidays-co-2026";
-import { hunts, icpProfiles, leads, messages } from "@/db/schema";
+import { adRecommendations, hunts, icpProfiles, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { checkSendWindow, sendWindowPolicy, type SendWindowSetting } from "@/features/compliance/windows";
 import { areaLabel } from "@/features/icp/presets";
@@ -29,6 +29,8 @@ export interface AppShellData {
   queued: number | null;
   /** Contact view of the newest hunt with queued messages, else of the newest real hunt, else the hunt list. */
   contactHref: string;
+  /** Real copilot recommendations waiting for a decision (F35); null when the DB is unavailable. */
+  toDecide: number | null;
   recent: RecentHunt[];
   send: SendStatus;
 }
@@ -65,11 +67,11 @@ const sendEnabled = (env: Record<string, string | undefined>) => ["true", "1", "
  */
 export async function getAppShellData(db: AppDb | null, env: Record<string, string | undefined> = process.env, now: Date = new Date()): Promise<AppShellData> {
   const enabled = sendEnabled(env);
-  const empty: AppShellData = { huntCount: null, queued: null, contactHref: "/app/hunts", recent: [], send: sendStatus({ policy: sendWindowPolicy(env) }, enabled, now) };
+  const empty: AppShellData = { huntCount: null, queued: null, toDecide: null, contactHref: "/app/hunts", recent: [], send: sendStatus({ policy: sendWindowPolicy(env) }, enabled, now) };
   if (!db) return empty;
   try {
     const realLeads = sql<number>`count(${leads.id}) filter (where ${leads.isDemo} = false)`;
-    const [rows, queue, win] = await Promise.all([
+    const [rows, queue, win, decide] = await Promise.all([
       db
         .select({
           id: hunts.id,
@@ -95,10 +97,15 @@ export async function getAppShellData(db: AppDb | null, env: Record<string, stri
         .groupBy(leads.huntId, hunts.createdAt)
         .orderBy(desc(hunts.createdAt)),
       getSendWindow(db, env),
+      db
+        .select({ n: sql<number>`count(*)`.mapWith(Number) })
+        .from(adRecommendations)
+        .where(and(eq(adRecommendations.status, "proposed"), eq(adRecommendations.isDemo, false))),
     ]);
     return {
       huntCount: rows[0]?.total ?? 0,
       queued: queue.reduce((a, q) => a + q.n, 0),
+      toDecide: decide[0]?.n ?? 0,
       // Queued messages first; otherwise the newest real hunt; the hunt list only when there is none.
       contactHref: queue[0]?.huntId ? `/app/hunts/${queue[0].huntId}/outreach` : rows[0]?.id ? `/app/hunts/${rows[0].id}/outreach` : "/app/hunts",
       recent: rows.map((r) => {
