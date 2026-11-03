@@ -32,6 +32,9 @@ export const VariantSchema = z.object({
   cta: z.enum(CTA_TYPES).default("LEARN_MORE"),
   hypothesis: text(5, 200),
   imageUrl: z.preprocess((v) => (v === "" || v === null ? undefined : v), z.string().trim().max(500).url().startsWith("https://").optional()),
+  /** F32 · uploaded to the ad account library from Faro. */
+  imageHash: z.preprocess((v) => (v === "" || v === null ? undefined : v), z.string().regex(/^[a-f0-9]{32}$/, "hash de imagen inválido").optional()),
+  videoId: z.preprocess((v) => (v === "" || v === null ? undefined : v), z.string().regex(/^\d{5,25}$/, "ID de video inválido").optional()),
 });
 export type Variant = z.output<typeof VariantSchema>;
 

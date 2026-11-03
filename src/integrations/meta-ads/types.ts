@@ -44,6 +44,10 @@ export interface AdCreativeSpec {
   headline: string;
   description?: string;
   imageUrl?: string;
+  /** F32 · image uploaded to the ad account library (wins over imageUrl). */
+  imageHash?: string;
+  /** F32 · video uploaded to the ad account library; must be `ready`. */
+  videoId?: string;
   cta: CtaType;
 }
 
@@ -111,6 +115,32 @@ export interface MetaAdSet {
   dailyBudget: number | null;
 }
 
+/** F32 · an image in the ad account library. */
+export interface UploadedImage {
+  hash: string;
+  url: string;
+  width: number;
+  height: number;
+}
+
+/** F32 · offsets Meta expects next in a chunked video upload (bytes; start === fileSize means done). */
+export interface VideoUploadStep {
+  startOffset: number;
+  endOffset: number;
+}
+
+export interface VideoUploadSession extends VideoUploadStep {
+  videoId: string;
+  sessionId: string;
+}
+
+export interface VideoState {
+  id: string;
+  status: "processing" | "ready" | "error";
+  /** Meta-hosted thumbnail (preview only; never used directly in a creative). */
+  thumbnailUrl: string | null;
+}
+
 export interface MetaApiCall {
   service: "meta_ads";
   endpoint: string;
@@ -135,6 +165,12 @@ export interface MetaAdsAdapter {
   listAdSets(): Promise<MetaAdSet[]>;
   setAdStatus(adId: string, status: "ACTIVE" | "PAUSED"): Promise<void>;
   setAdSetBudget(adSetId: string, dailyBudget: number): Promise<void>;
+  /** F32 */
+  uploadImage(bytes: Uint8Array, name: string): Promise<UploadedImage>;
+  startVideoUpload(fileSize: number): Promise<VideoUploadSession>;
+  transferVideoChunk(sessionId: string, startOffset: number, chunk: Uint8Array): Promise<VideoUploadStep>;
+  finishVideoUpload(sessionId: string, title: string): Promise<void>;
+  getVideo(videoId: string): Promise<VideoState>;
 }
 
 export class MetaAdsError extends Error {

@@ -15,6 +15,10 @@ import {
   type MetaCampaign,
   type MetaInsightRow,
   type PausedCampaignSpec,
+  type UploadedImage,
+  type VideoState,
+  type VideoUploadSession,
+  type VideoUploadStep,
 } from "./types";
 
 export interface RealMetaOptions {
@@ -45,6 +49,16 @@ export function withUtm(url: string, campaignId: string): string {
 
 type Json = Record<string, unknown>;
 
+/** Thumbnails are only fetched from Meta's own CDN (never an arbitrary URL). */
+export function isMetaCdn(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && (u.hostname.endsWith(".fbcdn.net") || u.hostname === "fbcdn.net");
+  } catch {
+    return false;
+  }
+}
+
 /** Meta object ids are numeric; anything else could address another path of the Graph API. */
 function checkId(id: string): string {
   if (!/^\d{5,25}$/.test(id)) throw new MetaAdsError("ID de Meta inválido", 400);
@@ -65,23 +79,28 @@ export function createRealMetaAds(opts: RealMetaOptions): MetaAdsAdapter {
   let currency: string | null = null;
 
   async function call(method: "GET" | "POST" | "DELETE", path: string, params: Json = {}): Promise<Json> {
-    const started = Date.now();
     const encoded = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
       if (v === undefined) continue;
       encoded.set(k, typeof v === "string" ? v : JSON.stringify(v));
     }
     encoded.set("access_token", opts.token);
-    const url = method === "GET" ? `${base}/${path}?${encoded.toString()}` : `${base}/${path}`;
+    if (method === "GET") return send(method, path, `${base}/${path}?${encoded.toString()}`, {});
+    return send(method, path, `${base}/${path}`, { headers: { "content-type": "application/x-www-form-urlencoded" }, body: encoded.toString() });
+  }
+
+  /** F32 · multipart POST (file uploads). */
+  async function callForm(path: string, form: FormData, timeoutMs = 120_000): Promise<Json> {
+    form.set("access_token", opts.token);
+    return send("POST", path, `${base}/${path}`, { body: form }, timeoutMs);
+  }
+
+  async function send(method: string, path: string, url: string, init: RequestInit, timeoutMs = opts.timeoutMs ?? 30_000): Promise<Json> {
+    const started = Date.now();
     let status: number | null = null;
     let error: string | null = null;
     try {
-      const res = await doFetch(url, {
-        method,
-        headers: method === "GET" ? undefined : { "content-type": "application/x-www-form-urlencoded" },
-        body: method === "GET" ? undefined : encoded.toString(),
-        signal: AbortSignal.timeout(opts.timeoutMs ?? 30_000),
-      });
+      const res = await doFetch(url, { ...init, method, signal: AbortSignal.timeout(timeoutMs) });
       status = res.status;
       const body = (await res.json().catch(() => ({}))) as Json;
       if (!res.ok || body.error) {
@@ -97,6 +116,38 @@ export function createRealMetaAds(opts: RealMetaOptions): MetaAdsAdapter {
     } finally {
       await opts.onApiCall?.({ service: "meta_ads", endpoint: `${method} ${path}`, status, latencyMs: Date.now() - started, error, costUsd: 0, isMock: false });
     }
+  }
+
+  async function uploadImage(bytes: Uint8Array, name: string): Promise<UploadedImage> {
+    const form = new FormData();
+    form.set("filename", new Blob([bytes as BlobPart]), name);
+    const body = await callForm(`${account}/adimages`, form);
+    const img = Object.values((body.images as Record<string, Json> | undefined) ?? {})[0];
+    if (!img?.hash) throw new MetaAdsError("Meta no devolvió el hash de la imagen");
+    return { hash: String(img.hash), url: String(img.url ?? ""), width: Number(img.width ?? 0), height: Number(img.height ?? 0) };
+  }
+
+  async function getVideo(videoId: string): Promise<VideoState> {
+    const v = await call("GET", checkId(videoId), { fields: "status,picture" });
+    const raw = String((v.status as { video_status?: string } | undefined)?.video_status ?? "processing");
+    const status = raw === "ready" ? "ready" : raw === "error" ? "error" : "processing";
+    let thumbnailUrl: string | null = null;
+    if (status === "ready") {
+      const t = await call("GET", `${checkId(videoId)}/thumbnails`, {});
+      const list = (t.data as { uri?: string; is_preferred?: boolean }[] | undefined) ?? [];
+      thumbnailUrl = (list.find((x) => x.is_preferred) ?? list[0])?.uri ?? null;
+    }
+    return { id: videoId, status, thumbnailUrl };
+  }
+
+  /** Meta requires a thumbnail for video ads: copy Meta's preferred one into the image library. */
+  async function videoThumbnailHash(videoId: string): Promise<string> {
+    const v = await getVideo(videoId);
+    if (v.status !== "ready") throw new MetaAdsError("Un video todavía se está procesando en Meta. Espera a que esté listo.", 400);
+    if (!v.thumbnailUrl || !isMetaCdn(v.thumbnailUrl)) throw new MetaAdsError("Meta aún no generó la miniatura del video", 400);
+    const res = await doFetch(v.thumbnailUrl, { signal: AbortSignal.timeout(30_000) });
+    if (!res.ok) throw new MetaAdsError("No se pudo leer la miniatura del video");
+    return (await uploadImage(new Uint8Array(await res.arrayBuffer()), `thumb-${videoId}.jpg`)).hash;
   }
 
   /** Follows `paging.next` cursors (max `pages`). */
@@ -202,6 +253,9 @@ export function createRealMetaAds(opts: RealMetaOptions): MetaAdsAdapter {
 
     async createPausedCampaign(spec: PausedCampaignSpec): Promise<CreatedCampaign> {
       if (spec.ads.length < 1 || spec.ads.length > 6) throw new MetaAdsError("Una campaña lleva entre 1 y 6 anuncios", 400);
+      // Videos first: every one must be processed (and get a thumbnail) before anything is created.
+      const thumbs = new Map<string, string>();
+      for (const a of spec.ads) if (a.videoId && !thumbs.has(a.videoId)) thumbs.set(a.videoId, await videoThumbnailHash(a.videoId));
       const cur = await accountCurrency();
       const campaign = await call("POST", `${account}/campaigns`, {
         name: spec.name,
@@ -231,21 +285,33 @@ export function createRealMetaAds(opts: RealMetaOptions): MetaAdsAdapter {
         const ads: CreatedAd[] = [];
         for (const [i, a] of spec.ads.entries()) {
           const adName = a.name || `${spec.name} · anuncio ${i + 1}`;
+          const cta = { type: a.cta, value: { link: spec.url } };
+          const story = a.videoId
+            ? {
+                video_data: {
+                  video_id: a.videoId,
+                  image_hash: thumbs.get(a.videoId),
+                  message: a.primaryText,
+                  title: a.headline,
+                  ...(a.description ? { link_description: a.description } : {}),
+                  call_to_action: cta,
+                },
+              }
+            : {
+                link_data: {
+                  link: spec.url,
+                  message: a.primaryText,
+                  name: a.headline,
+                  ...(a.description ? { description: a.description } : {}),
+                  ...(a.imageHash ? { image_hash: a.imageHash } : a.imageUrl ? { picture: a.imageUrl } : {}),
+                  call_to_action: cta,
+                },
+              };
           const creative = await call("POST", `${account}/adcreatives`, {
             name: `${adName} · creativo`,
             // Meta appends these to every click; {{ad.id}} becomes utm_content so each lead knows its ad.
             url_tags: URL_TAGS,
-            object_story_spec: {
-              page_id: opts.pageId,
-              link_data: {
-                link: spec.url,
-                message: a.primaryText,
-                name: a.headline,
-                ...(a.description ? { description: a.description } : {}),
-                ...(a.imageUrl ? { picture: a.imageUrl } : {}),
-                call_to_action: { type: a.cta, value: { link: spec.url } },
-              },
-            },
+            object_story_spec: { page_id: opts.pageId, ...story },
           });
           const ad = await call("POST", `${account}/ads`, {
             name: adName,
@@ -261,6 +327,28 @@ export function createRealMetaAds(opts: RealMetaOptions): MetaAdsAdapter {
         await call("DELETE", campaignId).catch(() => undefined);
         throw e;
       }
+    },
+
+    uploadImage,
+    getVideo,
+
+    async startVideoUpload(fileSize: number): Promise<VideoUploadSession> {
+      const b = await call("POST", `${account}/advideos`, { upload_phase: "start", file_size: String(fileSize) });
+      return { videoId: String(b.video_id), sessionId: String(b.upload_session_id), startOffset: Number(b.start_offset), endOffset: Number(b.end_offset) };
+    },
+
+    async transferVideoChunk(sessionId: string, startOffset: number, chunk: Uint8Array): Promise<VideoUploadStep> {
+      const form = new FormData();
+      form.set("upload_phase", "transfer");
+      form.set("upload_session_id", checkId(sessionId));
+      form.set("start_offset", String(startOffset));
+      form.set("video_file_chunk", new Blob([chunk as BlobPart]), "chunk");
+      const b = await callForm(`${account}/advideos`, form);
+      return { startOffset: Number(b.start_offset), endOffset: Number(b.end_offset) };
+    },
+
+    async finishVideoUpload(sessionId: string, title: string) {
+      await call("POST", `${account}/advideos`, { upload_phase: "finish", upload_session_id: checkId(sessionId), title: title.slice(0, 250) });
     },
 
     async setCampaignStatus(campaignId, status) {

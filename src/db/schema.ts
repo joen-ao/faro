@@ -345,6 +345,9 @@ export const adVariants = pgTable(
     description: text("description"),
     cta: text("cta").notNull(),
     hypothesis: text("hypothesis").notNull(),
+    /** F32 · `image` (library hash), `video` (video id), `url` (image URL) or null (no media). */
+    mediaType: text("media_type"),
+    mediaRef: text("media_ref"),
     /** The brief that produced it (service, audience, destination, budget). */
     brief: jsonb("brief").$type<Record<string, unknown>>().notNull().default({}),
     isDemo: boolean("is_demo").notNull().default(false),

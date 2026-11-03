@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { FORMAT_HINTS, FORMAT_LABELS, type FormatHint } from "@/features/copilot/knowledge";
 import { allowedPriceNumbers, lintAd, type LintIssue } from "@/features/copilot/lint";
 import type { AdPerformance } from "@/features/copilot/performance";
+import { MediaPicker, type Media } from "./media-picker";
 
 interface ServiceOpt {
   id: string;
@@ -25,6 +26,7 @@ interface Draft {
   cta: Cta;
   hypothesis: string;
   imageUrl: string;
+  media: Media | null;
 }
 type Msg = { kind: "ok" | "error"; text: string; lines?: string[] } | null;
 
@@ -76,6 +78,7 @@ export function CopilotPanel({
   const lints: LintIssue[][] = drafts.map((d) => lintAd(d, allowed));
   const included = drafts.filter((d) => d.include);
   const blocked = drafts.some((d, i) => d.include && lints[i]!.length > 0);
+  const mediaPending = included.some((d) => d.media?.state === "uploading" || d.media?.state === "processing");
 
   async function propose(e: FormEvent) {
     e.preventDefault();
@@ -93,6 +96,7 @@ export function CopilotPanel({
             include: true,
             description: v.description ?? "",
             imageUrl: v.imageUrl ?? "",
+            media: null,
           })),
         );
         const svc = services.find((s) => s.id === brief.serviceId);
@@ -112,7 +116,14 @@ export function CopilotPanel({
       const res = await fetch("/api/ads/copilot/campaigns", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, brief, variants: included.map((d) => ({ ...d, include: undefined })) }),
+        body: JSON.stringify({
+          name,
+          brief,
+          variants: included.map((d) => {
+            const ready = d.media?.state === "ready" ? d.media : null;
+            return { ...d, include: undefined, media: undefined, imageUrl: ready ? "" : d.imageUrl, imageHash: ready?.imageHash, videoId: ready?.videoId };
+          }),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
@@ -280,9 +291,12 @@ export function CopilotPanel({
                     {CTAS.map((c) => <option key={c.v} value={c.v}>{c.l}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className={label} htmlFor={`img-${i}`}>Imagen (URL https, opcional)</label>
-                  <input id={`img-${i}`} type="url" className={`${field} h-10`} value={d.imageUrl} onChange={(e) => set(i, { imageUrl: e.target.value })} />
+                <div className="sm:col-span-2">
+                  <label className={label} htmlFor={`m-${i}`}>Imagen o video (se sube directo a tu cuenta de Meta)</label>
+                  <MediaPicker id={`m-${i}`} media={d.media} onChange={(media) => set(i, { media })} />
+                  {!d.media && (
+                    <input id={`img-${i}`} type="url" aria-label={`URL de imagen del anuncio ${i + 1}`} placeholder="o pega una URL https de imagen (opcional)" className={`${field} mt-2 h-9 text-xs`} value={d.imageUrl} onChange={(e) => set(i, { imageUrl: e.target.value })} />
+                  )}
                 </div>
                 <p className="text-xs text-faro-text-3 sm:col-span-2">Hipótesis: {d.hypothesis}</p>
               </div>
@@ -301,8 +315,8 @@ export function CopilotPanel({
             <p className="mt-2 text-xs text-faro-text-2">
               Se crea 1 campaña con 1 conjunto y {included.length} anuncios, todo EN PAUSA. Cada clic lleva el ID del anuncio para medir su CPQL.
             </p>
-            <Button type="button" onClick={create} disabled={busy !== null || !included.length || blocked || name.trim().length < 3} className="mt-4 w-full">
-              {busy === "create" ? "Creando en Meta…" : blocked ? "Corrige los avisos para continuar" : "Crear campaña en pausa"}
+            <Button type="button" onClick={create} disabled={busy !== null || !included.length || blocked || mediaPending || name.trim().length < 3} className="mt-4 w-full">
+              {busy === "create" ? "Creando en Meta…" : blocked ? "Corrige los avisos para continuar" : mediaPending ? "Esperando a que terminen las subidas…" : "Crear campaña en pausa"}
             </Button>
           </div>
         </section>

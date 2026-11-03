@@ -45,7 +45,7 @@ export async function createCopilotCampaign(
     geo: input.brief.geo,
     ageMin: 25,
     ageMax: 65,
-    ads: input.variants.map((v, i) => ({ name: `${input.name} · ${i + 1} · ${v.angle}`.slice(0, 200), primaryText: v.primaryText, headline: v.headline, description: v.description, imageUrl: v.imageUrl, cta: v.cta })),
+    ads: input.variants.map((v, i) => ({ name: `${input.name} · ${i + 1} · ${v.angle}`.slice(0, 200), primaryText: v.primaryText, headline: v.headline, description: v.description, imageUrl: v.imageUrl, imageHash: v.imageHash, videoId: v.videoId, cta: v.cta })),
   });
 
   const briefId = randomUUID();
@@ -53,6 +53,14 @@ export async function createCopilotCampaign(
     created.ads.map((a, i) => variantRow(a.adId, created.campaignId, briefId, input.variants[i]!, input.brief, created.isMock)),
   );
   return { ok: true, created, briefId };
+}
+
+/** F32 · what the ad shows, so learnings can compare image vs video. */
+export function mediaOf(v: Pick<Variant, "videoId" | "imageHash" | "imageUrl">): { mediaType: string | null; mediaRef: string | null } {
+  if (v.videoId) return { mediaType: "video", mediaRef: v.videoId };
+  if (v.imageHash) return { mediaType: "image", mediaRef: v.imageHash };
+  if (v.imageUrl) return { mediaType: "url", mediaRef: v.imageUrl };
+  return { mediaType: null, mediaRef: null };
 }
 
 function variantRow(adId: string, campaignId: string, briefId: string, v: Variant, brief: Brief, isDemo: boolean) {
@@ -68,6 +76,7 @@ function variantRow(adId: string, campaignId: string, briefId: string, v: Varian
     description: v.description ?? null,
     cta: v.cta,
     hypothesis: v.hypothesis,
+    ...mediaOf(v),
     brief: brief as unknown as Record<string, unknown>,
     isDemo,
   };

@@ -33,6 +33,19 @@ function realDouble(rows: MetaInsightRow[], currency = "COP"): MetaAdsAdapter {
     listAdSets: async () => [],
     setAdStatus: async () => undefined,
     setAdSetBudget: async () => undefined,
+    uploadImage: async () => {
+      throw new Error("unused");
+    },
+    startVideoUpload: async () => {
+      throw new Error("unused");
+    },
+    transferVideoChunk: async () => {
+      throw new Error("unused");
+    },
+    finishVideoUpload: async () => undefined,
+    getVideo: async () => {
+      throw new Error("unused");
+    },
   };
 }
 

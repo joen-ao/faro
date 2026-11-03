@@ -1,5 +1,10 @@
 import { withUtm } from "./real";
+import { createHash } from "node:crypto";
 import { URL_TAGS, type CreatedCampaign, type MetaAccount, type MetaAdInsightRow, type MetaAdsAdapter, type MetaCampaign, type MetaInsightRow, type PausedCampaignSpec } from "./types";
+
+/** Video upload sessions outlive one adapter: each request builds its own (mock) adapter. */
+const uploads = new Map<string, { videoId: string; size: number; received: number }>();
+let uploadSeq = 1;
 
 /** Deterministic, in-memory Meta Ads. Everything it returns is flagged mock and never reaches `ad_spend`. */
 export function createMockMetaAds(): MetaAdsAdapter {
@@ -59,6 +64,28 @@ export function createMockMetaAds(): MetaAdsAdapter {
     },
     async setAdSetBudget(_adSetId, dailyBudget) {
       adSetBudget = dailyBudget;
+    },
+    async uploadImage(bytes) {
+      const hash = createHash("md5").update(bytes).digest("hex");
+      return { hash, url: "https://www.mokub.co/og.png", width: 1080, height: 1080 };
+    },
+    async startVideoUpload(fileSize) {
+      if (uploads.size > 100) uploads.clear();
+      const n = uploadSeq++;
+      const videoId = String(800000000000000 + n);
+      const sessionId = String(700000000000000 + n);
+      uploads.set(sessionId, { videoId, size: fileSize, received: 0 });
+      return { videoId, sessionId, startOffset: 0, endOffset: Math.min(fileSize, 5_242_880) };
+    },
+    async transferVideoChunk(sessionId, startOffset, chunk) {
+      const u = uploads.get(sessionId);
+      if (!u || startOffset !== u.received) throw new Error("mock: unknown session or wrong offset");
+      u.received += chunk.length;
+      return { startOffset: u.received, endOffset: Math.min(u.size, u.received + 5_242_880) };
+    },
+    async finishVideoUpload() {},
+    async getVideo(videoId) {
+      return { id: videoId, status: "ready", thumbnailUrl: "https://www.mokub.co/og.png" };
     },
   };
 }
