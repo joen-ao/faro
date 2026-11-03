@@ -15,27 +15,32 @@ export interface WaTemplate {
   body: string;
 }
 
-const CLINIC_ID = "4c0206b2-ad45-43e0-9d74-c27a3b1640df";
+/** Approved 2026-10 (Faro · 30X Hackathon wording); used until the Mokub clinic template (F37) is approved and set. */
+const LEGACY_CLINIC_ID = "4c0206b2-ad45-43e0-9d74-c27a3b1640df";
+const LEGACY_CLINIC_BODY =
+  "Hola, {{nombre}}. Somos Faro, un proyecto del 30X Hackathon. Su clínica aparece en el registro público REPS y preparamos un diagnóstico gratuito de cómo atiende y agenda pacientes nuevos. ¿Le interesa que le contemos en 2 minutos? Si no desea recibir más mensajes, responda BAJA.";
 
-export function waTemplates(env: Pick<Env, "DAPTA_WA_TEMPLATE_EMPRESA" | "DAPTA_WA_TEMPLATE_INDEPENDIENTE">): Record<TemplateKey, WaTemplate> {
+export function waTemplates(env: Pick<Env, "DAPTA_WA_TEMPLATE_CLINICA" | "DAPTA_WA_TEMPLATE_EMPRESA" | "DAPTA_WA_TEMPLATE_INDEPENDIENTE">): Record<TemplateKey, WaTemplate> {
   return {
     faro_diagnostico_clinica: {
       key: "faro_diagnostico_clinica",
       label: "Clínica (REPS)",
-      daptaId: CLINIC_ID,
-      body: "Hola, {{nombre}}. Somos Faro, un proyecto del 30X Hackathon. Su clínica aparece en el registro público REPS y preparamos un diagnóstico gratuito de cómo atiende y agenda pacientes nuevos. ¿Le interesa que le contemos en 2 minutos? Si no desea recibir más mensajes, responda BAJA.",
+      daptaId: env.DAPTA_WA_TEMPLATE_CLINICA ?? LEGACY_CLINIC_ID,
+      body: env.DAPTA_WA_TEMPLATE_CLINICA
+        ? "Hola, {{nombre}}. Le escribe el equipo de Mokub. Su clínica aparece en el registro público REPS y preparamos un diagnóstico gratuito de cómo atiende y agenda pacientes nuevos. ¿Le gustaría verlo? Si no desea recibir más mensajes, responda BAJA."
+        : LEGACY_CLINIC_BODY,
     },
     faro_diagnostico_empresa: {
       key: "faro_diagnostico_empresa",
       label: "Empresa",
       daptaId: env.DAPTA_WA_TEMPLATE_EMPRESA ?? null,
-      body: "Hola, {{nombre}}. Le escribe Mokub con Faro. Encontramos su empresa en un registro público y preparamos un diagnóstico gratuito de su presencia digital: cómo la encuentran y cómo le escriben sus clientes. ¿Le interesa que le contemos en 2 minutos? Si no desea recibir más mensajes, responda BAJA.",
+      body: "Hola, {{nombre}}. Le escribe el equipo de Mokub. Encontramos su empresa en un registro público y preparamos un diagnóstico gratuito de su presencia digital: cómo la encuentran y cómo le escriben sus clientes. ¿Le gustaría verlo y, si le sirve, agendar una videollamada de 20 minutos? Si no desea recibir más mensajes, responda BAJA.",
     },
     faro_diagnostico_independiente: {
       key: "faro_diagnostico_independiente",
       label: "Independiente",
       daptaId: env.DAPTA_WA_TEMPLATE_INDEPENDIENTE ?? null,
-      body: "Hola, {{nombre}}. Le escribe Mokub con Faro. Su negocio aparece en un registro público y preparamos un diagnóstico gratuito de cómo lo encuentran y le escriben sus clientes. ¿Le interesa verlo? Si no desea recibir más mensajes, responda BAJA.",
+      body: "Hola, {{nombre}}. Le escribe el equipo de Mokub. Su negocio aparece en un registro público y preparamos un diagnóstico gratuito de cómo lo encuentran y le escriben sus clientes. ¿Le gustaría verlo? Si no desea recibir más mensajes, responda BAJA.",
     },
   };
 }

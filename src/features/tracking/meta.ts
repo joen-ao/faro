@@ -99,10 +99,30 @@ async function contactsOf(db: AppDb, leadId: string): Promise<{ emails: string[]
 }
 
 /** Custom `QualifiedLead` when Dapta marks a lead as qualified (system_generated: it happens off-site). Never throws. */
-export async function trackQualifiedLead(
+export function trackQualifiedLead(
   db: AppDb,
   p: { leadId: string; conversationId: string; email?: string | null; phone?: string | null; score?: number | null },
   opts: { env?: Env; capi?: CapiAdapter; now?: number } = {},
+) {
+  return trackAgentEvent(db, "QualifiedLead", "ql", p, opts);
+}
+
+/** F37 · Standard `Schedule` when the WhatsApp agent books the diagnostic call. Never throws. */
+export function trackSchedule(
+  db: AppDb,
+  p: { leadId: string; conversationId: string; email?: string | null; phone?: string | null },
+  opts: { env?: Env; capi?: CapiAdapter; now?: number } = {},
+) {
+  return trackAgentEvent(db, "Schedule", "sch", p, opts);
+}
+
+/** One event per conversation (`<prefix>-` + hash), matched with every contact point Faro holds for the company. */
+async function trackAgentEvent(
+  db: AppDb,
+  name: "QualifiedLead" | "Schedule",
+  prefix: string,
+  p: { leadId: string; conversationId: string; email?: string | null; phone?: string | null; score?: number | null },
+  opts: { env?: Env; capi?: CapiAdapter; now?: number },
 ) {
   const env = opts.env ?? getEnv();
   if (!env.META_PIXEL_ID) return null;
@@ -110,9 +130,9 @@ export async function trackQualifiedLead(
   try {
     const known = await contactsOf(db, p.leadId);
     const event: CapiEvent = {
-      event_name: "QualifiedLead",
+      event_name: name,
       event_time: Math.floor(now / 1000),
-      event_id: `ql-${sha256(p.conversationId).slice(0, 32)}`,
+      event_id: `${prefix}-${sha256(p.conversationId).slice(0, 32)}`,
       action_source: "system_generated",
       user_data: buildUserData({ leadId: p.leadId, emails: [p.email, ...known.emails], phones: [p.phone, ...known.phones] }, now),
       ...(typeof p.score === "number" ? { custom_data: { score: Math.round(p.score) } } : {}),

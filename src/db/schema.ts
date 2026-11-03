@@ -61,6 +61,8 @@ export const eventTypeEnum = pgEnum("event_type", [
   "qualified",
   "disqualified",
   "opt_out",
+  "meeting_booked",
+  "purchase_intent",
 ]);
 export const qualificationOriginEnum = pgEnum("qualification_origin", ["dapta", "fallback"]);
 export const costCategoryEnum = pgEnum("cost_category", [

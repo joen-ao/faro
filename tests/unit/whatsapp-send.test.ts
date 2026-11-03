@@ -28,7 +28,7 @@ describe("F24 · pure helpers", () => {
     expect(waName("BURBANO DENTAL STUDIO IPS", false)).toBe("Burbano Dental Studio");
   });
   it("uses the clinic template only with a REPS source, others only when approved", () => {
-    const t = waTemplates({ DAPTA_WA_TEMPLATE_EMPRESA: undefined, DAPTA_WA_TEMPLATE_INDEPENDIENTE: "x" });
+    const t = waTemplates({ DAPTA_WA_TEMPLATE_CLINICA: undefined, DAPTA_WA_TEMPLATE_EMPRESA: undefined, DAPTA_WA_TEMPLATE_INDEPENDIENTE: "x" });
     expect(pickTemplate({ hasReps: true, independent: false }, t)?.key).toBe("faro_diagnostico_clinica");
     expect(pickTemplate({ hasReps: false, independent: false }, t)).toBeNull();
     expect(pickTemplate({ hasReps: false, independent: true }, t)?.key).toBe("faro_diagnostico_independiente");

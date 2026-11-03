@@ -26,12 +26,17 @@ export const daptaWebhookSchema = z
     timeline: z.unknown().optional(),
     summary: z.string().max(4000).optional().nullable(),
     opt_out: z.boolean().optional(),
+    /** F37 · Mokub sales agent: product of interest, booked diagnostic call, purchase intent. */
+    product: z.string().trim().regex(/^[a-z_]{2,40}$/).optional().nullable(),
+    meeting_booked: z.boolean().optional(),
+    meeting_at: z.string().trim().max(60).refine((v) => !Number.isNaN(Date.parse(v)), { message: "meeting_at must be a date" }).optional().nullable(),
+    wants_to_buy: z.boolean().optional(),
     ai_replies: num.optional(),
     credits_used: num.optional(),
   })
   .passthrough()
   .refine((p) => p.lead_id || p.slug || p.phone || p.email, { message: "lead_id, slug, phone or email is required" })
-  .refine((p) => p.qualified !== undefined || p.score !== undefined || p.opt_out === true, { message: "qualified or score is required" });
+  .refine((p) => p.qualified !== undefined || p.score !== undefined || p.opt_out === true || p.meeting_booked === true || p.wants_to_buy === true, { message: "qualified or score is required" });
 
 export type DaptaWebhookPayload = z.infer<typeof daptaWebhookSchema>;
 
@@ -91,7 +96,7 @@ async function findLead(db: AppDb, p: DaptaWebhookPayload) {
 }
 
 export type WebhookOutcome =
-  | { ok: true; duplicate: boolean; leadId: string | null; qualified: boolean; costUsd: number; credits: number }
+  | { ok: true; duplicate: boolean; leadId: string | null; qualified: boolean; meetingBooked: boolean; costUsd: number; credits: number }
   | { ok: false; status: 404; error: "lead_not_found" };
 
 /** Applies one Dapta result. Idempotent by `conversation_id`. */
@@ -108,17 +113,23 @@ export async function processDaptaWebhook(
   }
   const lead = await findLead(db, payload);
   if (!lead) {
-    if (optOut) return { ok: true, duplicate: false, leadId: null, qualified: false, costUsd: 0, credits: 0 };
+    if (optOut) return { ok: true, duplicate: false, leadId: null, qualified: false, meetingBooked: false, costUsd: 0, credits: 0 };
     return { ok: false, status: 404, error: "lead_not_found" };
   }
 
-  const qualified = optOut ? false : (payload.qualified ?? (payload.score ?? 0) >= 60);
+  const meetingBooked = !optOut && payload.meeting_booked === true;
+  const wantsToBuy = !optOut && payload.wants_to_buy === true;
+  // A booked call or a purchase intent is a qualified lead whatever the agent's flag says.
+  const qualified = optOut ? false : meetingBooked || wantsToBuy || (payload.qualified ?? (payload.score ?? 0) >= 60);
   const replies = payload.ai_replies ?? 0;
   const usesReplies = replies > 0;
   const credits = usesReplies ? replies * env.DAPTA_CREDITS_PER_AI_REPLY : (payload.credits_used ?? 0);
   const costUsd = Math.round(credits * env.DAPTA_CREDIT_USD * 1e6) / 1e6;
   const bant = { ...(payload.bant ?? {}) } as Record<string, unknown>;
   for (const k of ["budget", "authority", "need", "timeline"] as const) if (payload[k] !== undefined && bant[k] === undefined) bant[k] = payload[k];
+  if (payload.product) bant.product = payload.product;
+  if (meetingBooked) bant.meeting_at = payload.meeting_at ?? null;
+  if (wantsToBuy) bant.wants_to_buy = true;
 
   return db.transaction(async (tx) => {
     // Serialise concurrent deliveries of the same conversation.
@@ -128,7 +139,7 @@ export async function processDaptaWebhook(
       .from(qualifications)
       .where(and(eq(qualifications.conversationId, payload.conversation_id), eq(qualifications.origin, "dapta")))
       .limit(1);
-    if (dup) return { ok: true as const, duplicate: true, leadId: lead.id, qualified, costUsd: 0, credits: 0 };
+    if (dup) return { ok: true as const, duplicate: true, leadId: lead.id, qualified, meetingBooked, costUsd: 0, credits: 0 };
 
     await tx.insert(qualifications).values({
       leadId: lead.id,
@@ -150,6 +161,10 @@ export async function processDaptaWebhook(
         payload: { conversation_id: payload.conversation_id, score: payload.score ?? null, origin: "dapta", ...(optOut ? { via: "dapta_chat" } : {}) },
         isDemo: lead.isDemo,
       },
+      ...(meetingBooked
+        ? [{ leadId: lead.id, type: "meeting_booked" as const, payload: { conversation_id: payload.conversation_id, meeting_at: payload.meeting_at ?? null, product: payload.product ?? null }, isDemo: lead.isDemo }]
+        : []),
+      ...(wantsToBuy ? [{ leadId: lead.id, type: "purchase_intent" as const, payload: { conversation_id: payload.conversation_id, product: payload.product ?? null }, isDemo: lead.isDemo }] : []),
     ]);
     if (optOut) {
       if (lead.status !== "opted_out") await tx.update(leads).set({ status: "opted_out" }).where(eq(leads.id, lead.id));
@@ -172,6 +187,6 @@ export async function processDaptaWebhook(
         isMock: false,
       });
     }
-    return { ok: true as const, duplicate: false, leadId: lead.id, qualified, costUsd, credits };
+    return { ok: true as const, duplicate: false, leadId: lead.id, qualified, meetingBooked, costUsd, credits };
   });
 }

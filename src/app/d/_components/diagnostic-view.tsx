@@ -238,6 +238,8 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
   const L = (text: string) => localize(text, health);
   const env = getEnv();
   const product = env.NEXT_PUBLIC_PRODUCT_NAME;
+  // F37: the page speaks for the seller (Mokub); Faro is only the tool behind it.
+  const brand = seller ?? product;
   const isIcp = !!icp;
   const trackingProp = { c: tracking.c, s: tracking.s, utm: tracking.utm };
   const wa = whatsappHref(env.NEXT_PUBLIC_WHATSAPP_NUMBER, company?.name, slug, health);
@@ -255,8 +257,7 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
       <header className="mx-auto flex w-full max-w-[1080px] items-center justify-between gap-3 px-5 py-4">
         <p className="flex items-center gap-2.5 text-sm text-faro-text-2">
           <span aria-hidden className="size-2.5 rounded-full bg-faro-accent" />
-          <strong className="font-display text-white">{product}</strong>
-          <span className="hidden sm:inline">· proyecto del 30X Hackathon</span>
+          <strong className="font-display text-white">{brand}</strong>
         </p>
         {optOutHref && (
           <a
@@ -294,7 +295,7 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
             </h1>
             <p className="max-w-[35rem] text-pretty text-lg leading-relaxed text-white/70">
               {isIcp
-                ? `${product} es un proyecto del 30X Hackathon que ayuda a clínicas a ver qué les cuesta pacientes nuevos y cómo arreglarlo. Aquí tiene cómo funciona.`
+                ? `${brand} ayuda a clínicas a ver qué les cuesta pacientes nuevos y cómo arreglarlo. Aquí tiene cómo funciona.`
                 : L("Revisamos su presencia digital como lo haría un paciente nuevo: esto es lo que puede estar costándole citas y cómo arreglarlo, paso a paso.")}
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
@@ -409,7 +410,7 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
             )}
             <WhatsAppButton href={wa} testId="whatsapp-cta" className="w-full sm:w-auto sm:self-start" />
             <p className="text-[0.8125rem] text-faro-text-3">
-              {whatsappDisplay(env.NEXT_PUBLIC_WHATSAPP_NUMBER)} · responde el asistente de {product}, integrado con Dapta
+              {whatsappDisplay(env.NEXT_PUBLIC_WHATSAPP_NUMBER)} · responde el asistente de {brand}, integrado con Dapta
             </p>
             <details data-testid="contact-details" open={isIcp} className="group mt-2 border-t border-white/10 pt-4">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-button text-white/85 hover:text-white [&::-webkit-details-marker]:hidden">
@@ -442,7 +443,7 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
         <div className="mx-auto grid w-full max-w-[1080px] gap-7 px-5 py-9 text-sm leading-relaxed text-faro-text-3 md:grid-cols-3 md:gap-12">
           <div data-testid="sender" className="flex flex-col gap-1.5">
             <h2 className="font-sans text-sm font-bold tracking-normal text-white">Quién le escribe</h2>
-            <p>{seller ? `${seller}, con ${product} (proyecto del 30X Hackathon).` : `${product} — proyecto del 30X Hackathon.`}</p>
+            <p>{brand}</p>
             {env.SENDER_LEGAL_NAME && !env.SENDER_LEGAL_NAME.toLowerCase().includes(product.toLowerCase()) && <p>{env.SENDER_LEGAL_NAME}</p>}
             {env.SENDER_ADDRESS && <p>{env.SENDER_ADDRESS}</p>}
             {env.EMAIL_REPLY_TO && (

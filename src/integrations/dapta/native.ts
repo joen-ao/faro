@@ -2,7 +2,7 @@
  * Dapta's native "post-conversation analysis" webhook does not use Faro's field names, and its exact shape is not
  * documented. This maps it, tolerantly, onto Faro's webhook payload: it looks for the conversation id and the
  * contact's phone/email anywhere in the body (max depth 4) and reads the analysis variables configured on the agent
- * ("calificado", "pidio_baja", "resumen").
+ * ("calificado", "pidio_baja", "resumen", and since F37 "producto_interes", "reunion_agendada", "fecha_reunion", "quiere_comprar").
  */
 
 type Flat = Map<string, unknown>;
@@ -71,6 +71,10 @@ export interface NativeMapping {
   qualified?: boolean;
   opt_out?: boolean;
   summary?: string;
+  product?: string;
+  meeting_booked?: boolean;
+  meeting_at?: string;
+  wants_to_buy?: boolean;
 }
 
 export function normalizeDaptaNative(body: unknown): NativeMapping {
@@ -95,6 +99,8 @@ export function normalizeDaptaNative(body: unknown): NativeMapping {
   );
   const email = pick(flat, ["email", "contactemail", "useremail", "correo"], isEmail);
   const summary = pick(flat, ["resumen", "summary"], (v) => typeof v === "string" && v.trim().length > 0);
+  const product = pick(flat, ["productointeres"], (v) => typeof v === "string" && /^[a-z_]{2,40}$/.test(v.trim()));
+  const meetingAt = pick(flat, ["fechareunion"], (v) => typeof v === "string" && !Number.isNaN(Date.parse(v.trim())));
   return {
     conversation_id: conv !== undefined ? String(conv) : isId(topId) ? String(topId) : undefined,
     phone: phone !== undefined ? String(phone) : undefined,
@@ -102,6 +108,10 @@ export function normalizeDaptaNative(body: unknown): NativeMapping {
     qualified: toBool(pick(flat, ["calificado", "qualified"], (v) => toBool(v) !== undefined)),
     opt_out: toBool(pick(flat, ["pidiobaja", "optout"], (v) => toBool(v) !== undefined)),
     summary: typeof summary === "string" ? summary.trim().slice(0, 4000) : undefined,
+    product: typeof product === "string" ? product.trim() : undefined,
+    meeting_booked: toBool(pick(flat, ["reunionagendada"], (v) => toBool(v) !== undefined)),
+    meeting_at: typeof meetingAt === "string" ? meetingAt.trim() : undefined,
+    wants_to_buy: toBool(pick(flat, ["quierecomprar"], (v) => toBool(v) !== undefined)),
   };
 }
 

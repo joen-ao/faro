@@ -8,8 +8,8 @@ export function whatsappHref(number: string | undefined, company: string | undef
   const digits = digitsOf(number);
   const ref = slug.startsWith("icp:") ? slug.slice(4) : slug;
   const text = company
-    ? `Hola, vi el diagnóstico de captación de pacientes de ${company} (ref. ${ref}) y quiero hablar sobre cómo conseguir más pacientes.`
-    : `Hola, vi la página de diagnóstico (ref. ${ref}) y quiero saber cómo conseguir más pacientes.`;
+    ? `Hola, vi el diagnóstico de ${company} (ref. ${ref}) y quiero agendar el diagnóstico gratis.`
+    : `Hola, vi la página de diagnóstico (ref. ${ref}) y quiero agendar el diagnóstico gratis.`;
   return `https://wa.me/${digits}?text=${encodeURIComponent(localize(text, health))}`;
 }
 

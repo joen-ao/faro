@@ -3,7 +3,7 @@ import { getDb } from "@/db/client";
 import { normalizeDaptaNative, payloadShape } from "@/integrations/dapta/native";
 import { daptaWebhookSchema, processDaptaWebhook, verifyWebhookSecret } from "@/integrations/dapta/webhook";
 import { getEnv } from "@/lib/env";
-import { trackQualifiedLead } from "@/features/tracking/meta";
+import { trackQualifiedLead, trackSchedule } from "@/features/tracking/meta";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +33,8 @@ export async function POST(req: Request) {
   if (result.qualified && !result.duplicate && result.leadId && p.opt_out !== true) {
     const leadId = result.leadId;
     after(() => trackQualifiedLead(db, { leadId, conversationId: p.conversation_id, email: p.email, phone: p.phone, score: p.score }));
+    // F37: the agent booked the diagnostic call.
+    if (result.meetingBooked) after(() => trackSchedule(db, { leadId, conversationId: p.conversation_id, email: p.email, phone: p.phone }));
   }
-  return NextResponse.json({ ok: true, duplicate: result.duplicate, lead_id: result.leadId, qualified: result.qualified, cost_usd: result.costUsd });
+  return NextResponse.json({ ok: true, duplicate: result.duplicate, lead_id: result.leadId, qualified: result.qualified, meeting_booked: result.meetingBooked, cost_usd: result.costUsd });
 }

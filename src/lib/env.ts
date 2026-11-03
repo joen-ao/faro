@@ -62,6 +62,7 @@ export const envSchema = z.object({
   /** Webhook URL of the Dapta flow "Faro · Enviar plantilla WhatsApp" (carries its own key: secret). */
   DAPTA_WA_FLOW_URL: optStr,
   /** Dapta ids of templates created after the clinic one (empty -> that template is not offered). */
+  DAPTA_WA_TEMPLATE_CLINICA: optStr,
   DAPTA_WA_TEMPLATE_EMPRESA: optStr,
   DAPTA_WA_TEMPLATE_INDEPENDIENTE: optStr,
   WHATSAPP_DAILY_LIMIT: num(50),

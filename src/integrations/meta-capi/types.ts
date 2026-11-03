@@ -12,7 +12,7 @@ export interface CapiUserData {
 }
 
 export interface CapiEvent {
-  event_name: "Lead" | "QualifiedLead" | "PageView";
+  event_name: "Lead" | "QualifiedLead" | "Schedule" | "PageView";
   /** Unix seconds. */
   event_time: number;
   /** Same id as the browser pixel event, so Meta deduplicates them. */
