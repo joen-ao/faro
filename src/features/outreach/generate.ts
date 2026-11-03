@@ -149,15 +149,15 @@ export function slugFromReplyAddress(address: string, domain: string | undefined
 }
 
 /**
- * Footer signature: the seller (when set), then "enviado con Faro · proyecto del 30X Hackathon", then the legal name
- * only when it adds something (a SENDER_LEGAL_NAME that repeats the product name is dropped).
+ * Footer signature: the seller (when set, else the product name), then the legal name only when it adds something
+ * (a SENDER_LEGAL_NAME that repeats the seller or product name is dropped).
  */
 export function senderSignature(env: Env, seller?: string | null): string {
   const product = env.NEXT_PUBLIC_PRODUCT_NAME;
   const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const legal = env.SENDER_LEGAL_NAME?.trim();
   const legalAdds = !!legal && !fold(legal).includes(fold(product)) && (!seller || !fold(legal).includes(fold(seller)));
-  const parts = seller ? [seller, `enviado con ${product} · proyecto del 30X Hackathon`] : [product, "proyecto del 30X Hackathon"];
+  const parts = [seller || product];
   return [...parts, ...(legalAdds ? [legal] : [])].join(" · ");
 }
 
@@ -242,7 +242,7 @@ export async function generateMessage(
       : []),
     `Preparamos un breve diagnóstico público sobre su ${company.independent ? "negocio" : "empresa"}: ${diagnosticUrl}`,
     `Por qué le escribimos: su ${company.independent ? "negocio" : "empresa"} aparece en ${sourceLabel}. Es un único mensaje; no haremos seguimientos automáticos.`,
-    `Quién escribe: ${seller ? `${seller}, con ${product} (proyecto del 30X Hackathon)` : `${product}, un proyecto del 30X Hackathon`}. ${replyTo ? (env.EMAIL_REPLY_DOMAIN ? "Puede responder directamente a este correo." : `Puede responder a este correo (${replyTo}).`) : "Puede responder a este mensaje."}`,
+    `Quién escribe: ${seller || product}. ${replyTo ? (env.EMAIL_REPLY_DOMAIN ? "Puede responder directamente a este correo." : `Puede responder a este correo (${replyTo}).`) : "Puede responder a este mensaje."}`,
     `Si no desea recibir mensajes nuestros, darse de baja toma un clic: ${optOutUrl}`,
     [who, env.SENDER_ADDRESS].filter(Boolean).join(" · "),
   ];

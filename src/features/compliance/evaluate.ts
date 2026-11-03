@@ -83,7 +83,7 @@ export function evaluateOutreach(
     blocks.push({ rule: "sender_address_missing", message: "CAN-SPAM exige dirección física del remitente (SENDER_ADDRESS)." });
   }
   if (opts.senderIdentified === false) {
-    blocks.push({ rule: "sender_missing", message: "El mensaje debe identificar al remitente (producto, 30X Hackathon, correo de respuesta, motivo)." });
+    blocks.push({ rule: "sender_missing", message: "El mensaje debe identificar al remitente (quién escribe, cómo responder y por qué le escribimos)." });
   }
   const win = checkSendWindow(now, lead.country, opts.window);
   if (!win.allowed) blocks.push({ rule: "outside_window", message: `Fuera de ventana de envío: ${win.reason}.`, nextAllowedAt: win.nextAllowedAt });

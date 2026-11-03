@@ -146,3 +146,9 @@ Cobrar o mandar links de pago desde el agente, llamadas de voz, otro número de 
 3. Las tres plantillas de Mokub están enviadas a Meta. Faro solo envía las que están `sendable`.
 4. En Faro, una reunión agendada aparece como evento del lead y como `Schedule` en el administrador de eventos de Meta.
 5. Ningún texto público (agente, plantillas, `/d/*`) menciona el hackathon ni precios distintos a los de mokub.co.
+
+## Estado (2026-11-03)
+- Plantillas enviadas a Meta, en revisión: `mokub_diagnostico_clinica` (32fd6010-581a-4910-a09a-a787b7982a7a), `mokub_diagnostico_empresa` (e64b38c4-ae9b-4271-a79f-0d77d5927ee6) y `mokub_diagnostico_independiente` (c57945b3-34d2-4b02-9195-ffa61951aaf6). Cuando queden `sendable`, se ponen en Vercel como `DAPTA_WA_TEMPLATE_CLINICA`, `_EMPRESA` e `_INDEPENDIENTE`.
+- Faro (D1, D2 y D4 en código) desplegado en 932167a.
+- La versión `mokub-ventas-v1` del agente está en vista previa y espera aprobación para publicarse.
+- Pendientes: dCal + Meet (dueño), Tu oferta en producción (pide sesión en Faro) y el aviso en Contacto para `quiere_comprar`, que todavía no está.

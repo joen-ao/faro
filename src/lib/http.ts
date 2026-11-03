@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-export const USER_AGENT = "Faro-30XHackathon/0.1";
+export const USER_AGENT = "Faro/0.1";
 
 export interface HttpOptions {
   timeoutMs?: number;

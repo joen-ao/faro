@@ -37,7 +37,7 @@ export class FetchSkip extends Error {
   }
 }
 
-export const userAgent = (appUrl = "http://localhost:3000") => `Faro-30XHackathon/0.1 (+${appUrl})`;
+export const userAgent = (appUrl = "http://localhost:3000") => `Faro/0.1 (+${appUrl})`;
 
 interface GetResult {
   status: number;

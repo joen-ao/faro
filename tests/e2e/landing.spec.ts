@@ -9,7 +9,7 @@ test("landing: hero, lazy demo video, honest metrics, compliance and attribution
   const cta = page.getByRole("link", { name: "Encontrar mis clientes" }).first();
   await expect(cta).toHaveAttribute("href", "/app/new");
   await expect(page.getByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/app/login");
-  await expect(page.getByText("30X Hackathon · Reto Dapta · Integrado con Dapta")).toBeVisible();
+  await expect(page.getByText("Prospección y pauta medidas hasta el lead calificado · Integrado con Dapta")).toBeVisible();
 
   const video = page.locator("video");
   await expect(video).toHaveAttribute("poster", "/demo/poster.jpg");
@@ -42,7 +42,8 @@ test("landing: hero, lazy demo video, honest metrics, compliance and attribution
   await expect(footer).toContainText("ODbL");
   await expect(footer).toContainText("CC BY-SA 4.0");
   await expect(footer).toContainText("Integrado con Dapta");
-  await expect(footer).toContainText("Proyecto del 30X Hackathon");
+  await expect(footer).toContainText("Integrado con Dapta");
+  await expect(footer).not.toContainText("Hackathon");
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 

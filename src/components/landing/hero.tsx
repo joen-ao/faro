@@ -51,7 +51,7 @@ export function Hero() {
       <div className="mx-auto flex max-w-[1240px] flex-col items-center gap-7 px-4 pb-10 pt-12 text-center sm:px-6 sm:pt-[72px]">
         <p className="faro-rise inline-flex items-center gap-2.5 rounded-full border border-faro-border bg-[rgba(15,15,15,0.8)] px-4 py-2 text-[13px] text-white/75 sm:text-sm">
           <span aria-hidden className="size-2 shrink-0 rounded-full bg-faro-accent" />
-          30X Hackathon · Reto Dapta · Integrado con Dapta
+          Prospección y pauta medidas hasta el lead calificado · Integrado con Dapta
         </p>
         <h1
           className="faro-rise max-w-[980px] font-display text-[40px] font-bold leading-[1.04] tracking-[-0.035em] [--d:80ms] sm:text-6xl lg:text-[76px]"

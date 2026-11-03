@@ -125,7 +125,7 @@ describe("real website fetch", () => {
     expect(r.extraction.contacts.map((c) => c.type)).toEqual(expect.arrayContaining(["email", "phone", "web_form", "whatsapp"]));
     expect(calls).toContain("https://clinica.test/robots.txt");
     for (const call of (fn as unknown as ReturnType<typeof vi.fn>).mock.calls) {
-      expect(call[1]).toMatchObject({ method: "GET", redirect: "manual", headers: { "User-Agent": "Faro-30XHackathon/0.1 (+https://faro.test)" } });
+      expect(call[1]).toMatchObject({ method: "GET", redirect: "manual", headers: { "User-Agent": "Faro/0.1 (+https://faro.test)" } });
     }
     expect(r.requests).toBe(4); // robots + home + /contacto + /contact (404)
   });
@@ -264,6 +264,6 @@ describe("mock and factory", () => {
     const env = parseEnv({});
     expect((await getWebsiteFetch(env, {}, "mock").fetchSite("x.test")).isMock).toBe(true);
     expect(getWebsiteFetch(env, {}, undefined)).toBeDefined();
-    expect(userAgent()).toBe("Faro-30XHackathon/0.1 (+http://localhost:3000)");
+    expect(userAgent()).toBe("Faro/0.1 (+http://localhost:3000)");
   });
 });

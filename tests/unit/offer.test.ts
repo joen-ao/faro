@@ -199,7 +199,7 @@ describe("first email with the suggested service", () => {
     expect(g.text.indexOf("primer paso")).toBeLessThan(g.text.indexOf("diagnóstico"));
   });
 
-  it("signs as the seller (sent with Faro), keeps the price apart and never repeats the sender", async () => {
+  it("signs as the seller, keeps the price apart and never repeats the sender", async () => {
     const prompts: string[] = [];
     const base = createMockAnthropic();
     const spy: AnthropicAdapter = { ...base, completeRaw: (p) => (prompts.push(p), base.completeRaw(p)) };
@@ -210,15 +210,16 @@ describe("first email with the suggested service", () => {
     expect(prompts[0]).toContain('"sender":"Mokub"');
     expect(prompts[0]).toContain('Never present "Faro" as the provider');
     expect(g.text).toContain("Si le interesa, el primer paso: Propuesta gratuita en menos de 24 h. Precio de referencia: desde USD 450.");
-    expect(g.text).toContain("Quién escribe: Mokub, con Faro (proyecto del 30X Hackathon).");
-    expect(g.text).toContain("Mokub · enviado con Faro · proyecto del 30X Hackathon · Bogotá, Colombia");
+    expect(g.text).toContain("Quién escribe: Mokub.");
+    expect(g.text).toContain("Mokub · Bogotá, Colombia");
+    expect(g.text).not.toContain("Hackathon");
     expect(g.text).not.toContain("Faro - proyecto de 30x");
   });
 
   it("senderSignature keeps a legal name that adds information", () => {
     const env3 = parseEnv({ NEXT_PUBLIC_APP_URL: "https://faro.test", SENDER_LEGAL_NAME: "Mokub SAS" });
-    expect(senderSignature(env3)).toBe("Faro · proyecto del 30X Hackathon · Mokub SAS");
-    expect(senderSignature(env3, "Mokub")).toBe("Mokub · enviado con Faro · proyecto del 30X Hackathon");
+    expect(senderSignature(env3)).toBe("Faro · Mokub SAS");
+    expect(senderSignature(env3, "Mokub")).toBe("Mokub");
   });
 
   it("without services keeps the previous copy", async () => {

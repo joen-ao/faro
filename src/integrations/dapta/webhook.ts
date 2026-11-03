@@ -3,6 +3,7 @@ import { z } from "zod";
 import { companies, contactPoints, costEntries, events, leads, qualifications } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { suppress } from "@/features/compliance/suppression";
+import { adFromRef, findOrCreateAgentLead, isAgentLead } from "@/features/inbound/agent-lead";
 import { safeEqual } from "@/lib/app-access";
 import type { Env } from "@/lib/env";
 
@@ -31,6 +32,10 @@ export const daptaWebhookSchema = z
     meeting_booked: z.boolean().optional(),
     meeting_at: z.string().trim().max(60).refine((v) => !Number.isNaN(Date.parse(v)), { message: "meeting_at must be a date" }).optional().nullable(),
     wants_to_buy: z.boolean().optional(),
+    /** F39 · contacts the agent meets first. */
+    ref: z.string().trim().regex(/^[\w-]{3,80}$/).optional().nullable(),
+    business_name: z.string().trim().min(2).max(160).optional().nullable(),
+    ad_click: z.boolean().optional(),
     ai_replies: num.optional(),
     credits_used: num.optional(),
   })
@@ -68,8 +73,10 @@ async function findLead(db: AppDb, p: DaptaWebhookPayload) {
     const [l] = await db.select().from(leads).where(eq(leads.id, p.lead_id)).limit(1);
     if (l) return l;
   }
-  if (p.slug) {
-    const [l] = await db.select().from(leads).where(eq(leads.slug, p.slug)).limit(1);
+  // A diagnostic page reference ("ref. <slug>") points at the lead itself; an ad reference ("meta-<id>") never does.
+  for (const slug of [p.slug, p.ref && !adFromRef(p.ref) ? p.ref : null]) {
+    if (!slug) continue;
+    const [l] = await db.select().from(leads).where(eq(leads.slug, slug)).limit(1);
     if (l) return l;
   }
   const byContact = async (type: "phone" | "email", value: string) => {
@@ -96,7 +103,7 @@ async function findLead(db: AppDb, p: DaptaWebhookPayload) {
 }
 
 export type WebhookOutcome =
-  | { ok: true; duplicate: boolean; leadId: string | null; qualified: boolean; meetingBooked: boolean; costUsd: number; credits: number }
+  | { ok: true; duplicate: boolean; leadId: string | null; qualified: boolean; meetingBooked: boolean; costUsd: number; credits: number; created?: boolean; adsConsent: boolean }
   | { ok: false; status: 404; error: "lead_not_found" };
 
 /** Applies one Dapta result. Idempotent by `conversation_id`. */
@@ -113,9 +120,34 @@ export async function processDaptaWebhook(
   }
   const lead = await findLead(db, payload);
   if (!lead) {
-    if (optOut) return { ok: true, duplicate: false, leadId: null, qualified: false, meetingBooked: false, costUsd: 0, credits: 0 };
-    return { ok: false, status: 404, error: "lead_not_found" };
+    if (optOut) return { ok: true, duplicate: false, leadId: null, qualified: false, meetingBooked: false, costUsd: 0, credits: 0, adsConsent: false };
+    if (!payload.phone) return { ok: false, status: 404, error: "lead_not_found" };
   }
+  // F39: someone the agent met first (ad, mokub.co, word of mouth) becomes a lead instead of being dropped.
+  const created = !lead;
+  const target =
+    lead ??
+    (await findOrCreateAgentLead(db, {
+      phone: normPhone(payload.phone!),
+      email: payload.email,
+      businessName: payload.business_name,
+      ref: payload.ref,
+      adClick: payload.ad_click,
+      conversationId: payload.conversation_id,
+    }));
+  // Agent-created contacts gave no advertising consent: nothing about them goes to Meta's Conversions API.
+  const adsConsent = !isAgentLead(target.slug);
+  return applyQualification(db, target, payload, env, { created, adsConsent });
+}
+
+async function applyQualification(
+  db: AppDb,
+  lead: typeof leads.$inferSelect,
+  payload: DaptaWebhookPayload,
+  env: Pick<Env, "DAPTA_CREDIT_USD" | "DAPTA_CREDITS_PER_AI_REPLY">,
+  extra: { created: boolean; adsConsent: boolean },
+): Promise<WebhookOutcome> {
+  const optOut = payload.opt_out === true;
 
   const meetingBooked = !optOut && payload.meeting_booked === true;
   const wantsToBuy = !optOut && payload.wants_to_buy === true;
@@ -139,7 +171,7 @@ export async function processDaptaWebhook(
       .from(qualifications)
       .where(and(eq(qualifications.conversationId, payload.conversation_id), eq(qualifications.origin, "dapta")))
       .limit(1);
-    if (dup) return { ok: true as const, duplicate: true, leadId: lead.id, qualified, meetingBooked, costUsd: 0, credits: 0 };
+    if (dup) return { ok: true as const, duplicate: true, leadId: lead.id, qualified, meetingBooked, costUsd: 0, credits: 0, ...extra };
 
     await tx.insert(qualifications).values({
       leadId: lead.id,
@@ -187,6 +219,6 @@ export async function processDaptaWebhook(
         isMock: false,
       });
     }
-    return { ok: true as const, duplicate: false, leadId: lead.id, qualified, meetingBooked, costUsd, credits };
+    return { ok: true as const, duplicate: false, leadId: lead.id, qualified, meetingBooked, costUsd, credits, ...extra };
   });
 }

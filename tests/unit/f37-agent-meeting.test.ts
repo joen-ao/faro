@@ -63,9 +63,9 @@ describe("F37 · sales agent variables", () => {
 });
 
 describe("F37 · Mokub wording", () => {
-  it("templates speak as Mokub; the clinic one falls back to the approved legacy id until its id is set", () => {
+  it("templates speak as Mokub; the old Faro clinic template is never offered (F38)", () => {
     const legacy = waTemplates({ DAPTA_WA_TEMPLATE_CLINICA: undefined, DAPTA_WA_TEMPLATE_EMPRESA: "e", DAPTA_WA_TEMPLATE_INDEPENDIENTE: "i" });
-    expect(legacy.faro_diagnostico_clinica.daptaId).toBe("4c0206b2-ad45-43e0-9d74-c27a3b1640df");
+    expect(legacy.faro_diagnostico_clinica.daptaId).toBeNull();
     expect(legacy.faro_diagnostico_empresa.body).toContain("Le escribe el equipo de Mokub");
     const mokub = waTemplates({ DAPTA_WA_TEMPLATE_CLINICA: "c", DAPTA_WA_TEMPLATE_EMPRESA: "e", DAPTA_WA_TEMPLATE_INDEPENDIENTE: "i" });
     expect(mokub.faro_diagnostico_clinica).toMatchObject({ daptaId: "c" });

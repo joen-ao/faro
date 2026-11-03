@@ -31,7 +31,7 @@ test("diagnostic page: findings, opt-out button, event registered, contact form,
   expect(wa).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
   expect(decodeURIComponent(wa!.split("text=")[1]!)).toContain("demo-clinica");
   await expect(page.getByTestId("widget-placeholder")).toContainText("no configurado");
-  await expect(page.getByTestId("sender")).toContainText("30X Hackathon");
+  await expect(page.getByTestId("sender")).not.toContainText("Hackathon");
   await expect(page.getByTestId("attribution")).toContainText("ODbL");
 
   const optout = page.getByTestId("optout-link-footer");

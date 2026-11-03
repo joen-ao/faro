@@ -129,8 +129,8 @@ describe("generation and HTML safety", () => {
       { name: "Pyme", offerDescription: "Agenda", country: "CO" },
       { ai: createMockAnthropic(), channel: "email", recipient: "info@x.co", env: envOff },
     );
-    expect(g.text).toContain("30X Hackathon");
-    expect(g.text).toContain("Faro");
+    expect(g.text).toContain("Quién escribe: Faro.");
+    expect(g.text).not.toContain("Hackathon");
     expect(g.text).toContain("OpenStreetMap");
     expect(g.text).toContain("Calle 1 # 2-3, Bogota");
     expect(g.text).toContain(`https://faro.test/d/${lead.slug}?c=email&s=osm`);
@@ -353,7 +353,7 @@ describe("blocks", () => {
     const [m] = await db.select().from(messages).where(eq(messages.id, r.messageId!));
     const ctx = await loadLeadContext(db, a.lead.id);
     expect(m!.body).toContain(buildLinks({ id: ctx.lead.id, slug: ctx.lead.slug, primarySource: "osm" }, "email", m!.recipient, envOff).optOutUrl);
-    expect(m!.body).toContain("30X Hackathon");
+    expect(m!.body).toContain("Faro · Calle 1 # 2-3, Bogota");
     expect(m!.body).toContain("Calle 1 # 2-3, Bogota");
     // a body that only carries a foreign /baja/ link is flagged by the gate
     const bad = await assess(db, ctx, "email", m!.recipient, SAT_10, envOff, { body: "x https://evil.example/baja/xyz" });

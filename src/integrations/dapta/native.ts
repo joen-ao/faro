@@ -75,6 +75,10 @@ export interface NativeMapping {
   meeting_booked?: boolean;
   meeting_at?: string;
   wants_to_buy?: boolean;
+  /** F39: what follows "ref." in the first message, the business name, and Meta's click-to-WhatsApp marker. */
+  ref?: string;
+  business_name?: string;
+  ad_click?: boolean;
 }
 
 export function normalizeDaptaNative(body: unknown): NativeMapping {
@@ -101,6 +105,10 @@ export function normalizeDaptaNative(body: unknown): NativeMapping {
   const summary = pick(flat, ["resumen", "summary"], (v) => typeof v === "string" && v.trim().length > 0);
   const product = pick(flat, ["productointeres"], (v) => typeof v === "string" && /^[a-z_]{2,40}$/.test(v.trim()));
   const meetingAt = pick(flat, ["fechareunion"], (v) => typeof v === "string" && !Number.isNaN(Date.parse(v.trim())));
+  const ref = pick(flat, ["refdiagnostico"], (v) => typeof v === "string" && /^[\w-]{3,80}$/.test(v.trim()));
+  const businessName = pick(flat, ["nombrenegocio"], (v) => typeof v === "string" && v.trim().length >= 2);
+  const sourceType = pick(flat, ["sourcetype"], (v) => typeof v === "string");
+  const adClick = pick(flat, ["ctwaclid"], (v) => typeof v === "string" && v.trim().length > 0) !== undefined || (typeof sourceType === "string" && sourceType.toLowerCase() === "ad");
   return {
     conversation_id: conv !== undefined ? String(conv) : isId(topId) ? String(topId) : undefined,
     phone: phone !== undefined ? String(phone) : undefined,
@@ -112,6 +120,9 @@ export function normalizeDaptaNative(body: unknown): NativeMapping {
     meeting_booked: toBool(pick(flat, ["reunionagendada"], (v) => toBool(v) !== undefined)),
     meeting_at: typeof meetingAt === "string" ? meetingAt.trim() : undefined,
     wants_to_buy: toBool(pick(flat, ["quierecomprar"], (v) => toBool(v) !== undefined)),
+    ref: typeof ref === "string" ? ref.trim() : undefined,
+    business_name: typeof businessName === "string" ? businessName.trim().slice(0, 160) : undefined,
+    ad_click: adClick || undefined,
   };
 }
 

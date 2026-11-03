@@ -30,11 +30,11 @@ export async function POST(req: Request) {
   }
   // F31: tell Meta which leads turned qualified (once per conversation; never for opt-outs).
   const p = parsed.data;
-  if (result.qualified && !result.duplicate && result.leadId && p.opt_out !== true) {
+  if (result.qualified && !result.duplicate && result.leadId && p.opt_out !== true && result.adsConsent) {
     const leadId = result.leadId;
     after(() => trackQualifiedLead(db, { leadId, conversationId: p.conversation_id, email: p.email, phone: p.phone, score: p.score }));
     // F37: the agent booked the diagnostic call.
     if (result.meetingBooked) after(() => trackSchedule(db, { leadId, conversationId: p.conversation_id, email: p.email, phone: p.phone }));
   }
-  return NextResponse.json({ ok: true, duplicate: result.duplicate, lead_id: result.leadId, qualified: result.qualified, meeting_booked: result.meetingBooked, cost_usd: result.costUsd });
+  return NextResponse.json({ ok: true, duplicate: result.duplicate, lead_id: result.leadId, qualified: result.qualified, meeting_booked: result.meetingBooked, created: result.created ?? false, cost_usd: result.costUsd });
 }

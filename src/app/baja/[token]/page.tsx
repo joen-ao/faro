@@ -24,7 +24,6 @@ export default async function BajaPage({
       <header className="flex items-center gap-2 text-sm font-semibold tracking-tight">
         <span aria-hidden className="size-2.5 rounded-full bg-faro-accent" />
         <span className="font-display">Faro</span>
-        <span className="text-faro-text-3 font-normal">· proyecto del 30X Hackathon</span>
       </header>
 
       <section aria-live="polite" className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-6 py-12">

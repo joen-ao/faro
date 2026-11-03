@@ -25,6 +25,6 @@ export const WHATSAPP_CSV_HEADER = ["empresa", "telefono", "plantilla", "url_dia
 
 /** Template with variables Dapta fills from the other columns. Identifies the sender and offers opt-out. */
 export const WHATSAPP_TEMPLATE =
-  "Hola, somos Faro (30X Hackathon). Preparamos un diagnóstico gratuito para {{empresa}}: {{url_diagnostico}} . Si no quieres más mensajes responde BAJA o entra a {{enlace_baja}}";
+  "Hola, le escribe el equipo de Mokub. Preparamos un diagnóstico gratuito para {{empresa}}: {{url_diagnostico}} . Si no quieres más mensajes responde BAJA o entra a {{enlace_baja}}";
 
 export const E164 = /^\+[1-9]\d{7,14}$/;

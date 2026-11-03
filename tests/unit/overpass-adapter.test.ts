@@ -121,7 +121,7 @@ describe("real adapter", () => {
     const r = await adapter.search({ ...query, city: "Bogotá" });
     expect(r.companies).toHaveLength(2);
     expect(r.companies[1].phone).toBe("+576012345678");
-    expect((seen[0].init?.headers as Record<string, string>)["User-Agent"]).toMatch(/^Faro-/);
+    expect((seen[0].init?.headers as Record<string, string>)["User-Agent"]).toMatch(/^Faro\//);
     expect(String(seen[0].init?.body)).toMatch(/^data=/);
     expect(calls).toEqual([expect.objectContaining({ service: "overpass", status: 200, error: null, costUsd: 0, isMock: false })]);
   });

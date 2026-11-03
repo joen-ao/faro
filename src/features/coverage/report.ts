@@ -180,7 +180,7 @@ export function renderReport(run: CoverageRun, scores: IcpScore[]): string {
   out.push("## Atribuciones", "");
   out.push("- Datos de mapa: © OpenStreetMap contributors, licencia ODbL 1.0 (https://www.openstreetmap.org/copyright).");
   out.push("- Datos de Colombia: Datos Abiertos Colombia (datos.gov.co), Cámaras de Comercio (RUES) y Ministerio de Salud (REPS), licencia CC BY-SA 4.0.");
-  out.push("- Cliente: User-Agent `Faro-30XHackathon/0.1`, ≤1 consulta cada 2 s a Overpass, caché en disco.", "");
+  out.push("- Cliente: User-Agent `Faro/0.1`, ≤1 consulta cada 2 s a Overpass, caché en disco.", "");
   return out.join("\n");
 }
 

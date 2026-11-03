@@ -33,10 +33,13 @@ export interface ComplianceMetrics {
 
 const SENT = new Set(["sent", "delivered"]);
 
-/** A message identifies the sender if it carries the opt-out link and the hackathon/project identification. */
+/**
+ * A message identifies the sender if it says who writes, how to opt out and how to reply (F38). Messages sent before
+ * F38 named the 30X Hackathon instead of a "Quién escribe" line; they still count.
+ */
 export function messageIdentifiesSender(body: string): boolean {
   const b = body.toLowerCase();
-  return /30x/.test(b) && /(\/baja\/|\/api\/optout\/|darse de baja|dar de baja|unsubscribe)/.test(b) && /(@|responde)/.test(b);
+  return /(quién escribe|quien escribe|le escribe|30x)/.test(b) && /(\/baja\/|\/api\/optout\/|darse de baja|dar de baja|unsubscribe)/.test(b) && /(@|responde)/.test(b);
 }
 
 /** Pure panel numbers (SPEC §8). Mock messages are excluded from real totals. */

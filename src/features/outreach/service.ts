@@ -362,7 +362,7 @@ export function ensureCompliantBody(body: string, ctx: LeadContext, recipient: s
   let out = body.trimEnd();
   if (!out.includes(optOutUrl)) out += `\n\nSi no desea recibir mensajes nuestros, darse de baja toma un clic: ${optOutUrl}`;
   const who = senderSignature(env);
-  const missingSender = !out.includes("30X Hackathon") || !out.includes(env.NEXT_PUBLIC_PRODUCT_NAME);
+  const missingSender = !out.includes(who);
   const missingAddress = !!env.SENDER_ADDRESS && !out.includes(env.SENDER_ADDRESS);
   if (missingSender || missingAddress) out += `\n\n${[who, env.SENDER_ADDRESS].filter(Boolean).join(" · ")}`;
   return out;

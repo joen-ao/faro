@@ -10,7 +10,7 @@ import { createTestDb } from "../helpers/test-db";
 
 const SAT_10 = new Date("2026-10-24T15:00:00Z"); // sábado 10:00 Bogotá
 const SUN_10 = new Date("2026-10-25T15:00:00Z");
-const base = { DATABASE_URL: undefined, WHATSAPP_SEND_MODE: "dapta_flow", DAPTA_WA_FLOW_URL: "https://flow.test/hook" };
+const base = { DATABASE_URL: undefined, WHATSAPP_SEND_MODE: "dapta_flow", DAPTA_WA_FLOW_URL: "https://flow.test/hook", DAPTA_WA_TEMPLATE_CLINICA: "tpl-cli" };
 const envSim = parseEnv({ ...base, SEND_ENABLED: "false" } as never);
 const envLive = parseEnv({ ...base, SEND_ENABLED: "true", WHATSAPP_DAILY_LIMIT: "2", DAPTA_WA_TEMPLATE_INDEPENDIENTE: "tpl-ind" } as never);
 
@@ -27,9 +27,11 @@ describe("F24 · pure helpers", () => {
     expect(waName("RIE SONRISA PERFECTA SIGLA: RIE SONRISA PERFECTA", false)).toBe("Rie Sonrisa Perfecta");
     expect(waName("BURBANO DENTAL STUDIO IPS", false)).toBe("Burbano Dental Studio");
   });
-  it("uses the clinic template only with a REPS source, others only when approved", () => {
+  it("uses the clinic template only with a REPS source, and any template only when its id is set (F38)", () => {
     const t = waTemplates({ DAPTA_WA_TEMPLATE_CLINICA: undefined, DAPTA_WA_TEMPLATE_EMPRESA: undefined, DAPTA_WA_TEMPLATE_INDEPENDIENTE: "x" });
-    expect(pickTemplate({ hasReps: true, independent: false }, t)?.key).toBe("faro_diagnostico_clinica");
+    expect(pickTemplate({ hasReps: true, independent: false }, t)).toBeNull();
+    const withClinic = waTemplates({ DAPTA_WA_TEMPLATE_CLINICA: "tpl-cli", DAPTA_WA_TEMPLATE_EMPRESA: undefined, DAPTA_WA_TEMPLATE_INDEPENDIENTE: "x" });
+    expect(pickTemplate({ hasReps: true, independent: false }, withClinic)?.key).toBe("faro_diagnostico_clinica");
     expect(pickTemplate({ hasReps: false, independent: false }, t)).toBeNull();
     expect(pickTemplate({ hasReps: false, independent: true }, t)?.key).toBe("faro_diagnostico_independiente");
   });
@@ -115,7 +117,7 @@ describe("F24 · selection and sending", () => {
     const r = await sendWhatsapp(db, envLive, s, { huntId, now: SAT_10 });
     expect(r.sent).toBe(2);
     expect(r.items.filter((i) => i.outcome === "skipped")).toHaveLength(1);
-    expect(s.calls[0]).toMatchObject({ templateId: "4c0206b2-ad45-43e0-9d74-c27a3b1640df", nombre: "Clinica 1" });
+    expect(s.calls[0]).toMatchObject({ templateId: "tpl-cli", nombre: "Clinica 1" });
     const costs = await db.select().from(costEntries).where(eq(costEntries.category, "whatsapp"));
     expect(costs).toHaveLength(2);
     const again = await sendWhatsapp(db, envLive, s, { huntId, now: SAT_10 });
