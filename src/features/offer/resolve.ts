@@ -19,9 +19,24 @@ export function effectiveOffer(huntOfferRaw: unknown, catalog: Service[]): Effec
   return { services: catalog, angles: [], origin: "catalog" };
 }
 
+/**
+ * F40 · The hunt picks the services, the catalog supplies their current text and price: each snapshot service is
+ * swapped for the catalog one with the same id, ids gone from the catalog are dropped (with their angles), and a
+ * hunt left with none falls back to the whole catalog.
+ */
+export function refreshHuntOffer(huntOfferRaw: unknown, catalog: Service[]): EffectiveOffer {
+  const hunt = parseHuntOffer(huntOfferRaw);
+  if (!hunt) return effectiveOffer(null, catalog);
+  const byId = new Map(catalog.map((s) => [s.id, s]));
+  const services = hunt.services.flatMap((s) => byId.get(s.id) ?? []);
+  if (!services.length) return effectiveOffer(null, catalog);
+  const ids = new Set(services.map((s) => s.id));
+  return { services, angles: hunt.angles.filter((a) => ids.has(a.serviceId)), origin: "hunt" };
+}
+
 export async function loadEffectiveOffer(db: AppDb, huntOfferRaw: unknown): Promise<EffectiveOffer> {
   const catalog = await getServiceCatalog(db);
-  const base = parseHuntOffer(huntOfferRaw) ? effectiveOffer(huntOfferRaw, []) : effectiveOffer(null, catalog.services);
+  const base = refreshHuntOffer(huntOfferRaw, catalog.services);
   return catalog.company ? { ...base, company: catalog.company } : base;
 }
 

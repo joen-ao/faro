@@ -280,6 +280,8 @@ describe("services setting storage", () => {
 
   it("a hunt stores its offer; older hunts fall back to the catalog", async () => {
     const criteria = ICP_EXAMPLES[0]!.criteria;
+    // F40: the hunt's services resolve against the saved catalog, so it must hold them.
+    await saveServiceCatalog(db, { services: mokub });
     const offer = { serviceIds: ["agentes-ia"], services: mokub.slice(0, 1), angles: [{ text: "Clínicas sin WhatsApp pierden pacientes → Agentes", serviceId: "agentes-ia", signal: "whatsapp" }] };
     const { icpProfileId } = await createHunt(db, { prompt: "Clinicas dentales en Bogota", criteria, offer });
     const [row] = await db.select().from(icpProfiles).where(eq(icpProfiles.id, icpProfileId));
