@@ -77,14 +77,14 @@ describe("F25 · daily run", () => {
     expect(s.skipped).toBe("disabled");
   });
 
-  it("picks best-scored companies with a generic mailbox, never contacted ones or independents", async () => {
+  it("picks best-scored leads with an email (independents too, F41), never contacted ones", async () => {
     const top = await mk({ score: 95 });
     const mid = await mk({ score: 80 });
     await mk({ email: null, score: 99 });
-    await mk({ legal: false, score: 98 });
+    const independent = await mk({ legal: false, score: 98 });
     const done = await mk({ score: 97 });
     await db.insert(messages).values({ leadId: done, contactChannel: "email", body: "x", status: "sent", createdAt: new Date("2026-10-01T15:00:00Z") });
-    expect(await dailyCandidates(db, { enabled: true, emailsPerDay: 5, huntIds: null }, 5)).toEqual([top, mid]);
+    expect(await dailyCandidates(db, { enabled: true, emailsPerDay: 5, huntIds: null }, 5)).toEqual([independent, top, mid]);
   });
 
   it("sends at most emailsPerDay per Bogotá day and respects the window", async () => {

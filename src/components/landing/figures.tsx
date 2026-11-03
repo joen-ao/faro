@@ -41,14 +41,13 @@ export function FiguresBand({ data }: { data: LandingData }) {
   return (
     <section id="resultados" aria-label="Resultados en vivo" className="scroll-mt-6 border-y border-white/[0.08] bg-faro-surface-1">
       <div className="mx-auto max-w-[1240px] px-4 py-14 sm:px-6 max-sm:py-10">
-        <dl className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 max-sm:grid-cols-2 max-sm:gap-x-5 max-sm:gap-y-7">
+        <dl className="grid grid-cols-1 gap-8 sm:grid-cols-3 max-sm:grid-cols-2 max-sm:gap-x-5 max-sm:gap-y-7">
           <Figure value={ready ? formatCount(s.leadsFound) : <Empty />} label="empresas encontradas en búsquedas reales" />
           <Figure value={ready ? formatCount(s.leadsFit) : <Empty />} label="encajan con el perfil y tienen contacto de empresa" accent />
           <Figure
             value={<Usd value={data.cpl} emptyClassName="text-2xl font-semibold tracking-normal sm:text-3xl" />}
             label="costo por lead del perfil, con recibo"
           />
-          <Figure value={data.naturalPersonsContacted === null ? <Empty /> : formatCount(data.naturalPersonsContacted)} label="personas naturales contactadas" />
         </dl>
         <p className="mt-8 text-sm text-faro-text-3 max-sm:mt-6 max-sm:text-[13px]">
           {notes.length ? `${notes.join(" · ")}. ` : ""}Totales del evento, solo datos reales; se actualizan solos.

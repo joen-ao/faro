@@ -294,7 +294,7 @@ export function CompliancePanel({ m }: { m: ComplianceMetrics }) {
   );
   return (
     <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {item("Personas naturales contactadas", String(m.naturalPersonsContacted), m.naturalPersonsContacted === 0, "Debe ser 0: solo personas jurídicas")}
+      {item("Personas naturales contactadas", String(m.naturalPersonsContacted), null, "Independientes contactados (permitido desde F41)")}
       {item("Remitente identificado", m.senderIdentifiedPct === null ? "Sin envíos" : `${m.senderIdentifiedPct.toLocaleString("es-CO")} %`, m.senderIdentifiedPct === null ? null : m.senderIdentifiedPct === 100, `${m.sentTotal} mensajes enviados`)}
       {item("Opt-outs respetados", `${m.optOutsRespected} de ${m.optOutsTotal}`, m.optOutsRespected === m.optOutsTotal, "Nadie recibe un mensaje tras darse de baja")}
       {item("Envíos bloqueados por horario", String(m.blockedBySchedule), null, `${m.blockedTotal} bloqueados en total · Ley 2300`)}

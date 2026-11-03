@@ -37,8 +37,8 @@ export default async function SendWindowSettingsPage() {
     .from(hunts)
     .innerJoin(icpProfiles, eq(icpProfiles.id, hunts.icpProfileId))
     .innerJoin(leads, and(eq(leads.huntId, hunts.id), eq(leads.status, "fit"), eq(leads.isDemo, false)))
-    .innerJoin(companies, and(eq(companies.id, leads.companyId), eq(companies.isLegalEntity, true)))
-    .innerJoin(contactPoints, and(eq(contactPoints.companyId, companies.id), eq(contactPoints.type, "email"), eq(contactPoints.isGeneric, true)))
+    .innerJoin(companies, and(eq(companies.id, leads.companyId), eq(companies.isDemo, false)))
+    .innerJoin(contactPoints, and(eq(contactPoints.companyId, companies.id), eq(contactPoints.type, "email")))
     .groupBy(hunts.id, icpProfiles.criteria, hunts.createdAt)
     .orderBy(desc(hunts.createdAt))
     .limit(50);

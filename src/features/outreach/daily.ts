@@ -2,7 +2,6 @@ import { and, desc, eq, gte, inArray, lt, notInArray } from "drizzle-orm";
 import { z } from "zod";
 import { appSettings, companies, contactPoints, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
-import { isGenericEmail } from "@/features/compliance/email";
 import { checkSendWindow } from "@/features/compliance/windows";
 import { getSendWindow } from "@/features/settings/send-window";
 import { bogotaDayStart } from "@/features/whatsapp/send";
@@ -11,7 +10,7 @@ import { enqueue, processQueue, type OutreachDeps } from "./service";
 
 /**
  * F25 · Daily email run (Vercel Cron, L–S 9:00 Bogotá): up to `emailsPerDay` first emails to the best-scored leads
- * with a generic company mailbox, never twice to the same company. Off by default; the team turns it on.
+ * with an email, never twice to the same company. Off by default; the team turns it on.
  */
 const KEY = "daily_outreach";
 
@@ -72,9 +71,12 @@ export async function emailsToday(db: AppDb, now: Date): Promise<number> {
   return rows.length;
 }
 
-/** Best-scored legal-entity leads with a generic company mailbox whose company never got a message. */
+/**
+ * Best-scored leads with an email whose company never got a message. F41: natural persons and personal mailboxes
+ * count too; on equal score, legal entities with a generic mailbox go first.
+ */
 export async function dailyCandidates(db: AppDb, setting: DailyOutreachSetting, limit: number): Promise<string[]> {
-  const conds = [eq(leads.status, "fit"), eq(leads.isDemo, false), eq(companies.isDemo, false), eq(companies.isLegalEntity, true)];
+  const conds = [eq(leads.status, "fit"), eq(leads.isDemo, false), eq(companies.isDemo, false)];
   if (setting.huntIds?.length) conds.push(inArray(leads.huntId, setting.huntIds));
   const touched = db
     .select({ companyId: leads.companyId })
@@ -82,17 +84,17 @@ export async function dailyCandidates(db: AppDb, setting: DailyOutreachSetting, 
     .innerJoin(leads, eq(leads.id, messages.leadId))
     .where(notInArray(messages.status, ["simulated", "draft"]));
   const rows = await db
-    .select({ leadId: leads.id, companyId: companies.id, email: contactPoints.value })
+    .select({ leadId: leads.id, companyId: companies.id })
     .from(leads)
     .innerJoin(companies, eq(companies.id, leads.companyId))
-    .innerJoin(contactPoints, and(eq(contactPoints.companyId, companies.id), eq(contactPoints.type, "email"), eq(contactPoints.isGeneric, true)))
+    .innerJoin(contactPoints, and(eq(contactPoints.companyId, companies.id), eq(contactPoints.type, "email")))
     .where(and(...conds, notInArray(companies.id, touched)))
-    .orderBy(desc(leads.fitScore), leads.createdAt)
+    .orderBy(desc(leads.fitScore), desc(companies.isLegalEntity), desc(contactPoints.isGeneric), leads.createdAt)
     .limit(limit * 4);
   const out: string[] = [];
   const seen = new Set<string>();
   for (const r of rows) {
-    if (seen.has(r.companyId) || !isGenericEmail(r.email)) continue;
+    if (seen.has(r.companyId)) continue;
     seen.add(r.companyId);
     out.push(r.leadId);
     if (out.length >= limit) break;

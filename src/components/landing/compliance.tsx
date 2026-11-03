@@ -1,7 +1,5 @@
-import { formatCount } from "@/features/metrics/landing";
 import { describeSendWindow, type SendWindowSetting } from "@/features/compliance/windows";
-import { cn } from "@/lib/utils";
-import { EMPTY, Eyebrow, ScreenSection } from "./ui";
+import { Eyebrow, ScreenSection } from "./ui";
 
 const ICON = { width: 28, height: 28, viewBox: "0 0 24 24", fill: "none", stroke: "#cbe850", strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
@@ -32,18 +30,9 @@ const Icons = {
   ),
 };
 
-export function Compliance({
-  naturalPersonsContacted,
-  excludedPersons,
-  sendWindow,
-}: {
-  naturalPersonsContacted: number | null;
-  excludedPersons: number | null;
-  sendWindow: SendWindowSetting;
-}) {
-  const excluded = excludedPersons !== null && excludedPersons > 0 ? ` ${formatCount(excludedPersons)} registros excluidos hasta hoy.` : "";
+export function Compliance({ sendWindow }: { sendWindow: SendWindowSetting }) {
   const items = [
-    { icon: Icons.building, t: "Solo empresas", d: `Personas naturales y correos personales quedan fuera desde la búsqueda.${excluded}` },
+    { icon: Icons.building, t: "Quién escribe, siempre", d: "Cada mensaje dice quién escribe, por qué y cómo responder." },
     { icon: Icons.message, t: "Un mensaje por empresa", d: "Sin secuencias ni insistencia. Baja en un clic, respetada para siempre." },
     {
       icon: Icons.clock,
@@ -52,7 +41,6 @@ export function Compliance({
     },
     { icon: Icons.link, t: "Fuentes citadas", d: "Cada dato muestra de dónde viene y su licencia: ODbL y CC BY-SA 4.0. Respetamos robots.txt en cada sitio." },
   ];
-  const zero = naturalPersonsContacted === 0;
   return (
     <ScreenSection id="cumplimiento" labelledBy="comp-title">
       <div className="mx-auto w-full max-w-[1240px] px-4 py-24 sm:px-6 max-sm:py-16">
@@ -60,21 +48,9 @@ export function Compliance({
           <div className="min-w-0 flex-1">
             <Eyebrow>Cumplimiento</Eyebrow>
             <h2 id="comp-title" className="mt-4 font-display text-4xl font-bold leading-[1.02] tracking-[-0.04em] sm:text-5xl lg:text-[64px]">
-              Prospección que respeta la ley.
+              Prospección con reglas claras.
             </h2>
-            <p className="mt-5 max-w-lg leading-relaxed text-white/60">Diseñado para cumplir la Ley 1581 (habeas data). Un máximo de un mensaje por empresa, sin seguimientos automáticos.</p>
-          </div>
-          <div className="md:text-right max-sm:flex max-sm:items-end max-sm:gap-4">
-            <p
-              className={cn(
-                "m-zero font-display font-bold leading-[0.85] tracking-[-0.06em]",
-                naturalPersonsContacted === null ? "py-4 text-3xl tracking-normal text-faro-text-3" : "text-[96px] sm:text-[140px] lg:text-[200px] max-sm:text-[80px]",
-                zero ? "text-faro-accent" : naturalPersonsContacted !== null && "text-faro-warn",
-              )}
-            >
-              {naturalPersonsContacted === null ? EMPTY : formatCount(naturalPersonsContacted)}
-            </p>
-            <p className="mt-3 text-white/60 max-sm:mt-0 max-sm:pb-2">personas naturales contactadas</p>
+            <p className="mt-5 max-w-lg leading-relaxed text-white/60">Un máximo de un mensaje por contacto, sin seguimientos automáticos, y baja en un clic respetada para siempre.</p>
           </div>
         </div>
         <ul className="mt-16 max-sm:mt-10 grid grid-cols-1 border-t border-white/[0.12] sm:grid-cols-2 lg:mt-[72px] lg:grid-cols-4">

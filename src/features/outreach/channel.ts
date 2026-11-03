@@ -23,16 +23,15 @@ export interface ChannelOptions {
 }
 
 /**
- * Candidate channels in priority order (SPEC §9.2): generic email > web form (assisted) > WhatsApp (only
- * when enabled). Non-generic emails are listed as not usable so the UI can explain the block.
- * US: email only (CAN-SPAM).
+ * Candidate channels in priority order (SPEC §9.2): generic email > personal email (F41) > web form (assisted) >
+ * WhatsApp (only when enabled). US: email only (CAN-SPAM).
  */
 export function channelOptions(contacts: ContactRow[], opts: ChannelOptions): ChannelOption[] {
   const out: ChannelOption[] = [];
   const emails = contacts.filter((c) => c.type === "email");
   const generic = emails.find((c) => c.isGeneric && isGenericEmail(c.value));
   if (generic) out.push({ channel: "email", value: generic.value, usable: true });
-  else if (emails[0]) out.push({ channel: "email", value: emails[0].value, usable: false, note: "Correo no genérico (parece de una persona)" });
+  else if (emails[0]) out.push({ channel: "email", value: emails[0].value, usable: true, note: "Correo personal" });
   if (opts.country !== "US") {
     const form = contacts.find((c) => c.type === "web_form");
     if (form) out.push({ channel: "web_form", value: form.value, usable: true, note: "Asistido: lo envía una persona" });

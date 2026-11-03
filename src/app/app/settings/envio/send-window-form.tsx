@@ -129,7 +129,7 @@ export function SendWindowForm({ initial, origin, now }: { initial: SendWindowSe
             </div>
           </fieldset>
           {invalid && <p className="text-xs text-[var(--faro-danger)]">Elige al menos un día y una hora de fin mayor que la de inicio.</p>}
-          <p className="text-xs text-faro-text-3">Fuera de la Ley 2300 (que el equipo adopta de forma voluntaria). Se mantiene: un solo mensaje por empresa, baja en un clic y solo buzones genéricos.</p>
+          <p className="text-xs text-faro-text-3">Fuera de la Ley 2300 (que el equipo adopta de forma voluntaria). Se mantiene: un solo mensaje por empresa y baja en un clic.</p>
         </div>
       )}
 

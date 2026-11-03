@@ -9,7 +9,7 @@ const SKIPPED: Record<string, string> = {
   disabled: "apagado",
   outside_window: "fuera de la ventana de envío",
   quota_reached: "cupo del día ya cubierto",
-  no_candidates: "no quedan empresas con correo genérico sin contactar",
+  no_candidates: "no quedan leads con correo sin contactar",
 };
 const fmt = (iso: string) => new Intl.DateTimeFormat("es-CO", { timeZone: "America/Bogota", dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 
@@ -65,7 +65,7 @@ export function DailyOutreachForm(props: {
         <p className="text-xs uppercase tracking-[0.25em] text-faro-text-3">Envío diario automático</p>
         <h2 className="mt-2 text-2xl font-bold tracking-tight">Correos del día</h2>
         <p className="mt-1 text-sm text-faro-text-2">
-          Cada día hábil a las 9:00 (Bogotá) Faro escribe a las empresas mejor puntuadas con correo genérico que aún no contactamos. Cada correo muestra lo que vimos en su
+          Cada día hábil a las 9:00 (Bogotá) Faro escribe a los leads mejor puntuados con correo que aún no contactamos (empresas e independientes). Cada correo muestra lo que vimos en su
           presencia digital y el servicio que le ayuda. Un solo mensaje por empresa.
         </p>
       </div>

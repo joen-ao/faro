@@ -68,24 +68,24 @@ describe("selection", () => {
   });
   afterAll(() => conn.close());
 
-  it("exports only company phones, excluding suppressed, emailed and natural persons", async () => {
+  it("exports company phones and natural persons (F41), excluding suppressed and emailed", async () => {
     const sel = await selectWhatsappRows(conn.db, { appUrl: APP, now: WEEKDAY });
-    expect(sel.rows.map((r) => r.company)).toEqual(["Empresa Ok"]);
+    expect(sel.rows.map((r) => r.company)).toEqual(["Empresa Ok", "Persona Natural"]);
     expect(sel.rows[0]!.diagnosticUrl).toContain("c=whatsapp");
     expect(sel.rows[0]!.optOutUrl).toContain("/baja/");
     const rules = sel.skipped.map((s) => s.rule).sort();
-    expect(rules).toEqual(["already_contacted", "channel_not_allowed", "natural_person", "suppressed"]);
+    expect(rules).toEqual(["already_contacted", "channel_not_allowed", "suppressed"]);
   });
 
   it("reserves exported companies so a later email sees them as contacted; re-export is stable", async () => {
     const a = await selectWhatsappRows(conn.db, { appUrl: APP, now: WEEKDAY, reserve: true });
-    expect(a.rows).toHaveLength(1);
+    expect(a.rows).toHaveLength(2);
     const ev = await evaluateOutreachForLead(conn.db, a.rows[0]!.leadId, { channel: "email", value: "info@x.co", isGeneric: true }, WEEKDAY);
     expect(ev.blocks.map((b) => b.rule)).toContain("already_contacted");
     const b = await selectWhatsappRows(conn.db, { appUrl: APP, now: WEEKDAY, reserve: true });
-    expect(b.rows).toHaveLength(1);
+    expect(b.rows).toHaveLength(2);
     const reservations = await conn.db.select().from(messages).where(eq(messages.contactChannel, "whatsapp"));
-    expect(reservations).toHaveLength(1);
+    expect(reservations).toHaveLength(2);
   });
 
   it("exports nothing on Sunday (Ley 2300 window)", async () => {

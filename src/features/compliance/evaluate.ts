@@ -1,7 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { companies, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
-import { isGenericEmail } from "./email";
 import { isSuppressed } from "./suppression";
 import { checkSendWindow, type Country, type SendWindowSetting } from "./windows";
 import { getSendWindow } from "@/features/settings/send-window";
@@ -66,14 +65,7 @@ export function evaluateOutreach(
   opts: OutreachOptions = {},
 ): OutreachEvaluation {
   const blocks: OutreachBlock[] = [];
-  if (!lead.isLegalEntity) {
-    blocks.push({ rule: "natural_person", message: "Independiente (persona natural): no se le escribe automáticamente. Revísalo y contáctalo a mano si corresponde." });
-  }
-  if (contact.channel === "email") {
-    if (!isGenericEmail(contact.value)) {
-      blocks.push({ rule: "personal_email", message: "Solo se usan buzones genéricos de empresa (info@, contacto@, citas@…); este correo no lo es o parece de una persona." });
-    }
-  }
+  // F41: natural persons and personal mailboxes are allowed (owner's decision after the hackathon); the rest still applies.
   if (lead.suppressed) blocks.push({ rule: "suppressed", message: "El contacto o su dominio está en la lista de supresión (opt-out): no se contacta nunca más." });
   if (lead.alreadyContacted) blocks.push({ rule: "already_contacted", message: "Ya se contactó a esta empresa: máximo 1 mensaje por empresa, sin seguimientos." });
   if (lead.country === "US" && contact.channel !== "email") {

@@ -54,10 +54,9 @@ describe("independents in the registries", () => {
     expect(r.criteria.find((c) => c.criterio.startsWith("Contacto del negocio"))!.cumplido).toBe(true);
   });
 
-  it("never sends automatically to an independent", () => {
+  it("F41: an independent can be contacted automatically", () => {
     const e = evaluateOutreach({ isLegalEntity: false, country: "CO", suppressed: false, alreadyContacted: false } as never, { channel: "email", value: "dana.soriano@gmail.com" } as never, new Date("2026-10-21T15:00:00Z"));
-    expect(e.allowed).toBe(false);
-    expect(e.blocks.map((b) => b.rule)).toContain("natural_person");
+    expect(e.allowed).toBe(true);
   });
 });
 

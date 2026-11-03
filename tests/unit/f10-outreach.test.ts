@@ -187,7 +187,9 @@ describe("channel selection", () => {
     expect(selectChannel([wa], { whatsappEnabled: true, country: "CO" })?.channel).toBe("whatsapp");
     expect(selectChannel([form, wa], { whatsappEnabled: true, country: "US" })).toBeNull();
     const personal = channelOptions([{ type: "email", value: "maria.gomez@a.co", isGeneric: false }], { whatsappEnabled: false, country: "CO" });
-    expect(personal[0]).toMatchObject({ channel: "email", usable: false });
+    expect(personal[0]).toMatchObject({ channel: "email", usable: true });
+    const both = channelOptions([{ type: "email", value: "maria.gomez@a.co", isGeneric: false }, generic], { whatsappEnabled: false, country: "CO" });
+    expect(both[0]).toMatchObject({ channel: "email", value: "info@a.co" });
   });
 });
 
@@ -315,20 +317,16 @@ describe("blocks", () => {
     expect((await enqueue(db, { leadId: b.lead.id }, deps(envOff), SAT_10)).blocks.map((x) => x.rule)).toContain("suppressed");
   });
 
-  it("a personal-looking email is blocked and no AI call is spent", async () => {
+  it("F41: a personal email is queued", async () => {
     const a = await mkLead({ email: "maria.gomez@personal.example" });
     const r = await enqueue(db, { leadId: a.lead.id, channel: "email" }, deps(envOff), SAT_10);
-    expect(r.status).toBe("blocked");
-    expect(r.blocks.map((b) => b.rule)).toContain("personal_email");
-    const ai = (await db.select().from(costEntries).where(eq(costEntries.leadId, a.lead.id))).filter((c) => c.category === "ai");
-    expect(ai).toHaveLength(0);
+    expect(r.status).toBe("queued");
   });
 
-  it("natural persons are blocked", async () => {
+  it("F41: natural persons are queued", async () => {
     const a = await mkLead({ legal: false });
     const r = await enqueue(db, { leadId: a.lead.id }, deps(envOff), SAT_10);
-    expect(r.status).toBe("blocked");
-    expect(r.blocks.map((b) => b.rule)).toContain("natural_person");
+    expect(r.status).toBe("queued");
   });
 
   it("max 1 message per company", async () => {

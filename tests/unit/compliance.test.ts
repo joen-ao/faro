@@ -137,14 +137,15 @@ describe("evaluateOutreach", () => {
     );
     expect(r.allowed).toBe(false);
     expect(r.blocks.map((b) => b.rule).sort()).toEqual(
-      ["already_contacted", "natural_person", "outside_window", "personal_email", "sender_missing", "suppressed"].sort(),
+      ["already_contacted", "outside_window", "sender_missing", "suppressed"].sort(),
     );
     expect(r.blocks.every((b) => b.message.length > 10)).toBe(true);
   });
-  it("email gate is a whitelist of generic mailboxes", () => {
-    for (const v of ["camila@x.co", "luisa@x.co", "drgomez@x.co", "santiagoc@x.co"]) {
-      expect(evaluateOutreach(ok, { channel: "email", value: v }, mon).blocks.map((b) => b.rule)).toContain("personal_email");
+  it("F41: personal mailboxes and natural persons are allowed", () => {
+    for (const v of ["camila@x.co", "luisa@x.co", "drgomez@x.co", "santiagoc@gmail.com"]) {
+      expect(evaluateOutreach(ok, { channel: "email", value: v }, mon).allowed).toBe(true);
     }
+    expect(evaluateOutreach({ ...ok, isLegalEntity: false }, { channel: "email", value: "dana.soriano@gmail.com" }, mon).allowed).toBe(true);
     for (const v of ["info@x.co", "citas@x.co", "contacto@x.co"]) {
       expect(evaluateOutreach(ok, { channel: "email", value: v }, mon).allowed).toBe(true);
     }
