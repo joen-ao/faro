@@ -501,3 +501,16 @@ export const appSettings = pgTable("app_settings", {
   value: jsonb("value").$type<Record<string, unknown>>().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+/** F31 · Precomputed dashboard metrics (one row per key and range). Read by the dashboard and Pauta; refreshed in the background. */
+export const metricsSnapshots = pgTable(
+  "metrics_snapshots",
+  {
+    key: text("key").notNull(),
+    rangeDays: integer("range_days").notNull(),
+    data: jsonb("data").$type<unknown>().notNull(),
+    computedAt: timestamp("computed_at", { withTimezone: true }).notNull(),
+    durationMs: integer("duration_ms").notNull().default(0),
+  },
+  (t) => [uniqueIndex("metrics_snapshots_key_range_uq").on(t.key, t.rangeDays)],
+).enableRLS(); // Same as `users`: not reachable through Supabase's REST API.

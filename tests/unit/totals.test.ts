@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as s from "@/db/schema";
 import { getCostTotals } from "@/db/queries";
-import { seed } from "@/db/seed";
+import { seedFlaggedFixture } from "../helpers/flagged-fixture";
 import { createTestDb } from "../helpers/test-db";
 
 let conn: Awaited<ReturnType<typeof createTestDb>>;
 beforeAll(async () => {
   conn = await createTestDb();
-  await seed(conn.db);
+  await seedFlaggedFixture(conn.db);
 });
 afterAll(() => conn.close());
 

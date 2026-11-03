@@ -2,8 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { companies } from "@/db/schema";
 import type { AppDb } from "@/db/types";
-import { DEMO_HUNT_ID, demoScore, ensureDemoHunt, generateDemoRows } from "@/features/hunts/demo";
-import { HuntError, countersFromGroups, createHunt, getLeadDetail, getStream, runBatch } from "@/features/hunts/service";
+import { HuntError, countersFromGroups, createHunt, getStream, runBatch } from "@/features/hunts/service";
 import type { SourceDeps } from "@/features/hunts/sources";
 import { ICP_EXAMPLES } from "@/features/icp/presets";
 import type { OverpassAdapter } from "@/integrations/overpass";
@@ -57,13 +56,7 @@ describe("review r1 fixes", () => {
     expect(masked.map((r) => r.legal)).toEqual([false]);
   });
 
-  it("drawer only returns generic contacts and the profile threshold", async () => {
-    await ensureDemoHunt(db);
-    const s = await getStream(db, DEMO_HUNT_ID);
-    const detail = await getLeadDetail(db, DEMO_HUNT_ID, s.updates[0].id);
-    expect(detail.contacts.every((c) => c.isGeneric)).toBe(true);
-    expect(detail.threshold).toBe(60);
-  });
+
 
   it("keeps mock/demo leads out of the real totals and reports them apart", () => {
     const c = countersFromGroups(
@@ -103,18 +96,7 @@ describe("review r1 fixes", () => {
     await expect(runBatch(db, "00000000-0000-4000-8000-000000000009", "osm", undefined, deps)).rejects.toBeInstanceOf(HuntError);
   });
 
-  it("demo scores follow the scoreFit weights and only legally verified leads advance", () => {
-    const rows = generateDemoRows();
-    for (const r of rows) {
-      expect(r.score).toBe(demoScore(r));
-      if (r.status !== "found") {
-        expect(r.registry).toBe(true);
-        expect(r.nit).not.toBeNull();
-        expect(r.score).toBeGreaterThanOrEqual(60);
-      }
-    }
-    for (const s of ["fit", "contacted", "qualified"]) expect(rows.some((r) => r.status === s)).toBe(true);
-  });
+
 });
 
 describe("automatic website enrichment", () => {

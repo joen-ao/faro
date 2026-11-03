@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 const tooLarge = () => NextResponse.json({ ok: false, error: "too_large", message: "El archivo supera 1 MB." }, { status: 413 });
 
 /**
- * CSV spend upload (max 1 MB). Body: raw `text/csv`, or multipart with a `file` field (and optional `demo=1`).
- * `?demo=1` marks the rows as test data. Valid rows are saved; invalid ones are returned per line.
+ * CSV spend upload (max 1 MB). Body: raw `text/csv`, or multipart with a `file` field.
+ * Rows are always real. Valid rows are saved; invalid ones are returned per line.
  */
 export async function POST(req: Request) {
   const denied = requireAppAccess(req);
@@ -18,14 +18,12 @@ export async function POST(req: Request) {
   if (Number(req.headers.get("content-length") ?? 0) > MAX_CSV_BYTES + 4096) return tooLarge();
 
   let text: string;
-  let demo = new URL(req.url).searchParams.get("demo") === "1";
   if ((req.headers.get("content-type") ?? "").startsWith("multipart/form-data")) {
     const form = await req.formData().catch(() => null);
     const file = form?.get("file");
     if (!form || !(file instanceof File)) return NextResponse.json({ ok: false, error: "file_required" }, { status: 400 });
     if (file.size > MAX_CSV_BYTES) return tooLarge();
     text = await file.text();
-    demo = demo || form.get("demo") === "1";
   } else {
     text = await req.text();
   }
@@ -33,7 +31,7 @@ export async function POST(req: Request) {
 
   const { rows, errors } = parseSpendCsv(text);
   return withDb(async (db) => {
-    const saved = await saveAdSpend(db, rows, { isDemo: demo });
+    const saved = await saveAdSpend(db, rows);
     return NextResponse.json({ ok: errors.length === 0, ...saved, errors }, { status: rows.length === 0 && errors.length ? 400 : 200 });
   });
 }

@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getDb } from "@/db/client";
 import { normalizeDaptaNative, payloadShape } from "@/integrations/dapta/native";
 import { daptaWebhookSchema, processDaptaWebhook, verifyWebhookSecret } from "@/integrations/dapta/webhook";
 import { getEnv } from "@/lib/env";
+import { trackQualifiedLead } from "@/features/tracking/meta";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +22,17 @@ export async function POST(req: Request) {
     console.warn("[dapta-webhook] unrecognised payload shape", payloadShape(body));
     return NextResponse.json({ ok: false, error: "invalid_payload", issues: parsed.error.issues.map((i) => i.message) }, { status: 400 });
   }
-  const result = await processDaptaWebhook(getDb().db, parsed.data, getEnv());
+  const { db } = getDb();
+  const result = await processDaptaWebhook(db, parsed.data, getEnv());
   if (!result.ok) {
     console.warn("[dapta-webhook] lead not found for payload shape", payloadShape(body));
     return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
+  }
+  // F31: tell Meta which leads turned qualified (once per conversation; never for opt-outs).
+  const p = parsed.data;
+  if (result.qualified && !result.duplicate && result.leadId && p.opt_out !== true) {
+    const leadId = result.leadId;
+    after(() => trackQualifiedLead(db, { leadId, conversationId: p.conversation_id, email: p.email, phone: p.phone, score: p.score }));
   }
   return NextResponse.json({ ok: true, duplicate: result.duplicate, lead_id: result.leadId, qualified: result.qualified, cost_usd: result.costUsd });
 }

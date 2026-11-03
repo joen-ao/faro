@@ -92,6 +92,20 @@
       "when": 1793674122529,
       "tag": "0012_users",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793677042545,
+      "tag": "0013_purge_demo",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793677065732,
+      "tag": "0014_metrics_snapshots",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,6 @@ import { defineConfig } from "@playwright/test";
 
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 process.env.APP_ACCESS_KEY ??= "e2e-app-key"; // /app and /api/outreach are closed in production without a key
-process.env.FARO_ALLOW_DEMO ??= "1"; // the production build serves the seeded demo hunt (F10)
 process.env.OPTOUT_SECRET ??= "e2e-only-secret"; // inherited by the web server and the test workers
 process.env.FARO_SEED_DEMO = "1"; // seeds demo-clinica (F12) and enables the demo-only events read
 process.env.META_ADS_CAMPAIGN_ID ??= "faro-demo"; // shows the UTM link on /app/settings/ads

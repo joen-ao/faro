@@ -18,7 +18,6 @@ interface Row {
   usd: number;
   impressions: number;
   clicks: number;
-  isDemo: boolean;
 }
 type Msg = { kind: "ok" | "error"; text: string; lines?: string[] } | null;
 
@@ -30,7 +29,6 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
   const [copied, setCopied] = useState<string | null>(null);
   const [msg, setMsg] = useState<Msg>(null);
   const [busy, setBusy] = useState(false);
-  const [demo, setDemo] = useState(false);
 
   async function copy(url: string, slug: string) {
     try {
@@ -58,7 +56,6 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
           usd: String(f.get("usd") ?? ""),
           impressions: String(f.get("impressions") || "0"),
           clicks: String(f.get("clicks") || "0"),
-          isDemo: demo,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -85,7 +82,6 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
     try {
       const body = new FormData();
       body.set("file", file);
-      if (demo) body.set("demo", "1");
       const res = await fetch("/api/ads/spend/csv", { method: "POST", body });
       const data = await res.json().catch(() => ({}));
       const errors: { line: number; error: string }[] = data.errors ?? [];
@@ -176,14 +172,6 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
         </form>
       </div>
 
-      <label className="flex items-start gap-3 rounded-card border border-border bg-card p-4 text-sm">
-        <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} className="mt-0.5 size-4 accent-[#cbe850]" />
-        <span>
-          <span className="font-medium">Marcar como datos de prueba (DEMO)</span>
-          <span className="block text-xs text-faro-text-2">Solo para pruebas: se guarda aparte y nunca entra en los totales reales. Apagado por defecto.</span>
-        </span>
-      </label>
-
       <div role="status" aria-live="polite">
         {msg && (
           <div className={`rounded-card border p-4 text-sm ${msg.kind === "ok" ? "border-[var(--faro-border-active)]" : "border-[var(--faro-danger)]"}`}>
@@ -213,7 +201,6 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
                   <span className="tabular-nums">{r.date}</span>
                   <span>{r.impressions.toLocaleString("es-CO")} impr.</span>
                   <span>{r.clicks.toLocaleString("es-CO")} clics</span>
-                  {r.isDemo && <span className="text-faro-text-3">DEMO</span>}
                 </p>
               </li>
             ))}
@@ -226,8 +213,7 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
                   <th className="py-2 pr-3 font-normal">Campaña</th>
                   <th className="py-2 pr-3 text-right font-normal">USD</th>
                   <th className="py-2 pr-3 text-right font-normal">Impr.</th>
-                  <th className="py-2 pr-3 text-right font-normal">Clics</th>
-                  <th className="py-2 font-normal"><span className="sr-only">Tipo</span></th>
+                  <th className="py-2 text-right font-normal">Clics</th>
                 </tr>
               </thead>
               <tbody>
@@ -237,8 +223,7 @@ export function AdsPanel({ links, rows, defaultCampaign }: { links: Link[]; rows
                     <td className="py-2 pr-3 break-all">{r.campaign}</td>
                     <td className="py-2 pr-3 text-right tabular-nums">{r.usd.toFixed(2)}</td>
                     <td className="py-2 pr-3 text-right tabular-nums">{r.impressions.toLocaleString("es-CO")}</td>
-                    <td className="py-2 pr-3 text-right tabular-nums">{r.clicks.toLocaleString("es-CO")}</td>
-                    <td className="py-2 text-right">{r.isDemo && <span className="rounded-full border border-border px-2 py-0.5 text-[10px] tracking-wider text-faro-text-3">DEMO</span>}</td>
+                    <td className="py-2 text-right tabular-nums">{r.clicks.toLocaleString("es-CO")}</td>
                   </tr>
                 ))}
               </tbody>

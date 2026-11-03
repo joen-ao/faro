@@ -206,23 +206,24 @@ export async function recordOpen(slug: string, tracking: Tracking, widgetConfigu
  * Form submit -> `form_submit`. Stores company, generic mailbox, a short role and a short message
  * (free text, length-capped; the form asks not to include person names).
  * ICP (paid) inbound: reuses an existing meta_ads lead with the same normalized company name or generic-mailbox domain.
+ * Returns the lead id (null when the diagnostic page does not exist).
  */
-export async function recordContact(input: ContactInput, tracking: Tracking, icpSlug?: string, injected?: AppDb): Promise<boolean> {
+export async function recordContact(input: ContactInput, tracking: Tracking, icpSlug?: string, injected?: AppDb): Promise<string | null> {
   const db = injected ?? (await conn()).db;
   const payload = { company: input.company, email: input.email, role: input.role ?? null, message: input.message, consent: true };
   if (!icpSlug) {
     const d = await getDiagnostic(input.slug);
-    if (!d) return false;
+    if (!d) return null;
     await db.transaction(async (tx) => {
       const [cur] = await tx.select({ status: leads.status }).from(leads).where(eq(leads.id, d.leadId));
       if (cur && ["found", "fit", "contacted"].includes(cur.status)) await tx.update(leads).set({ status: "responded" }).where(eq(leads.id, d.leadId));
       await tx.insert(events).values({ leadId: d.leadId, type: "form_submit", payload, utm: eventUtm(tracking), isDemo: d.isDemo });
     });
-    return true;
+    return d.leadId;
   }
   const norm = normalizeName(input.company);
   const domain = input.email.split("@")[1] ?? "";
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     let leadId: string | undefined;
     const byName = await tx
       .select({ id: leads.id })
@@ -251,8 +252,8 @@ export async function recordContact(input: ContactInput, tracking: Tracking, icp
       leadId = lead.id;
     }
     await tx.insert(events).values({ leadId, type: "form_submit", payload: { ...payload, icp: icpSlug, unverified: true }, utm: eventUtm(tracking), isDemo: false });
+    return leadId;
   });
-  return true;
 }
 
 /** Test/e2e helper: events of a lead by slug. */

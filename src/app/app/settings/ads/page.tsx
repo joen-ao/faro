@@ -5,7 +5,7 @@ import type { AppDb } from "@/db/types";
 import { ICP_PAGES } from "@/config/icp-pages";
 import { allowedAdHosts, apiCallLogger, bogotaDate, buildAdLink, getLastSync, listAdSpend, metaCampaignStats, unattributedSpend } from "@/features/ads";
 import { getMetaAds, metaAdsConfigured, MetaAdsError } from "@/integrations/meta-ads";
-import { getChannelMetrics } from "@/features/metrics";
+import { readDashboardDetail } from "@/features/dashboard/data";
 import { getEnv } from "@/lib/env";
 import { requireAppAccess } from "@/lib/app-access";
 import { AdsPanel } from "./ads-panel";
@@ -29,9 +29,14 @@ export default async function AdsSettingsPage() {
   }
 
   const db = (await getReadyDb()) as unknown as AppDb;
-  const [rows, metrics, orphan, meta] = await Promise.all([listAdSpend(db), getChannelMetrics(db), unattributedSpend(db), loadMeta(db)]);
+  // F31: the meta_ads CPL comes from the dashboard snapshot (never recomputed on page load). Light reads only, in sequence.
+  const snapshot = await readDashboardDetail(db);
+  const rows = await listAdSpend(db);
+  const orphan = await unattributedSpend(db);
+  const meta = await loadMeta(db);
   const orphanTotal = orphan.reduce((a, o) => a + o.usd, 0);
-  const metaSource = metrics.real.bySource.find((r) => r.source === "meta_ads");
+  const metaSource = snapshot?.data.matrix.bySource.find((r) => r.source === "meta_ads");
+  const asOf = snapshot ? ` · tablero de ${new Date(snapshot.computedAt).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" })}` : "";
   const campaign = getEnv().META_ADS_CAMPAIGN_ID ?? "";
   const links = Object.keys(ICP_PAGES).map((slug) => ({
     slug,
@@ -49,10 +54,14 @@ export default async function AdsSettingsPage() {
           Pega el enlace en tu anuncio, carga el gasto a mano o por CSV y Faro lo reparte solo entre los leads reales que llegaron por esa campaña.
         </p>
 
-        <section aria-label="Resumen de pauta" className="mt-8 grid gap-4 sm:grid-cols-3">
-          <Stat label="CPL de meta_ads (real)" value={metaSource && metaSource.cpl !== null && metaSource.costUsd > 0 ? fmt(metaSource.cpl) : "Sin datos"} accent hint={metaSource ? `${metaSource.fit} leads del perfil · ${fmt(metaSource.costUsd)} de costo total` : "Aún no hay leads de pauta"} />
-          <Stat label="Gasto cargado" value={fmt(rows.filter((r) => !r.isDemo).reduce((a, r) => a + r.usd, 0))} hint="Sin filas de prueba" />
-          <Stat label="Filas de prueba" value={String(rows.filter((r) => r.isDemo).length)} hint="Marcadas DEMO, fuera de los totales reales" />
+        <section aria-label="Resumen de pauta" className="mt-8 grid gap-4 sm:grid-cols-2">
+          <Stat
+            label="CPL de meta_ads (real)"
+            value={metaSource && metaSource.cpl !== null && metaSource.costUsd > 0 ? fmt(metaSource.cpl) : "Sin datos"}
+            accent
+            hint={!snapshot ? "Abre el tablero para calcularlo" : metaSource ? `${metaSource.fit} leads del perfil · ${fmt(metaSource.costUsd)} de costo total${asOf}` : `Aún no hay leads de pauta${asOf}`}
+          />
+          <Stat label="Gasto cargado" value={fmt(rows.reduce((a, r) => a + r.usd, 0))} hint={`${rows.length} filas de gasto`} />
         </section>
 
         {orphanTotal > 0 && (
@@ -69,7 +78,7 @@ export default async function AdsSettingsPage() {
         <AdsPanel
           links={links}
           defaultCampaign={campaign}
-          rows={rows.map((r) => ({ id: r.id, platform: r.platform, campaign: r.campaign, date: r.date, usd: r.usd, impressions: r.impressions, clicks: r.clicks, isDemo: r.isDemo }))}
+          rows={rows.map((r) => ({ id: r.id, platform: r.platform, campaign: r.campaign, date: r.date, usd: r.usd, impressions: r.impressions, clicks: r.clicks }))}
         />
       </div>
     </main>

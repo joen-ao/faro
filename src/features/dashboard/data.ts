@@ -1,32 +1,50 @@
 import { sql } from "drizzle-orm";
 import type { AppDb } from "@/db/types";
 import { LEAD_FACTS, getChannelMetrics, type MetricsBucket } from "@/features/metrics/channels";
-import { getLeadReceipts, type LeadReceipt } from "@/features/metrics/receipt";
 import { queryComplianceMetrics, type ComplianceMetrics } from "@/features/compliance/metrics";
-import { buildChallenge, queryChallengeFacts, type ChallengeItem } from "./challenge";
-import { getDemoDb } from "./demo-db";
+import { getOutreachMetrics, type OutreachMetrics } from "@/features/metrics/outreach";
+import { computeBusinessMetrics, type BusinessMetrics } from "./business";
+import { DEFAULT_MAX_AGE_MIN, getSnapshot, readSnapshot, refreshSnapshot, type Snapshot } from "./snapshot";
+import { getLeadReceipts, type LeadReceipt } from "@/features/metrics/receipt";
+/** Snapshot keys (F31; bump the version when the JSON shape changes). The business view depends on the range; the detail (all-time F13/F14) does not. */
+export const BUSINESS_KEY = "dashboard:v1";
+export const DETAIL_KEY = "dashboard-detail:v1";
+/** `range_days` used for the range-independent detail snapshot. */
+export const ALL_TIME = 0;
 
-export interface DashboardData {
-  /** Real data only. */
-  real: MetricsBucket;
-  /** Separate DEMO bucket, present only when the toggle is on. Never summed into `real`. */
-  demo: MetricsBucket | null;
+/** All-time source x channel matrix (F14), compliance panel and outreach metrics (F26). Real data only. */
+export interface DashboardDetail {
+  matrix: MetricsBucket;
   compliance: ComplianceMetrics;
-  /** "Reto Dapta" requirements with live real-only numbers. */
-  challenge: ChallengeItem[];
+  outreach: OutreachMetrics;
 }
 
-/**
- * The DEMO bucket always comes from the built-in in-memory dataset (nothing is written, and rows seeded
- * in the persistent DB never change what the demo section shows). `real` only reads the persistent DB.
- */
-export async function getDashboardData(db: AppDb, opts: { includeDemo?: boolean } = {}): Promise<DashboardData> {
-  const real = (await getChannelMetrics(db)).real;
-  const demo = opts.includeDemo ? (await getChannelMetrics(await getDemoDb(), { includeDemo: true })).demo : null;
+/** Sequential on purpose: these heavy queries hung Supabase's transaction pooler when run in parallel. */
+export async function computeDashboardDetail(db: AppDb): Promise<DashboardDetail> {
+  const matrix = (await getChannelMetrics(db)).real;
   const compliance = await queryComplianceMetrics(db);
-  const challenge = buildChallenge(await queryChallengeFacts(db), real, compliance);
-  return { real, demo, compliance, challenge };
+  const outreach = await getOutreachMetrics(db);
+  return { matrix, compliance, outreach };
 }
+
+export const computeBusiness = (rangeDays: number) => (db: AppDb) => computeBusinessMetrics(db, { rangeDays });
+
+/** What the dashboard page reads: stored copies (computed inline only the first time). */
+export async function getDashboardSnapshots(db: AppDb, rangeDays: number): Promise<{ business: Snapshot<BusinessMetrics>; detail: Snapshot<DashboardDetail> }> {
+  const business = await getSnapshot(db, BUSINESS_KEY, rangeDays, DEFAULT_MAX_AGE_MIN, computeBusiness(rangeDays));
+  const detail = await getSnapshot(db, DETAIL_KEY, ALL_TIME, DEFAULT_MAX_AGE_MIN, computeDashboardDetail);
+  return { business, detail };
+}
+
+/** "Actualizar ahora": recomputes both snapshots (skips one another request is already computing). */
+export async function refreshDashboard(db: AppDb, rangeDays: number): Promise<{ business: boolean; detail: boolean }> {
+  const business = await refreshSnapshot(db, BUSINESS_KEY, rangeDays, computeBusiness(rangeDays));
+  const detail = await refreshSnapshot(db, DETAIL_KEY, ALL_TIME, computeDashboardDetail);
+  return { business: business !== null, detail: detail !== null };
+}
+
+/** Stored detail copy only (Pauta, copilot): never recomputes on page load. */
+export const readDashboardDetail = (db: AppDb) => readSnapshot<DashboardDetail>(db, DETAIL_KEY, ALL_TIME);
 
 export interface CellLead {
   leadId: string;
@@ -36,7 +54,7 @@ export interface CellLead {
   contacted: boolean;
   responded: boolean;
   qualified: boolean;
-  /** Real world: only non-mock, non-demo entries (matches the cell number). */
+  /** Only non-mock, non-demo entries (matches the cell number). */
   costUsd: number;
   /** Mock/demo cost on this lead, excluded from `costUsd` and shown apart with a stamp. */
   excludedUsd: number;
@@ -46,14 +64,14 @@ export interface CellLead {
 export const CELL_LIMIT = 25;
 
 /** Leads (with their receipts) behind one matrix cell. `contact` null = every channel of that source. */
-export async function getCellLeads(db: AppDb, p: { source: string; contact: string | null; demo: boolean }): Promise<{ total: number; leads: CellLead[] }> {
+export async function getCellLeads(db: AppDb, p: { source: string; contact: string | null }): Promise<{ total: number; leads: CellLead[] }> {
   const res = (await db.execute(
     sql`${sql.raw(LEAD_FACTS)}
 select lf.id as "leadId", c.name, l.slug, lf.fit, lf.contacted, lf.responded, lf.qualified,
-  (select coalesce(sum(e.usd) filter (where ${p.demo}::boolean or not (e.is_mock or e.is_demo)), 0) from cost_entries e where e.lead_id = lf.id)::float8 as "costUsd",
-  (select coalesce(sum(e.usd) filter (where not ${p.demo}::boolean and (e.is_mock or e.is_demo)), 0) from cost_entries e where e.lead_id = lf.id)::float8 as "excludedUsd"
+  (select coalesce(sum(e.usd) filter (where not (e.is_mock or e.is_demo)), 0) from cost_entries e where e.lead_id = lf.id)::float8 as "costUsd",
+  (select coalesce(sum(e.usd) filter (where e.is_mock or e.is_demo), 0) from cost_entries e where e.lead_id = lf.id)::float8 as "excludedUsd"
 from lf join leads l on l.id = lf.id join companies c on c.id = l.company_id
-where lf.src = ${p.source} and lf.demo = ${p.demo} and (${p.contact}::text is null or lf.ch = ${p.contact})
+where lf.src = ${p.source} and not lf.demo and (${p.contact}::text is null or lf.ch = ${p.contact})
 order by lf.qualified desc, lf.fit desc, c.name`,
   )) as unknown as Omit<CellLead, "receipt">[] | { rows: Omit<CellLead, "receipt">[] };
   const all = Array.isArray(res) ? res : res.rows;

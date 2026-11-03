@@ -5,7 +5,7 @@
 ## 1. Resumen (5 líneas)
 1. **Funciona en local**, todo en `main` con `npm run check` (≈690 tests unitarios e integración + build) y `npm run e2e:smoke` (34 pruebas a 1440 y 390 px) en verde. Cada feature pasó review independiente (40+ informes en `specs/reviews/`).
 2. **Datos reales sin llave**: OpenStreetMap (Overpass) y datos.gov.co (RUES/REPS) se consultan en vivo. Una búsqueda real de clínicas dentales en Bogotá trajo 408 lugares de OSM + 150 IPS de REPS.
-3. **En mock (sin llave, marcado y fuera de totales)**: Anthropic (ICP y mensajes), Google Places, Apify, Resend (correo), Dapta push. El tablero nunca suma mock/demo a lo real; hay toggle "Incluir datos de prueba".
+3. **En mock (sin llave, marcado y fuera de totales)**: Anthropic (ICP y mensajes), Google Places, Apify, Resend (correo), Dapta push. El tablero nunca suma mock a lo real (desde F31 no hay datos demo ni toggle).
 4. **Construido**: landing con video HyperFrames, nuevo perfil y búsqueda en vivo con mapa, dedupe, scoring con evidencia, cumplimiento (ventanas Ley 2300, festivos 2026, supresión, opt-out), outreach con cola, página de diagnóstico, recibo de lead, tablero CPL/CPLC, Dapta (webhook/push/CSV), Meta Ads (UTM + gasto), WhatsApp CSV (apagado) y bandit (simulación etiquetada).
 5. **Bloqueado**: ninguna feature (22/22 DONE, más F19b de seguimiento). **Pendiente humano**: conectar credenciales reales, desplegar, elegir ICP, decidir licencia y publicar el repo con historia limpia (sección 5).
 
@@ -21,7 +21,7 @@
 ## 3. Checklist de conexión (uno por servicio)
 Copia `.env.example` a `.env.local` (local) o carga las variables en Vercel. Después de cada paso, abre `/app/settings` o `GET /api/health`: el servicio debe pasar de `mock` a `real`.
 
-- **Supabase (Postgres)**: crea el proyecto → Settings → Database → connection string (pooler, puerto 6543) → `DATABASE_URL`. Luego `npm run db:migrate` con esa variable (o deja que la app migre sola al primer request; `getReadyDb` migra una vez). Opcional: `npm run db:seed` solo si quieres datos demo (salen marcados).
+- **Supabase (Postgres)**: crea el proyecto → Settings → Database → connection string (pooler, puerto 6543) → `DATABASE_URL`. Luego `npm run db:migrate` con esa variable (o deja que la app migre sola al primer request; `getReadyDb` migra una vez). Opcional: `npm run db:seed` siembra solo las tarifas de costo (`cost_rates`); desde F31 no hay datos demo. La migración 0013 borra las filas `is_demo` existentes.
 - **Vercel**: importa el repo (rama `main`), framework Next.js, sin cambios de build. Variables mínimas en producción: `DATABASE_URL`, `APP_ACCESS_KEY` (sin ella `/app` y las APIs internas dan 401 en producción), `OPTOUT_SECRET` (largo y aleatorio; sin él la baja falla cerrada), `NEXT_PUBLIC_APP_URL` (la URL pública), `SENDER_LEGAL_NAME`, `SENDER_ADDRESS`, `EMAIL_REPLY_TO`. El deploy es tuyo: el loop no desplegó nada.
 - **Anthropic**: `ANTHROPIC_API_KEY`, `ANTHROPIC_MODE=real`, `ANTHROPIC_MODEL=claude-sonnet-5-5` (o el que prefieras). El uso de tokens se registra en `cost_entries` (categoría `ai`).
 - **Google Places**: habilita "Places API (New)" en GCP → API key restringida a esa API → `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_MODE=real`. Riesgos anotados: el field mask con web y teléfono puede caer en un SKU más caro que 0,032 USD, y los términos de Google limitan el cacheo. `recordPlacesCost` todavía no está cableado al flujo de hunts (MINOR).
@@ -39,7 +39,7 @@ Copia `.env.example` a `.env.local` (local) o carga las variables en Vercel. Des
 npm ci
 cp .env.example .env.local   # sin llaves todo cae a mock; OSM y datos.gov.co son reales
 npm run db:migrate && npm run db:seed
-npm run dev                  # http://localhost:3000 · /app/new · /app/hunts/demo · /app/dashboard?demo=1 · /d/demo-clinica
+npm run dev                  # http://localhost:3000 · /app/new · /app/dashboard?range=30 (copia precalculada; "Actualizar ahora" la recalcula)
 npm run check && npm run e2e:smoke
 ```
 Extra: `npm run coverage:sources` regenera `reports/coverage.md` con datos reales (≈3 min).

@@ -4,7 +4,6 @@ import { hunts, leads } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { BATCH_SIZE, allDone, initialSourcesProgress, nextWork, planSources, sliceBatch } from "@/features/hunts/batch";
 import { computeCounters, toPointStatus } from "@/features/hunts/counters";
-import { DEMO_HUNT_ID, DEMO_POINTS, ensureDemoHunt, generateDemoRows } from "@/features/hunts/demo";
 import { estimateSources } from "@/features/hunts/estimates";
 import { NO_FILTER, filterPoints, sortForList } from "@/features/hunts/filters";
 import { boundsOf, toFeatureCollection } from "@/features/hunts/geojson";
@@ -223,38 +222,3 @@ describe("map transforms", () => {
   });
 });
 
-describe("demo hunt", () => {
-  it("generates a deterministic dataset with all four states and unlocated rows", () => {
-    const a = generateDemoRows();
-    expect(a).toEqual(generateDemoRows());
-    expect(a.filter((r) => r.lat !== null)).toHaveLength(DEMO_POINTS);
-    for (const s of ["found", "fit", "contacted", "qualified"]) expect(a.some((r) => r.status === s)).toBe(true);
-    expect(a.every((r) => r.lat === null || (r.lat > 4.4 && r.lat < 4.9 && r.lng! > -74.3 && r.lng! < -73.9))).toBe(true);
-  });
-
-  it("seeds an idempotent, fully-demo hunt streamed in pages", async () => {
-    await ensureDemoHunt(db);
-    await ensureDemoHunt(db);
-    const all: StreamPoint[] = [];
-    let since = 0;
-    let rev: string | undefined;
-    for (let i = 0; i < 5; i++) {
-      const s = await getStream(db, DEMO_HUNT_ID, { since, rev, limit: 1000 });
-      all.push(...s.points);
-      since = s.cursor;
-      rev = s.rev;
-      expect(s.isDemo).toBe(true);
-      if (!s.hasMore) break;
-    }
-    expect(new Set(all.map((p) => p.id)).size).toBe(all.length);
-    expect(all.filter((p) => p.lat !== null).length).toBeGreaterThanOrEqual(2000);
-    const s = await getStream(db, DEMO_HUNT_ID);
-    expect(s.duplicates.merged).toBeGreaterThan(0);
-    expect(s.counters.total.qualified).toBeGreaterThan(0);
-    const adv = s.updates.find((u) => u.status === "qualified");
-    const detail = await getLeadDetail(db, DEMO_HUNT_ID, adv!.id);
-    expect(detail.lead.isDemo).toBe(true);
-    expect(detail.costs.length).toBeGreaterThan(0);
-    expect(detail.events.map((e) => e.type)).toContain("qualified");
-  });
-});

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import * as s from "@/db/schema";
 import { createDb, ensureMigrated, getReadyDb } from "@/db/client";
-import { seed } from "@/db/seed";
+import { seedFlaggedFixture } from "../helpers/flagged-fixture";
 import { createTestDb } from "../helpers/test-db";
 
 let conn: Awaited<ReturnType<typeof createTestDb>>;
@@ -21,7 +21,7 @@ vi.mock("@/db/client", async (orig) => {
 
 beforeAll(async () => {
   conn = await createTestDb();
-  await seed(conn.db);
+  await seedFlaggedFixture(conn.db);
 });
 afterAll(() => conn.close());
 
@@ -49,14 +49,13 @@ describe("/api/metrics endpoints", () => {
     expect(body.isDemo).toBe(true);
   });
 
-  it("matrix: real only by default, demo block with ?demo=1", async () => {
+  it("matrix: real only, ?demo=1 is ignored (F31)", async () => {
     const { GET } = await import("@/app/api/metrics/matrix/route");
-    const a = await (await GET(req("/api/metrics/matrix"))).json();
-    expect(a.demo).toBeNull();
-    expect(a.real.totals.found).toBe(0);
-    const b = await (await GET(req("/api/metrics/matrix?demo=1"))).json();
-    expect(b.demo.totals.found).toBe(3);
-    expect(b.real.totals.found).toBe(0);
+    for (const url of ["/api/metrics/matrix", "/api/metrics/matrix?demo=1"]) {
+      const a = await (await GET(req(url))).json();
+      expect(a.demo).toBeNull();
+      expect(a.real.totals.found).toBe(0);
+    }
   });
 
   it("receipt and matrix: 401 without or with a wrong key; public stays open", async () => {

@@ -1,16 +1,13 @@
 import "./load-env";
 import { createDb } from "../src/db/client";
 import { migrate } from "../src/db/migrate";
-import { seed, seedDiagnosticDemo } from "../src/db/seed";
+import { seedCostRates } from "../src/db/seed";
 
+// F31: no demo data anymore. Only the default cost rates (real configuration).
 const conn = createDb();
 migrate(conn)
-  .then(() => seed(conn.db))
-  .then(async (r) => {
-    await seedDiagnosticDemo(conn.db);
-    return r;
-  })
-  .then((r) => console.log(r.skippedDemo ? "seed: demo data already present" : `seed applied (${conn.kind}, all demo rows is_demo=true)`))
+  .then(() => seedCostRates(conn.db))
+  .then(() => console.log(`seed applied (${conn.kind}): default cost_rates`))
   .catch((e) => {
     console.error(e);
     process.exitCode = 1;

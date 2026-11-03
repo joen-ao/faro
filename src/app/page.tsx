@@ -8,6 +8,7 @@ import { FinalCta, Footer } from "@/components/landing/footer";
 import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { PaidVsFree } from "@/components/landing/paid-vs-free";
+import { MetaPixel } from "@/components/tracking/meta-pixel";
 
 export const dynamic = "force-static";
 
@@ -31,6 +32,7 @@ export default async function Home() {
         <FinalCta />
       </main>
       <Footer />
+      <MetaPixel />
     </div>
   );
 }

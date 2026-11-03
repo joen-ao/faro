@@ -4,6 +4,14 @@ import { useState } from "react";
 
 type Status = "idle" | "sending" | "ok" | "error";
 
+declare global {
+  interface Window {
+    fbq?: (...args: unknown[]) => void;
+  }
+}
+
+const cookie = (name: string) => document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))?.[1];
+
 const field =
   "h-12 w-full rounded-button border border-border bg-faro-surface-2 px-4 text-base text-white placeholder:text-faro-text-3 focus-visible:border-faro-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-faro-accent aria-[invalid=true]:border-[var(--faro-danger)]";
 
@@ -26,6 +34,8 @@ export function ContactForm({
     const f = new FormData(e.currentTarget);
     setStatus("sending");
     setErrors({});
+    // F31: one id for the browser pixel and the server (Conversions API) so Meta counts the Lead once.
+    const eventId = crypto.randomUUID();
     try {
       const res = await fetch("/api/contact", {
         method: "POST",
@@ -39,9 +49,16 @@ export function ContactForm({
           consent: f.get("consent") === "on",
           hp: f.get("hp") ?? "",
           ...tracking,
+          eventId,
+          fbc: cookie("_fbc"),
+          fbp: cookie("_fbp"),
+          url: window.location.href,
         }),
       });
-      if (res.ok) return setStatus("ok");
+      if (res.ok) {
+        window.fbq?.("track", "Lead", {}, { eventID: eventId });
+        return setStatus("ok");
+      }
       if (res.status === 422) {
         const data = (await res.json()) as { errors?: Record<string, string> };
         setErrors(data.errors ?? {});

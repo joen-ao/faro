@@ -54,7 +54,7 @@ Dapta ayuda a las pymes a convertir leads, pero 3 de cada 5 leads que llegan a D
 
 ### Búsqueda en vivo (F19)
 
-- **F19, búsqueda en vivo con mapa:** `/app/new` convierte el texto libre en un perfil editable y `/app/hunts/[id]` muestra la búsqueda por lotes (menos de 60 s por request, reanudable): mapa MapLibre oscuro a pantalla completa, puntos que aparecen al llegar de cada fuente (gris encontrado, lima del perfil, blanco contactado, lima con pulso calificado), clusters, panel lateral (bottom sheet en 390 px) con contadores por fuente y "N duplicados fusionados", lista filtrable y drawer de lead con su recibo y criterios con evidencia. El avance llega por polling JSON cada 1,2 s (sin SSE, apto para Vercel). `/app/hunts/demo` siembra 2.000 puntos sintéticos marcados DEMO, fuera de los totales reales (requiere `FARO_ALLOW_DEMO=1` en producción). Solo se guardan empresas: los nombres de OSM pasan por un filtro por categoría (F19b) y los de persona natural se excluyen o se enmascaran ("Consultorio odontológico (por verificar)", nunca contactables). Ver `specs/F19-busqueda-en-vivo.md` y `specs/F19b-recall-nombres.md`.
+- **F19, búsqueda en vivo con mapa:** `/app/new` convierte el texto libre en un perfil editable y `/app/hunts/[id]` muestra la búsqueda por lotes (menos de 60 s por request, reanudable): mapa MapLibre oscuro a pantalla completa, puntos que aparecen al llegar de cada fuente (gris encontrado, lima del perfil, blanco contactado, lima con pulso calificado), clusters, panel lateral (bottom sheet en 390 px) con contadores por fuente y "N duplicados fusionados", lista filtrable y drawer de lead con su recibo y criterios con evidencia. El avance llega por polling JSON cada 1,2 s (sin SSE, apto para Vercel). Solo se guardan empresas: los nombres de OSM pasan por un filtro por categoría (F19b) y los de persona natural se excluyen o se enmascaran ("Consultorio odontológico (por verificar)", nunca contactables). Ver `specs/F19-busqueda-en-vivo.md` y `specs/F19b-recall-nombres.md`.
 
 ## Capturas
 
@@ -185,13 +185,13 @@ Reglas:
 npm ci
 cp .env.example .env.local   # ver aviso sobre APP_ACCESS_KEY y OPTOUT_SECRET abajo
 npm run db:migrate     # crea la base PGlite local en ./.pglite
-npm run db:seed        # datos demo, todos marcados is_demo=true
+npm run db:seed        # tarifas de costo (cost_rates); el demo se quitó en F31
 npm run dev            # http://localhost:3000
 ```
 
 > **Aviso:** en local (`NODE_ENV` distinto de `production`) puedes dejar `APP_ACCESS_KEY` y `OPTOUT_SECRET` vacías: `/app` queda abierto y la baja usa un secreto de desarrollo. En producción ambas son **obligatorias**: sin `APP_ACCESS_KEY` `/app` y las APIs internas responden 401, y sin `OPTOUT_SECRET` no se generan tokens de baja. Genera valores largos y aleatorios (p. ej. `openssl rand -hex 32`) y nunca los subas al repo.
 
-Rutas para probar con los datos demo: `/` (landing), `/app/dashboard` (tablero), `/app/hunts/demo/outreach` (outreach), `/d/demo-clinica` (diagnóstico), `/d/icp/clinicas-dentales-bogota` (página genérica de pauta), `/app/settings/ads` (gasto de pauta), `/app/dev/receipt?demo=1` (recibo demo; `?lead=<uuid>` exige `APP_ACCESS_KEY`), `/api/health`.
+Rutas principales: `/` (landing), `/app/dashboard` (tablero, `?range=7|30|90`), `/d/icp/clinicas-dentales-bogota` (página genérica de pauta), `/app/settings/ads` (gasto de pauta), `/app/ads/copilot` (copiloto), `/app/dev/receipt?lead=<uuid>` (recibo), `/api/health`.
 
 | Comando | Para qué |
 |---|---|

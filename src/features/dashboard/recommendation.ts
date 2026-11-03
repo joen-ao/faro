@@ -1,4 +1,4 @@
-import type { ChannelMetrics, MetricsBucket, MetricsRow } from "@/features/metrics/channels";
+import type { ChannelMetrics, MetricsRow } from "@/features/metrics/channels";
 import { fmtInt, fmtInterval, fmtPct, fmtUsd, sourceLabel } from "./format";
 
 /** Minimum sample per source to be comparable: profile leads and qualified leads. */
@@ -7,7 +7,7 @@ export const MIN_QUALIFIED = 3;
 /** CPLC gap (relative to the best) under which two sources are a technical tie. */
 export const TIE_GAP = 0.1;
 
-export type RecommendationKind = "winner" | "tie" | "insufficient" | "demo_only" | "demo_example";
+export type RecommendationKind = "winner" | "tie" | "insufficient";
 
 export interface Recommendation {
   kind: RecommendationKind;
@@ -19,21 +19,13 @@ export interface Recommendation {
 const comparable = (r: MetricsRow) => r.source !== null && r.fit >= MIN_FIT && r.qualified >= MIN_QUALIFIED && r.cplc !== null;
 
 /**
- * Sentence for the dashboard, built only from REAL numbers. Demo/mock data (`metrics.demo`) is never
- * used to recommend; if it is all there is, the sentence says so.
+ * Sentence for the dashboard, built only from REAL numbers (demo/mock data never recommends).
  */
-export function buildRecommendation(metrics: Pick<ChannelMetrics, "real"> & { demo?: MetricsBucket | null }): Recommendation {
+export function buildRecommendation(metrics: Pick<ChannelMetrics, "real">): Recommendation {
   const real = metrics.real.bySource;
   const ok = real.filter(comparable).sort((a, b) => (a.cplc as number) - (b.cplc as number));
 
   if (ok.length < 2) {
-    if (real.length === 0 && metrics.demo && metrics.demo.bySource.length > 0) {
-      return {
-        kind: "demo_only",
-        sources: [],
-        text: "Solo hay datos de prueba (DEMO). No se hace ninguna recomendación con ellos: busca y contacta empresas reales para compararlas.",
-      };
-    }
     const total = metrics.real.totals;
     const why =
       real.length === 0
@@ -78,10 +70,4 @@ export function splitPaidVsFree(bySource: MetricsRow[]): PaidVsFree {
   const qualified = rest.reduce((a, r) => a + r.qualified, 0);
   const costUsd = rest.reduce((a, r) => a + r.costUsd, 0);
   return { paid, free: { fit, qualified, costUsd, cpl: fit > 0 ? costUsd / fit : null, cplc: qualified > 0 ? costUsd / qualified : null } };
-}
-
-/** DEMO section sentence: explicitly an example, never in the format of a real recommendation. */
-export function buildDemoExample(demo: MetricsBucket): Recommendation {
-  const r = buildRecommendation({ real: demo });
-  return { kind: "demo_example", sources: [], text: `Ejemplo con datos de prueba (no es una recomendación): ${r.text}` };
 }

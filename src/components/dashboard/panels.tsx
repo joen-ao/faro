@@ -88,8 +88,8 @@ function RecText({ rec }: { rec: Recommendation }) {
   );
 }
 
-/** CPL and CPLC per source with the recommendation sentence (real) or a labelled example (demo). */
-export function CplTable({ bucket, rec, id, demo = false }: { bucket: MetricsBucket; rec: Recommendation; id: string; demo?: boolean }) {
+/** CPL and CPLC per source with the recommendation sentence (real data only). */
+export function CplTable({ bucket, rec, id }: { bucket: MetricsBucket; rec: Recommendation; id: string }) {
   const rows = bucket.bySource.filter((r) => r.source !== null);
   const hasPaid = rows.some((r) => r.source === "meta_ads");
   const cell = "py-3 text-right tabular-nums";
@@ -128,20 +128,19 @@ export function CplTable({ bucket, rec, id, demo = false }: { bucket: MetricsBuc
         </table>
       </div>
       <aside aria-label="Recomendación" className={cn("mt-4 rounded-[10px] bg-faro-surface-2 p-3.5 text-sm leading-relaxed", rec.kind === "winner" ? "text-white" : "text-faro-text-2")}>
-        {demo && <span className="mb-1 block text-xs font-semibold tracking-[0.14em] text-faro-text-3">DEMO · no es una recomendación real</span>}
         <RecText rec={rec} />
       </aside>
     </section>
   );
 }
 
-export function RecommendationCard({ rec, demo = false }: { rec: Recommendation; demo?: boolean }) {
+export function RecommendationCard({ rec }: { rec: Recommendation }) {
   const good = rec.kind === "winner";
   return (
     <aside aria-label="Recomendación" className={cn("rounded-card border p-5 sm:p-6", good ? "border-faro-accent bg-faro-surface-2" : "border-border bg-card")}>
-      <p className="text-xs uppercase tracking-[0.14em] text-faro-text-3">{demo ? "Ejemplo con datos DEMO · no es una recomendación real" : "Recomendación"}</p>
+      <p className="text-xs uppercase tracking-[0.14em] text-faro-text-3">Recomendación</p>
       <p className={cn("mt-2 font-display text-xl font-semibold leading-snug sm:text-2xl", good ? "text-white" : "text-faro-text-2")}>{rec.text}</p>
-      {good && !demo && <p className="mt-2 text-xs text-faro-text-3">Calculado solo con datos reales, con muestra mínima por fuente.</p>}
+      {good && <p className="mt-2 text-xs text-faro-text-3">Calculado solo con datos reales, con muestra mínima por fuente.</p>}
     </aside>
   );
 }
@@ -157,7 +156,7 @@ export const FUNNEL_STAGES: { key: StageKey; label: string; alpha: number }[] = 
   { key: "qualified", label: "Calificados", alpha: 1 },
 ];
 
-/** Funnel per source (default) or per contact channel. Real and demo buckets are never mixed here. */
+/** Funnel per source (default) or per contact channel. Real data only. */
 export function Funnel({ bucket, by = "source" }: { bucket: MetricsBucket; by?: "source" | "contact" }) {
   const rows = by === "source" ? bucket.bySource : bucket.byContact;
   const max = Math.max(1, ...rows.map((r) => (by === "source" ? r.found : Math.max(r.found, r.contacted))));
@@ -315,13 +314,12 @@ export function EmptyState() {
         <ol className="mt-5 space-y-2 text-sm text-faro-text-2">
           <li><span className="text-faro-accent">1.</span> Describe tu cliente ideal.</li>
           <li><span className="text-faro-accent">2.</span> Revisa las empresas encontradas y contáctalas.</li>
-          <li><span className="text-faro-accent">3.</span> Vuelve aquí: CPL, CPLC y la fuente que más conviene.</li>
+          <li><span className="text-faro-accent">3.</span> Vuelve aquí: CPL, CPQL y la fuente que más conviene.</li>
         </ol>
         <div className="mt-7 flex flex-wrap items-center gap-3">
           <Link href="/app/new" className="inline-flex min-h-11 items-center rounded-button bg-faro-accent px-5 text-sm font-semibold text-[#1a1a1c] hover:brightness-110">
             Encontrar mis clientes
           </Link>
-          <span className="text-sm text-faro-text-3">¿Solo quieres ver cómo se ve? Activa «Incluir datos de prueba».</span>
         </div>
       </div>
     </div>

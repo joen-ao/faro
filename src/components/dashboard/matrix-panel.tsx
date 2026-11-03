@@ -36,7 +36,7 @@ interface Sel {
 }
 type Detail = { state: "loading" } | { state: "error" } | { state: "ok"; total: number; leads: CellLead[] };
 
-export function MatrixPanel({ bucket, demo }: { bucket: MetricsBucket; demo: boolean }) {
+export function MatrixPanel({ bucket }: { bucket: MetricsBucket }) {
   const [metric, setMetric] = useState<Metric>("cplc");
   const [sel, setSel] = useState<Sel | null>(null);
   const [detail, setDetail] = useState<Detail>({ state: "loading" });
@@ -54,7 +54,7 @@ export function MatrixPanel({ bucket, demo }: { bucket: MetricsBucket; demo: boo
     setOpen(null);
     setDetail({ state: "loading" });
     try {
-      const qs = new URLSearchParams({ source: s.source, demo: demo ? "1" : "0" });
+      const qs = new URLSearchParams({ source: s.source });
       if (s.contact) qs.set("contact", s.contact);
       const res = await fetch(`/api/dashboard/cell?${qs}`);
       if (!res.ok) throw new Error(String(res.status));
@@ -158,7 +158,6 @@ export function MatrixPanel({ bucket, demo }: { bucket: MetricsBucket; demo: boo
           <div className="flex items-start justify-between gap-3">
             <h4 className="font-display text-base font-semibold">
               {sourceLabel(sel.source)} · {sel.contact ? contactLabel(sel.contact) : "todos los canales"}
-              {demo && <span className="ml-2 rounded border border-destructive px-1.5 py-0.5 align-middle text-[10px] font-bold tracking-widest text-destructive">DEMO</span>}
             </h4>
             <button type="button" onClick={() => setSel(null)} className="min-h-9 rounded-button px-2 text-sm text-faro-text-2 hover:text-white">
               Cerrar

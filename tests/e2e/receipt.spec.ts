@@ -1,15 +1,10 @@
 import { test, expect } from "@playwright/test";
 
-test("lead receipt demo page renders, is labelled DEMO and has no horizontal scroll", async ({ page, context }, info) => {
+test("lead receipt page asks for a lead id (no demo receipt since F31) and the receipt API is gated", async ({ page, context }) => {
   await context.addCookies([{ name: "faro_key", value: process.env.APP_ACCESS_KEY ?? "e2e-app-key", domain: "localhost", path: "/" }]);
-  await page.goto("/app/dev/receipt?demo=1");
-  await expect(page.getByRole("article", { name: /Recibo de lead/ })).toBeVisible();
-  await expect(page.getByText("DEMO", { exact: true })).toBeVisible();
-  await expect(page.getByText("cubierto por tier gratuito").first()).toBeVisible();
-  const noHScroll = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
-  expect(noHScroll).toBe(true);
-  const width = info.project.use.viewport?.width ?? 1440;
-  await page.screenshot({ path: `artifacts/screens/F13-receipt-${width}.png`, fullPage: true });
+  await page.goto("/app/dev/receipt");
+  await expect(page.getByText("?lead=<uuid>")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   expect((await page.request.get("/api/metrics/receipt/not-a-uuid", { headers: { "x-app-key": process.env.APP_ACCESS_KEY ?? "" } })).status()).toBe(400);
   expect((await page.request.get("/api/metrics/receipt/not-a-uuid", { headers: { "x-app-key": "wrong-key" } })).status()).toBe(401);

@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as s from "@/db/schema";
 import { getCostTotals } from "@/db/queries";
-import { seed } from "@/db/seed";
 import { getChannelMetrics, getPublicMetrics } from "@/features/metrics";
+import { seedFlaggedFixture } from "../helpers/flagged-fixture";
 import { createTestDb } from "../helpers/test-db";
 
 let conn: Awaited<ReturnType<typeof createTestDb>>;
@@ -19,7 +19,7 @@ async function mkLead(i: number, source: "osm" | "meta_ads", huntId: string, fit
 beforeAll(async () => {
   conn = await createTestDb();
   const { db } = conn;
-  await seed(db); // demo workspace/leads/costs, all flagged is_demo / is_mock
+  await seedFlaggedFixture(db); // demo workspace/leads/costs, all flagged is_demo / is_mock
   const [ws] = await db.insert(s.workspaces).values({ name: "Real" }).returning();
   const [icp] = await db.insert(s.icpProfiles).values({ workspaceId: ws.id, prompt: "p", threshold: 60 }).returning();
   const [hunt] = await db.insert(s.hunts).values({ icpProfileId: icp.id }).returning();

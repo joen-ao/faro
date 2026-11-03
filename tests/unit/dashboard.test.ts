@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { betaCredibleInterval } from "@/features/metrics/beta";
 import type { MetricsBucket, MetricsRow } from "@/features/metrics/channels";
-import { buildDemoExample } from "@/features/dashboard/recommendation";
-import { getCellLeads, getDashboardData } from "@/features/dashboard/data";
-import { getDemoDb } from "@/features/dashboard/demo-db";
+import { computeDashboardDetail, getCellLeads } from "@/features/dashboard/data";
 import { fmtInterval, fmtPct, fmtUsd } from "@/features/dashboard/format";
 import { buildRecommendation, splitPaidVsFree } from "@/features/dashboard/recommendation";
 import * as s from "@/db/schema";
@@ -54,13 +52,7 @@ describe("buildRecommendation", () => {
       expect(r.sources).toEqual([]);
     }
   });
-  it("never recommends from demo data", () => {
-    const demo = bucket([row("reps", 20, 5, 4), row("osm", 15, 1, 6)]);
-    const r = buildRecommendation({ real: bucket([]), demo });
-    expect(r.kind).toBe("demo_only");
-    expect(r.text).toMatch(/DEMO/);
-    expect(r.sources).toEqual([]);
-  });
+
 });
 
 describe("formatting and splits", () => {
@@ -82,41 +74,6 @@ describe("formatting and splits", () => {
 });
 
 describe("dashboard data", () => {
-  it("toggle off excludes demo: real stays empty and demo is null", async () => {
-    const db = await getDemoDb(); // a DB that only contains demo rows
-    const off = await getDashboardData(db, { includeDemo: false });
-    expect(off.demo).toBeNull();
-    expect(off.real.totals.found).toBe(0);
-    expect(off.real.totals.costUsd).toBe(0);
-    expect(buildRecommendation(off).kind).toBe("insufficient");
-  });
-  it("toggle on keeps demo in its own bucket, not summed into real", async () => {
-    const on = await getDashboardData(await getDemoDb(), { includeDemo: true });
-    expect(on.real.totals.found).toBe(0);
-    expect(on.demo?.totals.found).toBeGreaterThan(50);
-    expect(on.demo?.bySource.map((r) => r.source)).toContain("meta_ads");
-  });
-  it("falls back to the ephemeral demo dataset when the real DB has no demo rows", async () => {
-    const conn = await createTestDb();
-    try {
-      const d = await getDashboardData(conn.db as never, { includeDemo: true });
-      expect(d.real.totals.found).toBe(0);
-      expect(d.demo?.totals.found).toBeGreaterThan(50);
-      expect(d.compliance.naturalPersonsContacted).toBe(0);
-    } finally {
-      await conn.close();
-    }
-  });
-  it("cell detail returns leads with receipts that match their cost", async () => {
-    const db = await getDemoDb();
-    const { total, leads } = await getCellLeads(db, { source: "reps", contact: "email", demo: true });
-    expect(total).toBeGreaterThan(0);
-    for (const l of leads) {
-      expect(l.receipt).not.toBeNull();
-      expect(l.receipt!.totalUsd).toBeCloseTo(l.costUsd, 5);
-    }
-    expect((await getCellLeads(db, { source: "reps", contact: "email", demo: false })).total).toBe(0);
-  });
   it("real cell list excludes mock/demo cost from costUsd and shows it apart", async () => {
     const conn = await createTestDb();
     try {
@@ -132,23 +89,15 @@ describe("dashboard data", () => {
         { ...base, rate: 0.1, usd: 0.1 },
         { ...base, rate: 0.05, usd: 0.05, isMock: true },
       ]);
-      const { leads } = await getCellLeads(db, { source: "reps", contact: "email", demo: false });
+      const { leads } = await getCellLeads(db, { source: "reps", contact: "email" });
       expect(leads).toHaveLength(1);
       expect(leads[0].costUsd).toBeCloseTo(0.1, 6);
       expect(leads[0].excludedUsd).toBeCloseTo(0.05, 6);
-      const m = await getDashboardData(db);
-      expect(m.real.cells[0].costUsd).toBeCloseTo(leads[0].costUsd, 6);
+      const m = await computeDashboardDetail(db);
+      expect(m.matrix.cells[0].costUsd).toBeCloseTo(leads[0].costUsd, 6);
     } finally {
       await conn.close();
     }
   });
-  it("DEMO section sentence is an explicit example, never a real-format recommendation", async () => {
-    const d = (await getDashboardData(await getDemoDb(), { includeDemo: true })).demo!;
-    const ex = buildDemoExample(d);
-    expect(ex.kind).toBe("demo_example");
-    expect(ex.sources).toEqual([]);
-    expect(ex.text.startsWith("Ejemplo con datos de prueba")).toBe(true);
-    expect(buildRecommendation({ real: d }).kind).toBe("winner"); // same numbers as real would recommend...
-    expect(ex.text).not.toBe(buildRecommendation({ real: d }).text); // ...but never rendered in the real format
-  });
+
 });

@@ -9,7 +9,7 @@ export interface CostTotals {
 
 /**
  * Cost totals. By default only real data: rows flagged `is_demo` or `is_mock` are excluded
- * (SPEC §7). Pass `includeDemo: true` for the "Incluir datos de prueba" toggle.
+ * (SPEC §7). `includeDemo: true` sums flagged rows too (tests only).
  */
 export async function getCostTotals(db: AppDb, opts: { includeDemo?: boolean } = {}): Promise<CostTotals> {
   const where = opts.includeDemo ? undefined : and(eq(costEntries.isDemo, false), eq(costEntries.isMock, false));

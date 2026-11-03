@@ -179,7 +179,6 @@ function InboxView({ subject, from, to, text }: { subject: string; from: string 
 export function OutreachClient(props: {
   huntId: string;
   huntTitle: string;
-  isDemoHunt: boolean;
   sendEnabled: boolean;
   whatsappEnabled: boolean;
   humanRate: number;
@@ -225,7 +224,7 @@ export function OutreachClient(props: {
       const res = await fetch("/api/outreach/preview", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ leadId, ...(channel ? { channel } : {}), ...(props.isDemoHunt ? { asOf: props.nowIso } : {}) }),
+        body: JSON.stringify({ leadId, ...(channel ? { channel } : {}) }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "No se pudo generar la vista previa");
@@ -238,7 +237,7 @@ export function OutreachClient(props: {
     } finally {
       setLoadingPreview(false);
     }
-  }, [props.isDemoHunt, props.nowIso]);
+  }, []);
 
   const open = (r: RowView, channel?: Channel) => {
     setActiveId(r.leadId);
@@ -374,10 +373,9 @@ export function OutreachClient(props: {
               </li>
               <li aria-hidden>/</li>
               <li className="min-w-0 [overflow-wrap:anywhere]">
-                <Link href={`/app/hunts/${props.isDemoHunt ? "demo" : props.huntId}`} className={cn(focusRing, "rounded text-faro-text-3 underline-offset-2 hover:text-white hover:underline")}>
+                <Link href={`/app/hunts/${props.huntId}`} className={cn(focusRing, "rounded text-faro-text-3 underline-offset-2 hover:text-white hover:underline")}>
                   {props.huntTitle}
                 </Link>
-                {props.isDemoHunt && <span className="ml-2 rounded-full border border-dashed border-white/40 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-white">DEMO</span>}
               </li>
             </ol>
           </nav>

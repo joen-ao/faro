@@ -85,11 +85,15 @@ export const envSchema = z.object({
   /** COP per USD used to store COP spend as USD in `ad_spend.usd` (the rate used is saved per row). */
   META_COP_PER_USD: num(4000),
   /** Comma-separated hosts an ad may link to (the app's own host is always allowed). */
-  META_ADS_ALLOWED_DOMAINS: strDefault("mokub.co,www.mokub.co"),
+  META_ADS_ALLOWED_DOMAINS: strDefault("mokub.co,www.mokub.co,web.mokub.co"),
   /** F28 guardrail: activating a campaign (spending money) is refused unless this is true. */
   ADS_SPEND_ENABLED: bool(false),
   /** Max daily budget per campaign, in COP, for creating and activating campaigns. */
   ADS_MAX_DAILY_BUDGET_COP: num(50000),
+  /** F31: Meta dataset (pixel) id. Empty = no pixel in the browser and no Conversions API events. */
+  META_PIXEL_ID: optStr,
+  /** F31: optional Events Manager test code; while set, server events show up in "Test events". */
+  META_CAPI_TEST_CODE: optStr,
   NEXT_PUBLIC_MAP_STYLE_URL: optStr,
   SENDER_LEGAL_NAME: optStr,
   SENDER_ADDRESS: optStr,
