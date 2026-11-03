@@ -1,4 +1,5 @@
 import { timingSafeEqual, createHash } from "node:crypto";
+import { SESSION_COOKIE_V2, verifySession } from "@/lib/auth";
 
 /** Constant-time string comparison (hashes first so lengths do not leak). */
 export function safeEqual(a: string, b: string): boolean {
@@ -20,11 +21,14 @@ function cookieValue(header: string | null, name: string): string | undefined {
 }
 
 /**
- * Simple access gate for /app and its APIs: `APP_ACCESS_KEY` via header `x-app-key` or cookie `faro_key`.
+ * Access gate for /app and its APIs: a signed `faro_session` (F30 email login), or `APP_ACCESS_KEY` via header
+ * `x-app-key` or cookie `faro_key` (F23, kept for scripts and as fallback while F30 is not configured).
  * Without a configured key: allowed outside production (local dev), denied in production.
  * Returns a 401 Response when access is denied, or null when allowed.
  */
 export function requireAppAccess(req: Request, env: Record<string, string | undefined> = process.env): Response | null {
+  // F30: a signed email/password session is enough on its own.
+  if (verifySession(cookieValue(req.headers.get("cookie"), SESSION_COOKIE_V2), env)) return null;
   const key = env.APP_ACCESS_KEY;
   if (!key) {
     if (env.NODE_ENV !== "production") return null;

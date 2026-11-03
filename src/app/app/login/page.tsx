@@ -2,19 +2,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FaroWordmark } from "@/components/faro-wordmark";
+import { emailLoginEnabled } from "@/lib/auth";
 import { safeNext } from "@/lib/login";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Entrar · Faro", robots: { index: false } };
 
 const ERRORS: Record<string, string> = {
-  "1": "La clave no es correcta. Revísala e inténtalo de nuevo.",
+  "1": "Los datos no son correctos. Revísalos e inténtalo de nuevo.",
   rate: "Demasiados intentos. Espera unos minutos antes de volver a intentar.",
 };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
   const { next, error } = await searchParams;
   const message = error ? (ERRORS[error] ?? ERRORS["1"]) : null;
+  const byEmail = emailLoginEnabled();
+  const field =
+    "h-11 w-full rounded-button border border-border bg-black px-3 text-white outline-none placeholder:text-faro-text-3 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40";
 
   return (
     <main className="relative isolate flex min-h-dvh items-center justify-center px-4 py-12">
@@ -26,25 +30,35 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <h1 className="mt-8 text-3xl font-bold leading-tight" style={{ fontFamily: "var(--font-poppins)", letterSpacing: "-0.02em" }}>
           Entra al panel del equipo
         </h1>
-        <p className="mt-2 text-faro-text-2">Búsquedas, contacto y tablero de CPL son internos. Entra con la clave de acceso del equipo.</p>
+        <p className="mt-2 text-faro-text-2">
+          Búsquedas, contacto, pauta y tablero de CPL son internos. {byEmail ? "Entra con tu correo y tu contraseña." : "Entra con la clave de acceso del equipo."}
+        </p>
 
         <form method="post" action="/api/auth/login" className="mt-8 space-y-4 rounded-card border border-border bg-faro-surface-1 p-5">
           <input type="hidden" name="next" value={safeNext(next)} />
-          <div className="space-y-2">
-            <label htmlFor="key" className="block text-sm font-medium">
-              Clave de acceso
-            </label>
-            <input
-              id="key"
-              name="key"
-              type="password"
-              required
-              autoComplete="current-password"
-              aria-invalid={message ? true : undefined}
-              aria-describedby={message ? "login-error" : undefined}
-              className="h-11 w-full rounded-button border border-border bg-black px-3 text-white outline-none placeholder:text-faro-text-3 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
-            />
-          </div>
+          {byEmail ? (
+            <>
+              <div className="space-y-2">
+                <label htmlFor="email" className="block text-sm font-medium">
+                  Correo
+                </label>
+                <input id="email" name="email" type="email" required autoComplete="username" inputMode="email" aria-invalid={message ? true : undefined} aria-describedby={message ? "login-error" : undefined} className={field} />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="password" className="block text-sm font-medium">
+                  Contraseña
+                </label>
+                <input id="password" name="password" type="password" required autoComplete="current-password" aria-invalid={message ? true : undefined} aria-describedby={message ? "login-error" : undefined} className={field} />
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <label htmlFor="key" className="block text-sm font-medium">
+                Clave de acceso
+              </label>
+              <input id="key" name="key" type="password" required autoComplete="current-password" aria-invalid={message ? true : undefined} aria-describedby={message ? "login-error" : undefined} className={field} />
+            </div>
+          )}
           {message ? (
             <p id="login-error" role="alert" className="text-sm text-[#ff8a8a]">
               {message}
