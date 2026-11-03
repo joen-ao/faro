@@ -102,6 +102,12 @@ export async function getOutreachMetrics(db: AppDb, opts: { now?: Date; days?: n
     if (day) day.sent++;
   }
   for (const [, f] of first) byChannel[f.channel].contacted++;
+  // F42: delivery is only reported since the Resend webhook started answering; older sends never had the event, so
+  // the delivery rate and the "unreported" warning only look at sends from the first delivery event on.
+  const deliveredAts = evs.filter((e) => e.type === "delivered").map((e) => e.at.getTime());
+  const reportingSince = deliveredAts.length ? Math.min(...deliveredAts) - 3600_000 : null;
+  const deliveryBase = Object.fromEntries(OUTREACH_CHANNELS.map((c) => [c, 0])) as Record<OutreachChannel, number>;
+  if (reportingSince !== null) for (const [, f] of first) if (f.at.getTime() >= reportingSince) deliveryBase[f.channel]++;
 
   const delivered = new Set<string>();
   const clicked = new Set<string>();
@@ -151,12 +157,12 @@ export async function getOutreachMetrics(db: AppDb, opts: { now?: Date; days?: n
   const totals = empty();
   for (const c of OUTREACH_CHANNELS) {
     const s = byChannel[c];
-    s.deliveryRate = rate(s.delivered, s.contacted);
+    s.deliveryRate = rate(s.delivered, deliveryBase[c]);
     s.openRate = rate(s.opened, s.contacted);
     s.replyRate = rate(s.replied, s.contacted);
     for (const k of ["contacted", "delivered", "clicked", "bounced", "opened", "replied", "optedOut", "qualified", "simulated", "failed", "queued"] as const) totals[k] += s[k];
   }
-  totals.deliveryRate = rate(totals.delivered, totals.contacted);
+  totals.deliveryRate = rate(totals.delivered, OUTREACH_CHANNELS.reduce((a, c) => a + deliveryBase[c], 0));
   totals.openRate = rate(totals.opened, totals.contacted);
   totals.replyRate = rate(totals.replied, totals.contacted);
 
@@ -167,7 +173,11 @@ export async function getOutreachMetrics(db: AppDb, opts: { now?: Date; days?: n
     byChannel,
     days: [...daysMap.values()],
     recentReplies: replies.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10),
-    deliveryUnreported: msgs.filter((m) => m.channel === "email" && m.status === "sent" && !deliveredMsgs.has(m.id) && (m.sentAt ?? m.createdAt).getTime() < now.getTime() - 3600_000).length,
+    deliveryUnreported: msgs.filter((m) => {
+      const at = (m.sentAt ?? m.createdAt).getTime();
+      // Only sends from the last 7 days count: older ones predate the webhook and would warn forever.
+      return m.channel === "email" && m.status === "sent" && !deliveredMsgs.has(m.id) && at < now.getTime() - 3600_000 && at > now.getTime() - 7 * 86_400_000;
+    }).length,
     today: {
       emails: await emailsToday(db, now),
       emailsPerDay: daily.setting.emailsPerDay,
