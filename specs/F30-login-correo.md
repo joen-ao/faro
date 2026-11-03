@@ -1,37 +1,35 @@
-# F30 · Login con correo y contraseña (sin registro)
+# F30 · Login con correo y contraseña guardado en Supabase (sin registro)
 
 **Prioridad:** P0. **Reemplaza en la pantalla:** el login con clave de equipo (F23).
 
 ## Objetivo
-Entrar a `/app` con **correo y contraseña** de una sola cuenta autorizada (`anayajoen@gmail.com`), sin registro ni recuperación por correo. La contraseña la define el dueño y Faro nunca la ve en claro: solo guarda su hash.
+Entrar a `/app` con **correo y contraseña**. Las cuentas viven en la tabla `users` de la base de Faro (Postgres de Supabase). No hay registro ni recuperación por correo. La contraseña la define el dueño y Faro nunca la ve en claro: solo guarda su hash.
 
 ## Alcance
-- **Variables:**
-  - `AUTH_EMAIL`: el correo autorizado.
-  - `AUTH_PASSWORD_HASH`: scrypt con sal, formato `scrypt$N$r$p$salt$hash` en base64url.
-  - `AUTH_SECRET`: al menos 32 caracteres; firma las sesiones.
-- **Script `npm run auth:hash`:**
-  - pide la contraseña dos veces sin mostrarla en pantalla;
+- **Tabla `users`** (migración 0012): `id`, `email` (minúsculas, único), `password_hash` (`scrypt$N$r$p$salt$hash`), `created_at`, `updated_at`, `last_login_at`.
+  - Tiene **RLS activado y sin políticas**: la API REST de Supabase no puede leerla.
+  - La conexión de Faro, como dueña de la tabla, sí puede.
+- **`npm run auth:set-password`** (el único camino para crear o cambiar una cuenta):
+  - pide el correo (por defecto `anayajoen@gmail.com`) y la contraseña dos veces sin mostrarla;
   - exige al menos 12 caracteres;
-  - imprime `AUTH_PASSWORD_HASH=…` y un `AUTH_SECRET` aleatorio, que el dueño pega en Vercel.
-- **`POST /api/auth/login`** con `email` y `password`:
-  - compara el correo sin distinguir mayúsculas y en tiempo constante;
-  - verifica la contraseña con scrypt y `timingSafeEqual`;
-  - aplica el mismo freno de intentos de F23 (10 cada 10 min por cliente);
-  - si todo es válido, emite la cookie `faro_session` (httpOnly, `secure` en producción, `sameSite=lax`, 7 días).
-- **Sesión:** `base64url({e, exp}).HMAC-SHA256(AUTH_SECRET)`. Expira a los 7 días, y si cambia `AUTH_SECRET` o `AUTH_EMAIL` todas las sesiones quedan inválidas.
-- **`requireAppAccess`** acepta una sesión válida **o** el `x-app-key` de F23. Este último es para scripts y llamadas por API, no se muestra en la pantalla.
-- **Pantalla `/app/login`:**
-  - con `AUTH_EMAIL` y `AUTH_PASSWORD_HASH` configurados muestra correo + contraseña;
-  - si faltan, muestra el formulario de clave anterior, para que el despliegue nunca deje a nadie fuera.
+  - aplica las migraciones y guarda el hash en la base de `DATABASE_URL`.
+- **`POST /api/auth/login`:**
+  - busca el correo sin distinguir mayúsculas;
+  - verifica con scrypt y `timingSafeEqual`, y si el correo no existe ejecuta scrypt igual, para no revelar por el tiempo de respuesta si la cuenta existe;
+  - aplica el freno de intentos de F23;
+  - guarda `last_login_at`;
+  - emite la cookie `faro_session` (httpOnly, `secure` en producción, `sameSite=lax`, 7 días).
+- **Sesión:** `base64url({uid, e, exp}).HMAC-SHA256`. Se firma con `AUTH_SECRET` (al menos 32 caracteres) o, si no existe, con una llave derivada de `APP_ACCESS_KEY`. Se verifica sin consultar la base.
+- **`requireAppAccess`** acepta una sesión válida **o** el `x-app-key` de F23, que queda para scripts y llamadas por API.
+- **Pantalla `/app/login`:** si existe al menos una cuenta, muestra correo + contraseña; si no, muestra el formulario de clave de antes, para que el despliegue nunca deje a nadie fuera.
 - **Logout:** borra las dos cookies.
 
 ## No-alcance
-Registro, varios usuarios, recuperación de contraseña por correo, 2FA y OAuth.
+Registro web, roles, recuperación por correo, 2FA, OAuth y Supabase Auth.
 
 ## Criterios de aceptación
-1. Con el correo y la contraseña correctos se redirige a `next` (o al tablero) con la cookie `faro_session`; con el correo o la contraseña incorrectos, al mismo error genérico.
-2. Una sesión adulterada, vencida o firmada con otro secreto da 401 y redirige al login.
-3. Nunca se guarda ni se registra la contraseña; el hash usa scrypt con sal única.
-4. Sin las variables de F30, el login con clave sigue funcionando igual que antes.
-5. El freno de intentos aplica también a este login.
+1. Con el correo y la contraseña correctos se redirige a `next` con `faro_session`; con cualquier dato incorrecto, al mismo error genérico.
+2. Una sesión adulterada, vencida o firmada con otra llave da 401.
+3. La base solo guarda el hash scrypt con sal única, y la tabla tiene RLS.
+4. Sin cuentas en `users`, el login con clave funciona igual que antes.
+5. Cambiar la contraseña con el comando invalida la anterior.

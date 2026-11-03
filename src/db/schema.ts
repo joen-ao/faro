@@ -449,6 +449,21 @@ export const adLearnings = pgTable(
   (t) => [index("ad_learnings_status_idx").on(t.status, t.createdAt)],
 );
 
+/** F30 · Team login accounts (no sign-up: created with `npm run auth:set-password`). Only the scrypt hash is stored. */
+export const users = pgTable(
+  "users",
+  {
+    id: id(),
+    /** lowercase */
+    email: text("email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("users_email_uq").on(t.email)],
+).enableRLS(); // Supabase's REST API exposes `public`: RLS with no policies keeps the hashes unreachable from it.
+
 export const suppression = pgTable(
   "suppression",
   {

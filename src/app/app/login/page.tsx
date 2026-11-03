@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FaroWordmark } from "@/components/faro-wordmark";
-import { emailLoginEnabled } from "@/lib/auth";
+import { getReadyDb } from "@/db/client";
+import type { AppDb } from "@/db/types";
+import { emailLoginReady } from "@/lib/auth";
 import { safeNext } from "@/lib/login";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +18,7 @@ const ERRORS: Record<string, string> = {
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
   const { next, error } = await searchParams;
   const message = error ? (ERRORS[error] ?? ERRORS["1"]) : null;
-  const byEmail = emailLoginEnabled();
+  const byEmail = await emailLoginReady((await getReadyDb()) as unknown as AppDb).catch(() => false);
   const field =
     "h-11 w-full rounded-button border border-border bg-black px-3 text-white outline-none placeholder:text-faro-text-3 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40";
 
