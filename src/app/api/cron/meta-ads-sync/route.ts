@@ -7,6 +7,7 @@ import { cronAuthorized } from "@/features/outreach/cron";
 import { getMetaAds } from "@/integrations/meta-ads";
 import { getEnv } from "@/lib/env";
 import { withDb } from "@/lib/with-db";
+import { closeIdleConversations, getCloseDeps } from "@/features/wa-agent";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -24,7 +25,9 @@ export async function GET(req: Request) {
       // F29-C: weekly learnings on Mondays (Bogotá), inside this cron to stay within the plan's cron limit.
       const monday = new Intl.DateTimeFormat("en-US", { timeZone: "America/Bogota", weekday: "short" }).format(new Date()) === "Mon";
       const learnings = monday ? await runLearnings(db, getAnthropic(env), ads.isMock).catch((e: unknown) => ({ error: e instanceof Error ? e.message : "learnings failed" })) : null;
-      return NextResponse.json({ ok: !summary.error, summary, copilot, learnings });
+      // F44: WhatsApp agent conversations quiet for 24 h are closed into Faro (also inside this cron, for the same limit).
+      const waClosed = await closeIdleConversations(db, getCloseDeps(env)).catch((e: unknown) => ({ error: e instanceof Error ? e.message : "wa close failed" }));
+      return NextResponse.json({ ok: !summary.error, summary, copilot, learnings, waClosed });
     } catch (e) {
       return metaErrorResponse(e);
     }

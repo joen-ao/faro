@@ -12,6 +12,7 @@ const PATHS = {
       <path d="M4 7l8 6 8-6" />
     </>
   ),
+  chat: <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5A8 8 0 1 1 21 12z" />,
   clock: (
     <>
       <circle cx="12" cy="12" r="9" />

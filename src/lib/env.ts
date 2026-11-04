@@ -68,6 +68,25 @@ export const envSchema = z.object({
   DAPTA_WA_TEMPLATE_EMPRESA: optStr,
   DAPTA_WA_TEMPLATE_INDEPENDIENTE: optStr,
   WHATSAPP_DAILY_LIMIT: num(50),
+  /** F44 · Faro's own WhatsApp agent on Meta's Cloud API. `real` needs the phone number id, token and app secret. */
+  WA_AGENT_MODE: mode("mock"),
+  WA_PHONE_NUMBER_ID: optStr,
+  WA_BUSINESS_ACCOUNT_ID: optStr,
+  /** System-user token with whatsapp_business_messaging (secret). */
+  WA_ACCESS_TOKEN: optStr,
+  /** App secret: signs every webhook delivery (X-Hub-Signature-256). */
+  WA_APP_SECRET: optStr,
+  /** Echoed back to Meta when it verifies the webhook URL. */
+  WA_VERIFY_TOKEN: optStr,
+  WA_GRAPH_VERSION: strDefault("v25.0"),
+  /** Seconds to wait after the last inbound message before answering, so a burst gets one reply. */
+  WA_AGENT_DEBOUNCE_S: num(4),
+  ANTHROPIC_WA_AGENT_MODEL: optStr,
+  /** mokub.co agent endpoints (availability/book); the key goes in the path. */
+  MOKUB_AGENT_BASE_URL: strDefault("https://www.mokub.co"),
+  MOKUB_AGENT_KEY: optStr,
+  /** Booked calls, purchase intents and hand-offs are emailed here. */
+  OWNER_EMAIL: optStr,
   /** F27: replies go to r.<slug>@EMAIL_REPLY_DOMAIN (a Resend receiving subdomain), so each reply names its lead. */
   EMAIL_REPLY_DOMAIN: optStr,
   /** F27: every inbound reply is forwarded here (the team's real mailbox). */

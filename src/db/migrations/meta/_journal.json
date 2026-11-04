@@ -127,6 +127,13 @@
       "when": 1793733538668,
       "tag": "0017_agent_meeting_events",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793767988760,
+      "tag": "0018_wa_agent",
+      "breakpoints": true
     }
   ]
 }

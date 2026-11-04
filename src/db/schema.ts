@@ -64,7 +64,8 @@ export const eventTypeEnum = pgEnum("event_type", [
   "meeting_booked",
   "purchase_intent",
 ]);
-export const qualificationOriginEnum = pgEnum("qualification_origin", ["dapta", "fallback"]);
+/** `wa_agent` = Faro's own WhatsApp agent (F44); `dapta` = the Dapta agent. */
+export const qualificationOriginEnum = pgEnum("qualification_origin", ["dapta", "fallback", "wa_agent"]);
 export const costCategoryEnum = pgEnum("cost_category", [
   "data",
   "ai",
@@ -76,6 +77,10 @@ export const costCategoryEnum = pgEnum("cost_category", [
   "human",
 ]);
 export const suppressionKindEnum = pgEnum("suppression_kind", ["domain", "email", "phone"]);
+/** F44 · `humano` = a person took the conversation and the agent stays quiet. */
+export const waConversationStatusEnum = pgEnum("wa_conversation_status", ["abierta", "humano", "cerrada"]);
+export const waDirectionEnum = pgEnum("wa_direction", ["in", "out"]);
+export const waAuthorEnum = pgEnum("wa_author", ["contacto", "agente", "persona"]);
 
 const id = () => uuid("id").primaryKey().defaultRandom();
 const createdAt = () => timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
@@ -519,3 +524,71 @@ export const metricsSnapshots = pgTable(
   },
   (t) => [uniqueIndex("metrics_snapshots_key_range_uq").on(t.key, t.rangeDays)],
 ).enableRLS(); // Same as `users`: not reachable through Supabase's REST API.
+
+/* ---------- F44 · Faro's own WhatsApp agent (Meta Cloud API) ---------- */
+
+/** One row per WhatsApp business number the agent answers. */
+export const waAgents = pgTable(
+  "wa_agents",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    phoneNumberId: text("phone_number_id").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    model: text("model").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("wa_agents_phone_number_uq").on(t.phoneNumberId)],
+).enableRLS();
+
+export const waConversations = pgTable(
+  "wa_conversations",
+  {
+    id: id(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => waAgents.id, { onDelete: "cascade" }),
+    /** E.164 */
+    phone: text("phone").notNull(),
+    contactName: text("contact_name"),
+    leadId: uuid("lead_id").references(() => leads.id, { onDelete: "set null" }),
+    status: waConversationStatusEnum("status").notNull().default("abierta"),
+    /** The same variables the Dapta agent fills (nombre_negocio, reunion_agendada, …). */
+    variables: jsonb("variables").$type<Record<string, unknown>>().notNull().default({}),
+    /** Meta click-to-WhatsApp ad that opened the chat (`referral.source_id`), if any. */
+    adId: text("ad_id"),
+    lastInboundAt: timestamp("last_inbound_at", { withTimezone: true }),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).defaultNow().notNull(),
+    isMock: boolean("is_mock").notNull().default(false),
+    createdAt: createdAt(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+  },
+  (t) => [index("wa_conversations_phone_idx").on(t.agentId, t.phone, t.createdAt), index("wa_conversations_status_idx").on(t.status, t.lastMessageAt)],
+).enableRLS();
+
+export const waMessages = pgTable(
+  "wa_messages",
+  {
+    id: id(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => waConversations.id, { onDelete: "cascade" }),
+    direction: waDirectionEnum("direction").notNull(),
+    author: waAuthorEnum("author").notNull(),
+    /** Meta message id; unique so a retried webhook delivery is stored once. Null until Meta accepts an outbound one. */
+    wamid: text("wamid"),
+    /** 'text' | 'audio' | 'image' | 'template' | 'other' */
+    kind: text("kind").notNull().default("text"),
+    text: text("text"),
+    /** Outbound: 'pending' | 'sent' | 'delivered' | 'read' | 'failed'. Inbound: 'received'. */
+    status: text("status").notNull().default("received"),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    costUsd: usd("cost_usd").notNull().default(0),
+    model: text("model"),
+    isMock: boolean("is_mock").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("wa_messages_wamid_uq").on(t.wamid), index("wa_messages_conversation_idx").on(t.conversationId, t.createdAt)],
+).enableRLS();

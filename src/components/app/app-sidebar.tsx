@@ -223,6 +223,8 @@ export function AppShell({ data, children }: { data: AppShellData; children: Rea
       active: isOutreach,
       badge: queued ? { text: `${queued} en cola`, accent: true } : null,
     },
+    // F44 · conversations of Faro's own WhatsApp agent.
+    { href: "/app/conversaciones", label: "Conversaciones", icon: "chat", active: path.startsWith("/app/conversaciones") },
   ];
   const settings: Item[] = [
     { href: "/app/settings/oferta", label: "Tu oferta", icon: "check", active: path.startsWith("/app/settings/oferta") },

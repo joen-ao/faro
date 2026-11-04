@@ -106,12 +106,19 @@ export type WebhookOutcome =
   | { ok: true; duplicate: boolean; leadId: string | null; qualified: boolean; meetingBooked: boolean; costUsd: number; credits: number; created?: boolean; adsConsent: boolean }
   | { ok: false; status: 404; error: "lead_not_found" };
 
-/** Applies one Dapta result. Idempotent by `conversation_id`. */
+export type AgentOrigin = "dapta" | "wa_agent";
+
+/**
+ * Applies one agent result. Idempotent by `conversation_id`. F44: Faro's own WhatsApp agent closes its conversations
+ * through here too (`origin: "wa_agent"`), so both agents store the same lead, qualification and events.
+ */
 export async function processDaptaWebhook(
   db: AppDb,
   payload: DaptaWebhookPayload,
   env: Pick<Env, "DAPTA_CREDIT_USD" | "DAPTA_CREDITS_PER_AI_REPLY">,
+  opts: { origin?: AgentOrigin } = {},
 ): Promise<WebhookOutcome> {
+  const origin = opts.origin ?? "dapta";
   const optOut = payload.opt_out === true;
   // An opt-out is honoured even when the contact cannot be matched to a lead (Ley 1581).
   if (optOut) {
@@ -137,7 +144,7 @@ export async function processDaptaWebhook(
     }));
   // Agent-created contacts gave no advertising consent: nothing about them goes to Meta's Conversions API.
   const adsConsent = !isAgentLead(target.slug);
-  return applyQualification(db, target, payload, env, { created, adsConsent });
+  return applyQualification(db, target, payload, env, { created, adsConsent }, origin);
 }
 
 async function applyQualification(
@@ -146,6 +153,7 @@ async function applyQualification(
   payload: DaptaWebhookPayload,
   env: Pick<Env, "DAPTA_CREDIT_USD" | "DAPTA_CREDITS_PER_AI_REPLY">,
   extra: { created: boolean; adsConsent: boolean },
+  origin: AgentOrigin,
 ): Promise<WebhookOutcome> {
   const optOut = payload.opt_out === true;
 
@@ -169,13 +177,13 @@ async function applyQualification(
     const [dup] = await tx
       .select({ id: qualifications.id })
       .from(qualifications)
-      .where(and(eq(qualifications.conversationId, payload.conversation_id), eq(qualifications.origin, "dapta")))
+      .where(and(eq(qualifications.conversationId, payload.conversation_id), eq(qualifications.origin, origin)))
       .limit(1);
     if (dup) return { ok: true as const, duplicate: true, leadId: lead.id, qualified, meetingBooked, costUsd: 0, credits: 0, ...extra };
 
     await tx.insert(qualifications).values({
       leadId: lead.id,
-      origin: "dapta",
+      origin,
       qualified,
       score: payload.score !== undefined ? Math.round(payload.score) : null,
       bant,
@@ -190,7 +198,7 @@ async function applyQualification(
       {
         leadId: lead.id,
         type: optOut ? "opt_out" : qualified ? "qualified" : "disqualified",
-        payload: { conversation_id: payload.conversation_id, score: payload.score ?? null, origin: "dapta", ...(optOut ? { via: "dapta_chat" } : {}) },
+        payload: { conversation_id: payload.conversation_id, score: payload.score ?? null, origin, ...(optOut ? { via: origin === "dapta" ? "dapta_chat" : "wa_agent_chat" } : {}) },
         isDemo: lead.isDemo,
       },
       ...(meetingBooked

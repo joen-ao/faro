@@ -90,7 +90,7 @@ ev as (
   group by e.lead_id
 ),
 qa as (
-  select q.lead_id, bool_or(q.origin = 'dapta') as dapta, bool_or(q.qualified) as qualified
+  select q.lead_id, bool_or(q.origin in ('dapta', 'wa_agent')) as dapta, bool_or(q.qualified) as qualified
   from qualifications q join leads l2 on l2.id = q.lead_id
   where (l2.is_demo or not (q.is_mock or q.is_demo))
   group by q.lead_id
