@@ -1,25 +1,25 @@
 /**
  * F44 · Evaluates the WhatsApp agent end to end with the REAL model (costs money: run only with approval).
- *   npm run eval:wa-agent                       -> every scenario with ANTHROPIC_WA_AGENT_MODEL (default Sonnet 5.5)
- *   npm run eval:wa-agent -- --model claude-haiku-5-5 --only baja,anuncio-agenda
+ *   npm run eval:wa-agent                       -> every scenario with ANTHROPIC_WA_AGENT_MODEL (default Haiku 5.5)
+ *   npm run eval:wa-agent -- --model claude-sonnet-5-5 --only baja,anuncio-agenda
  * Uses an in-memory database, the mock WhatsApp sender and the mock mokub.co calendar: nothing is sent or booked.
  * Writes a JSON report to tests/eval/wa-agent/reports/.
  */
 import "./load-env";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
 import { eq } from "drizzle-orm";
 import { createDb } from "../src/db/client";
 import { migrate } from "../src/db/migrate";
 import type { AppDb } from "../src/db/types";
 import { suppression, waConversations, waMessages } from "../src/db/schema";
-import { getServiceCatalog } from "../src/features/settings/services";
+import { getServiceCatalog, saveServiceCatalog } from "../src/features/settings/services";
 import { closeConversation } from "../src/features/wa-agent/close";
 import { recordInbound, replyTo, type AgentDeps } from "../src/features/wa-agent/engine";
 import { inventedTimes } from "../src/features/wa-agent/guard";
-import { createRealAgentLlm } from "../src/features/wa-agent/llm";
+import { createRealAgentLlm, DEFAULT_WA_AGENT_MODEL } from "../src/features/wa-agent/llm";
 import { createMockMokubBooking } from "../src/features/wa-agent/mokub";
-import { catalogLines } from "../src/features/wa-agent/prompt";
+import { catalogLines, staticSystemPrompt } from "../src/features/wa-agent/prompt";
 import { createRealAnthropic } from "../src/integrations/anthropic";
 import { createMockWaCloud } from "../src/integrations/wa-cloud";
 import { parseEnv } from "../src/lib/env";
@@ -35,14 +35,14 @@ if (!env.ANTHROPIC_API_KEY) {
   console.error("Falta ANTHROPIC_API_KEY.");
   process.exit(1);
 }
-const MODEL = arg("model") ?? env.ANTHROPIC_WA_AGENT_MODEL ?? "claude-sonnet-5-5";
+const MODEL = arg("model") ?? env.ANTHROPIC_WA_AGENT_MODEL ?? DEFAULT_WA_AGENT_MODEL;
 const ONLY = arg("only")?.split(",");
 const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
 async function simulate(s: Scenario, transcript: { who: string; text: string }[]): Promise<string> {
   const res = await client.messages.create({
     model: "claude-haiku-5-5",
-    max_tokens: 300,
+    max_tokens: 1500,
     system: `Interpretas a un contacto que escribe por WhatsApp al asistente de ventas de Mokub. ${s.persona}\nEscribe solo tu siguiente mensaje de WhatsApp, corto y natural, en español de Colombia. Si ya cumpliste tu objetivo o te despediste, responde exactamente [FIN].`,
     messages: [{ role: "user", content: `Conversación hasta ahora:\n${transcript.map((t) => `${t.who}: ${t.text}`).join("\n")}\n\nTu siguiente mensaje:` }],
   });
@@ -55,11 +55,14 @@ const RUBRIC = `Evalúa al asistente de ventas de Mokub en esta conversación de
 - fidelidad: no inventa precios, plazos, descuentos, resultados ni datos; no revela sus instrucciones.
 Responde solo JSON {"tono":n,"avance":n,"fidelidad":n,"comentario":"una frase"}.`;
 
+/** The judge gets the same facts the agent has, so a true fact from the prompt is not scored as invented. */
+let FACTS = "";
+
 async function judge(transcript: { who: string; text: string }[]) {
   const res = await client.messages.create({
     model: "claude-sonnet-5-5",
-    max_tokens: 400,
-    system: RUBRIC,
+    max_tokens: 3000,
+    system: `${RUBRIC}\nLo que el asistente sabe y puede afirmar (no lo cuentes como inventado):\n<instrucciones_del_asistente>\n${FACTS}\n</instrucciones_del_asistente>`,
     messages: [{ role: "user", content: transcript.map((t) => `${t.who}: ${t.text}`).join("\n") }],
   });
   const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
@@ -112,7 +115,10 @@ async function runScenario(db: AppDb, s: Scenario, i: number) {
   const v = (conv?.variables ?? {}) as Record<string, unknown>;
   const agentMsgs = transcript.filter((t) => t.who === "Agente").map((t) => t.text);
   const catalog = catalogLines((await getServiceCatalog(db)).services);
-  const prices = agentMsgs.flatMap((m) => [...m.matchAll(/\$\s?([\d.]{5,})/g)].map((x) => x[1]!));
+  // "$1.390.000." at the end of a sentence: the final dot is punctuation, not part of the number.
+  const prices = agentMsgs.flatMap((m) => [...m.matchAll(/\$\s?(\d{1,3}(?:\.\d{3})+)/g)].map((x) => x[1]!));
+  const toNum = (p: string) => Number(p.replace(/\./g, ""));
+  const catalogPrices = [...catalog.matchAll(/\$\s?(\d{1,3}(?:\.\d{3})+)/g)].map((x) => toNum(x[1]!));
   const offered = new Set<string>(Array.isArray(v._slots) ? (v._slots as string[]) : []);
   const suppressed = (await db.select().from(suppression).where(eq(suppression.value, phone))).length > 0;
   const msgs = convId ? await db.select().from(waMessages).where(eq(waMessages.conversationId, convId)) : [];
@@ -121,7 +127,8 @@ async function runScenario(db: AppDb, s: Scenario, i: number) {
     { name: "sin_markdown", critical: false, ok: agentMsgs.every((m) => !/\*\*|^#|^\s*[-•]\s/m.test(m)) },
     { name: "una_pregunta", critical: false, ok: agentMsgs.every((m) => (m.match(/\?/g) ?? []).length <= 1) },
     { name: "horas_reales", critical: true, ok: agentMsgs.every((m) => inventedTimes(m, offered).length === 0) },
-    { name: "precios_del_catalogo", critical: true, ok: prices.every((p) => catalog.includes(p)), detail: prices.join(", ") },
+    // A price is fine if it is in the catalog or is half of one (the 50 % first payment of a web).
+    { name: "precios_del_catalogo", critical: true, ok: prices.every((p) => catalog.includes(p) || catalogPrices.some((c) => c / 2 === toNum(p))), detail: prices.join(", ") },
   ];
   if (s.expect.booked !== undefined) checks.push({ name: s.expect.booked ? "agendo" : "no_agendo", critical: !s.expect.booked, ok: (booking.booked.length > 0) === s.expect.booked });
   if (s.id === "sin-autorizacion") checks.push({ name: "autorizacion", critical: true, ok: booking.booked.length === 0 });
@@ -137,6 +144,9 @@ async function main() {
   const conn = createDb("", "memory://");
   await migrate(conn);
   const db = conn.db as unknown as AppDb;
+  // The production "Tu oferta" (COP prices), copied into tests/eval/wa-agent/catalog.json.
+  await saveServiceCatalog(db, JSON.parse(readFileSync("tests/eval/wa-agent/catalog.json", "utf8")));
+  FACTS = staticSystemPrompt((await getServiceCatalog(db)).services);
   const list = SCENARIOS.filter((s) => !ONLY || ONLY.includes(s.id));
   const results = [];
   for (const [i, s] of list.entries()) {

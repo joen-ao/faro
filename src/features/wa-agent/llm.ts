@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getEnv, resolveMode, type Env } from "@/lib/env";
 
-export const DEFAULT_WA_AGENT_MODEL = "claude-sonnet-5-5";
+/** F44 eval (2026-11-04): Haiku 5.5 passed every check at ~USD 0,002 per conversation vs ~USD 0,037 for Sonnet 5.5. */
+export const DEFAULT_WA_AGENT_MODEL = "claude-haiku-5-5";
 
 export interface LlmUsage {
   input_tokens: number;

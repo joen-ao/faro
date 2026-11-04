@@ -1,0 +1,122 @@
+{
+  "services": [
+    {
+      "id": "agentes-ia",
+      "name": "Agente de IA en WhatsApp",
+      "description": "Agente que atiende y agenda por WhatsApp conectado a los sistemas del negocio, con supervisión humana. La mensualidad cubre IA y soporte.",
+      "outcome": "Menos clientes perdidos por no responder a tiempo y más citas agendadas, también fuera de horario.",
+      "entryOffer": "Diagnóstico gratis de 20 min por videollamada.",
+      "price": "Desde $1.490.000 + $290.000/mes",
+      "proof": "Proceso crítico automatizado en Banco de la República: de 30 h a 15 min. Más de 15 proyectos en producción.",
+      "keywords": [
+        "whatsapp",
+        "agenda",
+        "citas",
+        "respuesta",
+        "fuera de horario"
+      ]
+    },
+    {
+      "id": "landing-agente",
+      "name": "Landing + agente de IA",
+      "description": "Página que convierte visitas en conversaciones y un agente de IA que las atiende y agenda por WhatsApp.",
+      "outcome": "Un canal completo: lo encuentran, le escriben y queda agendado sin trabajo manual.",
+      "entryOffer": "Diagnóstico gratis de 20 min por videollamada.",
+      "price": "Desde $2.490.000 + $290.000/mes",
+      "keywords": [
+        "sin sitio web",
+        "whatsapp",
+        "agenda",
+        "formulario"
+      ]
+    },
+    {
+      "id": "flujo-automatizacion",
+      "name": "Flujo de automatización",
+      "description": "Automatiza un proceso entre sistemas (datos, reportes, facturas), con hasta 3 integraciones.",
+      "outcome": "Tareas repetitivas que pasan de horas a minutos.",
+      "entryOffer": "Diagnóstico gratis de 20 min por videollamada.",
+      "price": "Desde $1.490.000",
+      "keywords": [
+        "procesos",
+        "reportes",
+        "integraciones",
+        "manual"
+      ]
+    },
+    {
+      "id": "mapa-automatizacion",
+      "name": "Mapa de automatización",
+      "description": "Diagnóstico de qué automatizar primero, con plazo y precio fijo. Se descuenta del proyecto.",
+      "outcome": "Saber qué automatizar, cuánto cuesta y cuánto se ahorra antes de invertir.",
+      "entryOffer": "Diagnóstico gratis de 20 min por videollamada.",
+      "price": "$390.000",
+      "keywords": [
+        "no sabe por dónde empezar",
+        "automatización"
+      ]
+    },
+    {
+      "id": "rag",
+      "name": "Asistente con tus documentos (RAG)",
+      "description": "Convierte información dispersa en una base que un asistente consulta con búsqueda semántica y responde con fuentes.",
+      "outcome": "Respuestas precisas basadas en la información del negocio.",
+      "entryOffer": "Diagnóstico gratis de 20 min por videollamada.",
+      "price": "Piloto desde $4.900.000 + $490.000/mes",
+      "proof": "Call center farmacéutico con dominio de seguridad del paciente.",
+      "keywords": [
+        "información",
+        "preguntas frecuentes",
+        "soporte",
+        "documentos"
+      ]
+    },
+    {
+      "id": "software-crm",
+      "name": "Software y CRM a medida",
+      "description": "Aplicaciones y sistemas completos para casos que ninguna herramienta del mercado resuelve. Primer módulo funcionando en 4 a 6 semanas.",
+      "outcome": "Software hecho exactamente para cómo trabaja el negocio.",
+      "entryOffer": "Diagnóstico gratis de 20 min por videollamada.",
+      "price": "Desde $9.500.000",
+      "proof": "CRM B2B SaaS con agentes de IA integrados (Nirbound); sistema con 5 módulos de IA (KOS).",
+      "keywords": [
+        "crm",
+        "seguimiento",
+        "sistema propio",
+        "pacientes"
+      ]
+    },
+    {
+      "id": "sprint-software",
+      "name": "Sprint de software",
+      "description": "Descubrimiento de bajo riesgo para un software a medida: alcance, plazo y precio. Se descuenta del proyecto.",
+      "outcome": "Empezar un proyecto de software con riesgo bajo y precio claro.",
+      "entryOffer": "Diagnóstico gratis de 20 min por videollamada.",
+      "price": "$955.000",
+      "keywords": [
+        "software",
+        "crm",
+        "a medida"
+      ]
+    },
+    {
+      "id": "landing-webs",
+      "name": "Páginas web",
+      "description": "Esencial: 1 página en 5 días hábiles. Completa: hasta 5 páginas en 10 días hábiles. Textos, botón de WhatsApp, Google y Maps; a medida se cotiza en 24 h.",
+      "outcome": "Un sitio moderno que convierte visitas en clientes, a nombre del negocio.",
+      "entryOffer": "Llamada gratis de 20 min: qué necesita su página y el precio.",
+      "price": "Esencial $1.390.000 · Completa $2.490.000",
+      "keywords": [
+        "sin sitio web",
+        "sitio desactualizado",
+        "copyright viejo",
+        "sin formulario",
+        "sin agenda en línea"
+      ]
+    }
+  ],
+  "note": "Precios de mokub.co (COP). Pago web 50/50; dominio y hosting aparte. Mantenimiento web opcional $149.000/mes.",
+  "company": "Mokub",
+  "origin": "panel",
+  "updatedAt": "2026-11-03T21:21:17.257Z"
+}

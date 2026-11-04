@@ -41,10 +41,13 @@ export function createRealMokubBooking(opts: { baseUrl: string; key: string; fet
   };
 }
 
-/** Fixed afternoon slots on the next weekdays; the first slot of every day is "taken" to exercise slot_taken. */
+/** Fixed afternoon slots on the next weekdays. The first booking at 16:00 is "taken" by someone else (to exercise
+ * slot_taken); from then on that hour is no longer offered, like the real calendar. */
 export function createMockMokubBooking(now: () => Date = () => new Date()): MokubBooking & { booked: BookingInput[] } {
   const SLOTS = ["16:00", "16:20", "17:00", "18:00", "19:20"];
   const booked: BookingInput[] = [];
+  const taken = new Set<string>();
+  const free = (date: string) => SLOTS.filter((t) => !taken.has(`${date} ${t}`) && !booked.some((b) => b.fecha === date && b.hora === t));
   const nextDays = (n: number) => {
     const out: string[] = [];
     const d = new Date(now());
@@ -59,11 +62,14 @@ export function createMockMokubBooking(now: () => Date = () => new Date()): Moku
     isMock: true,
     booked,
     async availability(q) {
-      if (q.date) return { ok: true, date: q.date, tz: q.tz || "America/Bogota", slots: SLOTS };
-      return { ok: true, tz: q.tz || "America/Bogota", days: nextDays(3).map((date) => ({ date, slots: SLOTS })) };
+      if (q.date) return { ok: true, date: q.date, tz: q.tz || "America/Bogota", slots: free(q.date) };
+      return { ok: true, tz: q.tz || "America/Bogota", days: nextDays(3).map((date) => ({ date, slots: free(date) })) };
     },
     async book(b) {
-      if (b.hora === "16:00") return { ok: false, error: "slot_taken", mensaje: "Esa hora ya no está libre.", slots: SLOTS.slice(1) };
+      if (b.hora === "16:00" || taken.has(`${b.fecha} ${b.hora}`)) {
+        taken.add(`${b.fecha} ${b.hora}`);
+        return { ok: false, error: "slot_taken", mensaje: "Esa hora ya no está libre.", slots: free(b.fecha) };
+      }
       booked.push(b);
       return { ok: true, when: `${b.fecha}, ${b.hora} (Bogotá)`, meetLink: null };
     },

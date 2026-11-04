@@ -193,6 +193,9 @@ async function runTurn(db: AppDb, deps: AgentDeps, conv: Conversation, inboundId
   };
   const messages = historyToMessages(rows);
   const stable = staticSystemPrompt(catalog.services);
+  // Fixed for the whole turn: the model's thinking blocks are bound to the exact system prompt they were made with,
+  // so changing it between tool rounds makes the API reject the next call.
+  const dynamic = dynamicSystemPrompt({ now, adId: conv.adId, variables: conv.variables });
   const allowEmoji = pending.some((r) => r.text && hasEmoji(r.text));
   let end = false;
   let handoff: string | null = null;
@@ -203,7 +206,7 @@ async function runTurn(db: AppDb, deps: AgentDeps, conv: Conversation, inboundId
 
   try {
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-      const res = await deps.llm.next({ system: { stable, dynamic: dynamicSystemPrompt({ now, adId: conv.adId, variables }) }, messages, tools: TOOLS });
+      const res = await deps.llm.next({ system: { stable, dynamic }, messages, tools: TOOLS });
       add(res.usage);
       const uses = res.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
       const said = res.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim() || (uses.length ? "" : spoken);
