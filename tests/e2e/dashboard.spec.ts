@@ -4,39 +4,45 @@ test.beforeEach(async ({ context }) => {
   await context.addCookies([{ name: "faro_key", value: process.env.APP_ACCESS_KEY ?? "e2e-app-key", domain: "localhost", path: "/" }]);
 });
 
-test("dashboard: business view from the snapshot, range selector, refresh and no horizontal scroll", async ({ page }, info) => {
+test("dashboard: global filters in the URL, results, funnel, breakdown, health and no horizontal scroll", async ({ page }, info) => {
   const width = info.project.use.viewport?.width ?? 1440;
   const noHScroll = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 
   await page.goto("/app/dashboard");
-  await expect(page.getByRole("heading", { level: 1, name: /lead calificado/ })).toBeVisible();
-  await expect(page.getByTestId("kpi-qualified")).toContainText("Métrica norte");
-  for (const k of ["cpql", "cpl", "rate", "spend", "newLeads"]) await expect(page.getByTestId(`kpi-${k}`)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Tablero" })).toBeVisible();
+  for (const name of ["Resultados", "Embudo de prospección", "Desglose", "Salud del envío"]) await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+  await expect(page.getByTestId("result-Leads calificados")).toBeVisible();
+  await expect(page.getByTestId("result-Reuniones agendadas")).toBeVisible();
+  await expect(page.getByText("Leads nuevos")).toHaveCount(0);
   await expect(page.getByTestId("meta-vs-faro")).toBeVisible();
-  await expect(page.getByTestId("verdict")).toHaveAttribute("data-kind", "insufficient");
-  await expect(page.getByTestId("weekly-trend")).toBeVisible();
-  await expect(page.getByTestId("funnel-meta")).toBeVisible();
-  await expect(page.getByTestId("snapshot-age")).toContainText("Actualizado");
-  await expect(page.getByRole("heading", { name: "Panel de cumplimiento" })).toBeVisible();
-  await expect(page.getByTestId("challenge-panel")).toHaveCount(0);
-  await expect(page.getByRole("switch", { name: /datos de prueba/ })).toHaveCount(0);
+  await expect(page.getByTestId("snapshot-age")).toContainText("Prospección en vivo");
   await expect(page.getByTestId("attribution")).toBeVisible();
   expect(await noHScroll()).toBe(true);
-  await page.screenshot({ path: `artifacts/screens/F31-tablero-${width}.png`, fullPage: true });
+  await page.screenshot({ path: `artifacts/screens/F43-tablero-${width}.png`, fullPage: true });
 
   // panel nav (sidebar; a drawer under 1024 px): Tablero is the current item
   if (width < 1024) await page.getByRole("button", { name: "Abrir menú" }).click();
   await expect(page.getByRole("navigation", { name: "Panel" }).getByRole("link", { name: "Tablero" })).toHaveAttribute("aria-current", "page");
   if (width < 1024) await page.keyboard.press("Escape");
 
-  await page.getByRole("navigation", { name: "Período" }).getByRole("link", { name: "7 días" }).click();
-  await page.waitForURL(/range=7/);
-  await expect(page.getByRole("navigation", { name: "Período" }).getByRole("link", { name: "7 días" })).toHaveAttribute("aria-current", "page");
+  const filters = page.getByRole("search", { name: "Filtros del tablero" });
+  await filters.getByRole("group", { name: "Período" }).getByRole("button", { name: "7 días" }).click();
+  await page.waitForURL(/periodo=7/);
+  await filters.getByRole("combobox", { name: "Canal" }).selectOption("email");
+  await page.waitForURL(/canal=email/);
+  await expect(filters).toContainText("Correo · Últimos 7 días");
+  await expect(page.getByTestId("meta-vs-faro")).toHaveCount(0);
+  await filters.getByRole("group", { name: "Período" }).getByRole("button", { name: "Hoy" }).click();
+  await page.waitForURL(/periodo=hoy/);
+  await filters.getByRole("button", { name: "Limpiar filtros" }).click();
+  await page.waitForURL((u) => !u.search.includes("canal"));
+
+  await page.getByRole("tab", { name: "Ciudad" }).click();
+  await expect(page.getByRole("tab", { name: "Ciudad" })).toHaveAttribute("aria-selected", "true");
 
   const refreshed = page.waitForResponse((r) => r.url().includes("/api/dashboard/refresh") && r.request().method() === "POST");
   await page.getByRole("button", { name: "Actualizar ahora" }).click();
   expect((await refreshed).status()).toBe(200);
-  await expect(page.getByTestId("snapshot-age")).toContainText("hace menos de 1 min");
 
   expect((await page.request.get("/api/dashboard/cell?source=bad")).status()).toBe(400);
 });
