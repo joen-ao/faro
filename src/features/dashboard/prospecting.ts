@@ -203,6 +203,11 @@ where not (c.is_mock or c.is_demo) and not coalesce(l.is_demo, false) and c.at >
   const meetingAt = firstEvent("meeting_booked");
   const replyAt = firstEvent("reply");
   const deliveredAt = firstEvent("delivered");
+  // Sends from before the Resend webhook reported deliveries never got the event: a non-bounced one counts as delivered.
+  const reportingSince = deliveredAt.size ? Math.min(...[...deliveredAt.values()].map((d) => d.getTime())) - 3600_000 : null;
+  for (const l of leads) {
+    if (l.contactedAt && !l.bounced && !deliveredAt.has(l.id) && (l.ch === "email" || l.ch === "web_form") && (reportingSince === null || l.contactedAt.getTime() < reportingSince)) deliveredAt.set(l.id, l.contactedAt);
+  }
   const openedAt = new Map<string, Date>();
   for (const e of evs) {
     const isOpen = e.type === "widget_open" || (e.type === "click" && e.payload?.kind === "page_view");
@@ -333,8 +338,7 @@ where not (c.is_mock or c.is_demo) and not coalesce(l.is_demo, false) and c.at >
     sql`select count(*)::int as n from suppression where reason = 'queja de spam' and at >= ${w.from.toISOString()}::timestamptz and at < ${w.to.toISOString()}::timestamptz`,
   );
   const deliveredMsgs = new Set(evs.filter((e) => e.type === "delivered").map((e) => e.lead_id));
-  const reportingSince = deliveredAt.size ? Math.min(...[...deliveredAt.values()].map((d) => d.getTime())) - 3600_000 : null;
-  const deliveryBase = reportingSince === null ? 0 : cohort.filter((l) => l.contactedAt!.getTime() >= reportingSince).length;
+  const deliveryBase = cohort.length;
   const unreported = leads.filter((l) => {
     const t = l.contactedAt?.getTime();
     return t !== undefined && (l.ch === "email" || l.ch === "web_form") && !l.bounced && !deliveredMsgs.has(l.id) && t < now.getTime() - 3600_000 && t > now.getTime() - 7 * DAY;
