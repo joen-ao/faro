@@ -50,7 +50,6 @@ export const envSchema = z.object({
     (v) => (v === "" ? undefined : v),
     z.enum(["widget_only", "http_push", "csv_export"]).default("widget_only"),
   ),
-  DAPTA_WIDGET_SNIPPET: optStr,
   NEXT_PUBLIC_WHATSAPP_NUMBER: strDefault("573014734934"),
   DAPTA_PUSH_URL: optStr,
   DAPTA_PUSH_API_KEY: optStr,
@@ -59,8 +58,9 @@ export const envSchema = z.object({
   DAPTA_CREDITS_PER_AI_REPLY: num(40),
   WHATSAPP_ENABLED: bool(false),
   WHATSAPP_WEBHOOK_SECRET: optStr,
-  /** F24: `dapta_flow` sends approved templates through a Dapta FlowStudio webhook; `off` sends nothing. */
-  WHATSAPP_SEND_MODE: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["off", "dapta_flow"]).default("off")),
+  /** F24: `dapta_flow` sends approved templates through a Dapta FlowStudio webhook; F45: `cloud_api` sends them through
+   * Meta's Cloud API (needs WA_AGENT_MODE=real); `off` sends nothing. */
+  WHATSAPP_SEND_MODE: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["off", "dapta_flow", "cloud_api"]).default("off")),
   /** Webhook URL of the Dapta flow "Faro · Enviar plantilla WhatsApp" (carries its own key: secret). */
   DAPTA_WA_FLOW_URL: optStr,
   /** Dapta ids of templates created after the clinic one (empty -> that template is not offered). */
@@ -82,6 +82,9 @@ export const envSchema = z.object({
   /** Seconds to wait after the last inbound message before answering, so a burst gets one reply. */
   WA_AGENT_DEBOUNCE_S: num(4),
   ANTHROPIC_WA_AGENT_MODEL: optStr,
+  /** F45 · One follow-up when the contact goes quiet after a question: minutes to wait and how many at most. */
+  WA_FOLLOWUP_AFTER_MIN: num(120),
+  WA_FOLLOWUP_MAX: num(1),
   /** mokub.co agent endpoints (availability/book); the key goes in the path. */
   MOKUB_AGENT_BASE_URL: strDefault("https://www.mokub.co"),
   MOKUB_AGENT_KEY: optStr,

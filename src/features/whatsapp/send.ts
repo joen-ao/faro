@@ -6,6 +6,8 @@ import { firstName, isPersonName } from "@/features/outreach/generate";
 import { getSendWindow } from "@/features/settings/send-window";
 import type { WaSender } from "@/integrations/whatsapp/dapta-flow";
 import type { Env } from "@/lib/env";
+import { getWaCloud } from "@/integrations/wa-cloud";
+import { approvedNames, templateStatus } from "./template-status";
 import { pickTemplate, renderTemplate, waTemplates, type WaTemplate } from "./templates";
 
 /**
@@ -91,11 +93,15 @@ export interface SelectOptions {
   segment?: "empresas" | "independientes" | "all";
   limit?: number;
   now?: Date;
+  /** F45 · Approved Meta template names (cloud_api); read from Meta, cached, when omitted. */
+  approvedTemplates?: ReadonlySet<string>;
 }
 
 export async function selectWhatsappTargets(db: AppDb, env: Env, opts: SelectOptions = {}): Promise<WaSelection> {
   const now = opts.now ?? new Date();
-  const templates = waTemplates(env);
+  const cloud = env.WHATSAPP_SEND_MODE === "cloud_api";
+  const approved = cloud ? (opts.approvedTemplates ?? approvedNames(await templateStatus(db, getWaCloud(env), { now }))) : undefined;
+  const templates = waTemplates(env, approved);
   const conds = [eq(leads.status, "fit"), eq(leads.isDemo, false), eq(companies.isDemo, false)];
   if (opts.huntId) conds.push(eq(leads.huntId, opts.huntId));
   if (opts.leadIds?.length) conds.push(inArray(leads.id, opts.leadIds));
@@ -172,7 +178,8 @@ export async function selectWhatsappTargets(db: AppDb, env: Env, opts: SelectOpt
     }
     const template = pickTemplate({ hasReps: reps.has(f.companyId), independent }, templates);
     if (!template) {
-      skip("no_template", `Falta aprobar la plantilla ${independent ? "faro_diagnostico_independiente" : "faro_diagnostico_empresa"} en Dapta.`);
+      const key = reps.has(f.companyId) ? "faro_diagnostico_clinica" : independent ? "faro_diagnostico_independiente" : "faro_diagnostico_empresa";
+      skip("no_template", cloud ? `Falta que Meta apruebe la plantilla ${templates[key].metaName}.` : `Falta aprobar la plantilla ${key} en Dapta.`);
       continue;
     }
     if (targets.length < max) {
@@ -199,10 +206,13 @@ export interface WaSendResult {
   items: WaSendItem[];
 }
 
-export async function sendWhatsapp(db: AppDb, env: Env, sender: WaSender | null, opts: SelectOptions & { now?: Date } = {}): Promise<WaSendResult> {
+/** F45 · Called after a template is accepted by Meta, so the reply lands in a conversation that knows the lead. */
+export type OnTemplateSent = (db: AppDb, t: { leadId: string; phone: string; body: string; wamid: string | null; isMock: boolean }) => Promise<void>;
+
+export async function sendWhatsapp(db: AppDb, env: Env, sender: WaSender | null, opts: SelectOptions & { now?: Date; onSent?: OnTemplateSent } = {}): Promise<WaSendResult> {
   const now = opts.now ?? new Date();
   const empty = (error: string): WaSendResult => ({ ok: false, error, sent: 0, simulated: 0, failed: 0, remainingToday: 0, items: [] });
-  if (env.WHATSAPP_SEND_MODE !== "dapta_flow" || !sender) return empty("whatsapp_send_disabled");
+  if ((env.WHATSAPP_SEND_MODE !== "dapta_flow" && env.WHATSAPP_SEND_MODE !== "cloud_api") || !sender) return empty("whatsapp_send_disabled");
   const sel = await selectWhatsappTargets(db, env, opts);
   if (!sel.window.allowed) return empty(`Fuera de ventana de envío: ${sel.window.reason ?? "cerrada"}.`);
   const live = env.SEND_ENABLED === true;
@@ -229,14 +239,15 @@ export async function sendWhatsapp(db: AppDb, env: Env, sender: WaSender | null,
       .values({ leadId: t.leadId, contactChannel: "whatsapp", body, status: "sending", recipient: t.phone, blockedByRule: null, createdAt: now })
       .returning({ id: messages.id });
     remaining--;
-    const r = await sender.send({ toNumber: t.phone, templateId: t.template.daptaId!, nombre: t.nombre, slug: t.slug, leadId: t.leadId });
+    const r = await sender.send({ toNumber: t.phone, templateId: t.template.sendRef!, nombre: t.nombre, slug: t.slug, leadId: t.leadId });
     if (!r.ok) {
-      await db.update(messages).set({ status: "failed", blockedByRule: (r.error ?? "dapta_error").slice(0, 200) }).where(eq(messages.id, msg!.id));
+      await db.update(messages).set({ status: "failed", blockedByRule: (r.error ?? "send_error").slice(0, 200) }).where(eq(messages.id, msg!.id));
       res.failed++;
       res.items.push({ leadId: t.leadId, company: t.company, outcome: "failed", detail: r.error });
       continue;
     }
     await db.update(messages).set({ status: "sent", sentAt: now, providerId: r.providerId ?? `dapta:${t.template.key}` }).where(eq(messages.id, msg!.id));
+    if (opts.onSent) await opts.onSent(db, { leadId: t.leadId, phone: t.phone, body, wamid: r.providerId, isMock: sender.isMock });
     await db.update(leads).set({ status: "contacted" }).where(and(eq(leads.id, t.leadId), eq(leads.status, "fit")));
     await db.insert(events).values({ leadId: t.leadId, type: "sent", payload: { messageId: msg!.id, providerId: r.providerId, channel: "whatsapp", template: t.template.key, phoneKind: t.phoneKind }, isMock: sender.isMock });
     await db.insert(costEntries).values({

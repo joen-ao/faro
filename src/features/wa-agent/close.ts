@@ -30,6 +30,11 @@ export async function closeConversation(db: AppDb, deps: CloseDeps, conversation
     .from(waMessages)
     .where(eq(waMessages.conversationId, conversationId))
     .orderBy(waMessages.createdAt, waMessages.id);
+  // Only our template, no reply: nothing to qualify. It is closed quietly (a reply reopens it, see engine.ts).
+  if (!msgs.some((m) => m.direction === "in")) {
+    await db.update(waConversations).set({ status: "cerrada", closedAt: new Date() }).where(and(eq(waConversations.id, conv.id), ne(waConversations.status, "cerrada")));
+    return { leadId: conv.leadId, qualified: false };
+  }
   const v = conv.variables as Record<string, unknown>;
   const optOut = v.pidio_baja === true;
 
@@ -56,6 +61,8 @@ export async function closeConversation(db: AppDb, deps: CloseDeps, conversation
   const replies = msgs.filter((m) => m.direction === "out").length;
   const payload = daptaWebhookSchema.parse({
     conversation_id: `wa:${conv.id}`,
+    // A template conversation already knows its lead.
+    lead_id: conv.leadId,
     phone: conv.phone,
     email: typeof v._email === "string" ? v._email : null,
     qualified: optOut ? false : !!calificado,

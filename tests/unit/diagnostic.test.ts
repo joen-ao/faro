@@ -3,7 +3,6 @@ import { parseContact } from "@/features/diagnostic/contact";
 import { computeBenchmark, type PeerSite } from "@/features/diagnostic/benchmark";
 import { whatsappDisplay, whatsappHref } from "@/features/diagnostic/cta";
 import { buildFindings, registryNote, safeHttpUrl, siteFactsFrom, type SourceInput } from "@/features/diagnostic/findings";
-import { buildWidgetDoc, DAPTA_CONTAINER_ID, openOnLoadSrc } from "@/features/diagnostic/widget";
 import { parseTracking } from "@/features/diagnostic/params";
 
 describe("parseTracking", () => {
@@ -145,25 +144,6 @@ describe("computeBenchmark", () => {
   });
 });
 
-describe("Dapta widget doc", () => {
-  const snippet = '<script src="https://widget-v2.dapta.ai/agent.min.js?agentId=abc-123"></script>';
-  it("loads the script in embedded mode with autoOpen and keeps the agentId", () => {
-    const u = new URL(openOnLoadSrc(snippet)!);
-    expect(u.searchParams.get("agentId")).toBe("abc-123");
-    expect(u.searchParams.get("mode")).toBe("embedded");
-    expect(u.searchParams.get("container")).toBe(DAPTA_CONTAINER_ID);
-    expect(u.searchParams.get("autoOpen")).toBe("true");
-    const doc = buildWidgetDoc(snippet);
-    expect(doc).toContain(`id="${DAPTA_CONTAINER_ID}"`);
-    expect(doc).toContain("toggleDaptaWidgetChat");
-    expect(doc).toContain("faro-fallback");
-  });
-  it("leaves unknown snippets as they are (with the fallback watchdog)", () => {
-    expect(openOnLoadSrc('<script src="https://evil.example/agent.min.js?agentId=x"></script>')).toBeNull();
-    expect(openOnLoadSrc('<script src="https://widget-v2.dapta.ai/agent.min.js?env=_dev"></script>')).toBeNull();
-    expect(buildWidgetDoc("<div>hola</div>")).toContain("<div>hola</div>");
-  });
-});
 
 describe("whatsappHref", () => {
   it("builds a wa.me link with the company and slug, digits only, default number", () => {

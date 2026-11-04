@@ -65,7 +65,7 @@ export async function recordInbound(db: AppDb, deps: Pick<AgentDeps, "close" | "
   if (seen) return { duplicate: true, conversationId: null, messageId: null, reply: false };
 
   const agent = await ensureAgent(db, msg.phoneNumberId, deps.llm.model);
-  let conv = await currentConversation(db, agent.id, msg.from, now);
+  let conv = (await currentConversation(db, agent.id, msg.from, now)) ?? (await reopenTemplateConversation(db, agent.id, msg.from, now));
   if (!conv) {
     // A stale open conversation is closed into Faro before the new one starts.
     const [stale] = await db
@@ -102,6 +102,44 @@ export async function recordInbound(db: AppDb, deps: Pick<AgentDeps, "close" | "
   const suppressed = await isSuppressed(db, { phone: msg.from });
   const optOut = msg.text ? isOptOut(msg.text) : false;
   return { duplicate: false, conversationId: conv!.id, messageId: inserted[0]!.id, reply: conv!.status === "abierta" && (!suppressed || optOut) };
+}
+
+/** Templates are answered days later: a conversation that only holds our template (no reply yet) is reopened, so the
+ * agent sees the template and the lead it was sent to. */
+const TEMPLATE_REPLY_DAYS = 30;
+async function reopenTemplateConversation(db: AppDb, agentId: string, phone: string, now: Date): Promise<Conversation | undefined> {
+  const [c] = await db
+    .select()
+    .from(waConversations)
+    .where(
+      and(
+        eq(waConversations.agentId, agentId),
+        eq(waConversations.phone, phone),
+        gt(waConversations.createdAt, new Date(now.getTime() - TEMPLATE_REPLY_DAYS * 86400 * 1000)),
+        sql`not exists (select 1 from ${waMessages} m where m.conversation_id = ${waConversations.id} and m.direction = 'in')`,
+        sql`exists (select 1 from ${waMessages} m where m.conversation_id = ${waConversations.id} and m.kind = 'template')`,
+      ),
+    )
+    .orderBy(desc(waConversations.createdAt))
+    .limit(1);
+  if (!c) return undefined;
+  if (c.status !== "abierta") await db.update(waConversations).set({ status: "abierta", closedAt: null }).where(eq(waConversations.id, c.id));
+  return { ...c, status: "abierta", closedAt: null };
+}
+
+/**
+ * F45 · After `sendWhatsapp` sends a template through the Cloud API: the template is stored as the agent's first
+ * message of a conversation that already carries the lead, so the reply is answered in context and closes into it.
+ */
+export function openTemplateConversation(phoneNumberId: string, model = "claude-haiku-5-5") {
+  return async (db: AppDb, t: { leadId: string; phone: string; body: string; wamid: string | null; isMock: boolean }) => {
+    const agent = await ensureAgent(db, phoneNumberId, model);
+    const [conv] = await db
+      .insert(waConversations)
+      .values({ agentId: agent.id, phone: t.phone, leadId: t.leadId, isMock: t.isMock, variables: {}, lastMessageAt: new Date() })
+      .returning({ id: waConversations.id });
+    await db.insert(waMessages).values({ conversationId: conv!.id, direction: "out", author: "agente", wamid: t.wamid, kind: "template", text: t.body, status: "sent", isMock: t.isMock });
+  };
 }
 
 async function currentConversation(db: AppDb, agentId: string, phone: string, now: Date): Promise<Conversation | undefined> {
@@ -146,12 +184,20 @@ export function historyToMessages(rows: { author: string; text: string | null; k
   const out: Anthropic.MessageParam[] = [];
   for (const r of rows) {
     const role = r.author === "contacto" ? "user" : "assistant";
-    const text = r.kind === "text" && r.text ? (r.author === "persona" ? `[Equipo de Mokub] ${r.text}` : r.text) : `[${r.kind === "audio" ? "audio" : r.kind === "image" ? "imagen" : "mensaje no textual"}]`;
+    const text =
+      (r.kind === "text" || r.kind === "template") && r.text
+        ? r.author === "persona"
+          ? `[Equipo de Mokub] ${r.text}`
+          : r.kind === "template"
+            ? `[Plantilla enviada por Mokub] ${r.text}`
+            : r.text
+        : `[${r.kind === "audio" ? "audio" : r.kind === "image" ? "imagen" : "mensaje no textual"}]`;
     const last = out[out.length - 1];
     if (last && last.role === role) last.content = `${last.content as string}\n${text}`;
     else out.push({ role, content: text });
   }
-  while (out.length && out[0]!.role !== "user") out.shift();
+  // The API needs the user first. When we wrote first (a template), keep it: a short marker opens the conversation.
+  if (out.length && out[0]!.role !== "user") out.unshift({ role: "user", content: "[Mokub escribió primero por WhatsApp]" });
   return out;
 }
 

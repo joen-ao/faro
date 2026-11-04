@@ -7,7 +7,6 @@ import { BENCHMARK_MIN_N, type Benchmark, type BenchmarkRow } from "@/features/d
 import { whatsappDisplay, whatsappHref } from "@/features/diagnostic/cta";
 import type { Finding, FindingStatus, RegistryNote } from "@/features/diagnostic/findings";
 import type { Tracking } from "@/features/diagnostic/params";
-import { buildWidgetDoc } from "@/features/diagnostic/widget";
 import { ContactForm } from "./contact-form";
 import { TrackOpen } from "./track-open";
 import { localize } from "@/features/diagnostic/vocab";
@@ -35,31 +34,6 @@ export interface ViewProps {
   opportunities?: Opportunity[] | null;
   /** Lead pages with services: "Cómo le ayudamos" per finding id and the recommended service for the final block. */
   offer?: { help: Record<string, string>; service: { name: string; outcome: string; entryOffer: string | null } };
-}
-
-/**
- * Dapta widget: snippet comes ONLY from env (never from source data). It runs in a sandboxed iframe that keeps
- * allow-same-origin because the Dapta widget needs storage to open its chat; approved by Joen on 2026-10-17.
- * The doc loads the widget in embedded mode with autoOpen, so the chat is open on load (see features/diagnostic/widget.ts).
- */
-function WidgetBlock({ snippet }: { snippet: string | undefined }) {
-  if (!snippet) {
-    return (
-      <div data-testid="widget-placeholder" className="flex min-h-72 flex-col justify-center gap-2 rounded-card border border-dashed border-border bg-faro-surface-2 p-6">
-        <p className="font-display text-lg font-semibold">Asistente de Dapta</p>
-        <p className="text-faro-text-2">Asistente de Dapta (no configurado en este entorno). Mientras tanto, escríbanos por WhatsApp o déjenos su mensaje en el formulario.</p>
-      </div>
-    );
-  }
-  return (
-    <iframe
-      data-testid="dapta-widget"
-      title="Chat con el asistente de Dapta"
-      sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-      srcDoc={buildWidgetDoc(snippet)}
-      className="h-[560px] w-full rounded-card border border-border bg-faro-surface-1"
-    />
-  );
 }
 
 const STATUS: Record<FindingStatus, { label: string; Icon: typeof CircleCheck; pill: string }> = {
@@ -410,7 +384,7 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
             )}
             <WhatsAppButton href={wa} testId="whatsapp-cta" className="w-full sm:w-auto sm:self-start" />
             <p className="text-[0.8125rem] text-faro-text-3">
-              {whatsappDisplay(env.NEXT_PUBLIC_WHATSAPP_NUMBER)} · responde el asistente de {brand}, integrado con Dapta
+              {whatsappDisplay(env.NEXT_PUBLIC_WHATSAPP_NUMBER)} · responde el asistente de {brand}
             </p>
             <details data-testid="contact-details" open={isIcp} className="group mt-2 border-t border-white/10 pt-4">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-button text-white/85 hover:text-white [&::-webkit-details-marker]:hidden">
@@ -422,9 +396,18 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
               </div>
             </details>
           </div>
-          <div className="flex min-w-0 flex-col gap-3">
-            <p className="text-sm text-faro-text-2">O pregúntele al asistente aquí mismo: responde sus dudas y deja su solicitud lista para el equipo.</p>
-            <WidgetBlock snippet={env.DAPTA_WIDGET_SNIPPET} />
+          {/* F45: the assistant lives in WhatsApp (Faro's own agent), not in a Dapta widget on the page. */}
+          <div data-testid="assistant-block" className="flex min-w-0 flex-col justify-center gap-4 rounded-card border border-border bg-faro-surface-2 p-6">
+            <p className="flex items-center gap-2 font-display text-lg font-semibold">
+              <MessageCircle aria-hidden className="size-5 text-faro-accent" />
+              Pregúntele al asistente por WhatsApp
+            </p>
+            <ul className="flex flex-col gap-2 text-pretty text-faro-text-2">
+              <li>Responde sus dudas sobre este diagnóstico, de día y de noche.</li>
+              <li>Le muestra las horas libres y agenda la videollamada de 20 minutos.</li>
+              <li>Si lo prefiere, le escribe una persona del equipo por el mismo chat.</li>
+            </ul>
+            <WhatsAppButton href={wa} testId="whatsapp-cta-assistant" className="w-full sm:w-auto sm:self-start" />
           </div>
         </section>
 

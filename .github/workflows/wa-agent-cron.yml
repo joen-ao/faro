@@ -1,0 +1,30 @@
+# F45 · Calls Faro's WhatsApp agent jobs every 10 minutes (Vercel's plan only allows daily crons).
+# Needs the repository secret CRON_SECRET (the same value as in Vercel) and, optionally, the variable FARO_URL.
+name: wa-agent cron
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: wa-agent-cron
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call /api/cron/wa-agent
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          FARO_URL: ${{ vars.FARO_URL || 'https://faro-eight-sage.vercel.app' }}
+        run: |
+          # Until the secret is added the job only warns (no failure email every 10 minutes).
+          if [ -z "$CRON_SECRET" ]; then echo "::warning::CRON_SECRET is not set in the repository secrets"; exit 0; fi
+          code=$(curl -sS -o body.json -w "%{http_code}" --max-time 150 -H "Authorization: Bearer $CRON_SECRET" "$FARO_URL/api/cron/wa-agent")
+          cat body.json; echo
+          test "$code" = "200"

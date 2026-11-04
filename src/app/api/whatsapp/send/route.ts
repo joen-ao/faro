@@ -4,7 +4,8 @@ import { requireAppAccess } from "@/lib/app-access";
 import { getEnv } from "@/lib/env";
 import { withDb } from "@/lib/with-db";
 import { selectWhatsappTargets, sendWhatsapp } from "@/features/whatsapp/send";
-import { getWaSender } from "@/features/whatsapp/sender";
+import { getWaSender, waSendEnabled } from "@/features/whatsapp/sender";
+import { openTemplateConversation } from "@/features/wa-agent";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -23,7 +24,8 @@ export async function GET(req: Request) {
     const skippedBy: Record<string, number> = {};
     for (const s of sel.skipped) skippedBy[s.rule] = (skippedBy[s.rule] ?? 0) + 1;
     return NextResponse.json({
-      enabled: env.WHATSAPP_SEND_MODE === "dapta_flow" && !!env.DAPTA_WA_FLOW_URL,
+      enabled: waSendEnabled(env),
+      mode: env.WHATSAPP_SEND_MODE,
       sendEnabled: env.SEND_ENABLED === true,
       window: sel.window,
       dailyUsed: sel.dailyUsed,
@@ -47,7 +49,9 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
   const env = getEnv();
   return withDb(async (db) => {
-    const r = await sendWhatsapp(db, env, getWaSender(env), { ...parsed.data, limit: parsed.data.limit ?? 20 });
+    // F45: with the Cloud API the template opens the agent's conversation, so the reply arrives with its lead.
+    const onSent = env.WHATSAPP_SEND_MODE === "cloud_api" && env.WA_PHONE_NUMBER_ID ? openTemplateConversation(env.WA_PHONE_NUMBER_ID) : undefined;
+    const r = await sendWhatsapp(db, env, getWaSender(env), { ...parsed.data, limit: parsed.data.limit ?? 20, onSent });
     return NextResponse.json(r, { status: r.ok ? 200 : r.error === "whatsapp_send_disabled" ? 409 : 422 });
   });
 }

@@ -29,4 +29,4 @@ export function getAgentDeps(env: Env = getEnv()): AgentDeps {
 }
 
 export { closeConversation, closeIdleConversations } from "./close";
-export { applyStatus, recordInbound, replyTo, sendAs, setStatus, inServiceWindow } from "./engine";
+export { applyStatus, inServiceWindow, openTemplateConversation, recordInbound, replyTo, sendAs, setStatus } from "./engine";

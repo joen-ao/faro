@@ -92,7 +92,7 @@ describe("F44 · guard rules", () => {
     expect(isOptOut("me interesa el agente")).toBe(false);
   });
 
-  it("history starts with the contact and merges consecutive turns", () => {
+  it("history starts with the user turn and merges consecutive turns", () => {
     const m = historyToMessages([
       { author: "agente", text: "plantilla", kind: "text" },
       { author: "contacto", text: "hola", kind: "text" },
@@ -100,6 +100,8 @@ describe("F44 · guard rules", () => {
       { author: "persona", text: "le escribo yo", kind: "text" },
     ]);
     expect(m).toEqual([
+      { role: "user", content: "[Mokub escribió primero por WhatsApp]" },
+      { role: "assistant", content: "plantilla" },
       { role: "user", content: "hola\n[audio]" },
       { role: "assistant", content: "[Equipo de Mokub] le escribo yo" },
     ]);

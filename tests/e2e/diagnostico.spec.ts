@@ -30,7 +30,10 @@ test("diagnostic page: findings, opt-out button, event registered, contact form,
   const wa = await page.getByTestId("whatsapp-cta").getAttribute("href");
   expect(wa).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
   expect(decodeURIComponent(wa!.split("text=")[1]!)).toContain("demo-clinica");
-  await expect(page.getByTestId("widget-placeholder")).toContainText("no configurado");
+  // F45: no Dapta widget; the assistant is reached through WhatsApp with the same reference.
+  await expect(page.getByTestId("assistant-block")).toContainText("WhatsApp");
+  expect(await page.getByTestId("whatsapp-cta-assistant").getAttribute("href")).toBe(wa);
+  expect(await page.locator('script[src*="dapta.ai"], iframe[srcdoc*="dapta.ai"]').count()).toBe(0);
   await expect(page.getByTestId("sender")).not.toContainText("Hackathon");
   await expect(page.getByTestId("attribution")).toContainText("ODbL");
 
