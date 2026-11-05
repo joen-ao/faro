@@ -83,3 +83,8 @@ const OPT_OUT = /^\s*(baja|stop|cancelar suscripci[oó]n|no me interesa|no me es
 
 /** BAJA / STOP / "no me interesa" as the whole intent of the message. */
 export const isOptOut = (text: string) => OPT_OUT.test(text.trim());
+
+/** F46 · "la hora sigue libre / está disponible": a promise the calendar has not made until agendar_diagnostico says ok. */
+export function claimsSlotFree(text: string): boolean {
+  return /\b(?:est[aá]|sigue|queda|qued[oó])\s+(?:libre|disponible)s?\b/i.test(text);
+}

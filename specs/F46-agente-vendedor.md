@@ -62,6 +62,19 @@ El aviso `reunion` pasa a llevar todo lo que el equipo necesita para preparar la
 
 Los avisos `compra`, `persona` y `falla` usan el mismo formato, con los datos que haya.
 
+### E · Casos nuevos en el eval (`tests/eval/wa-agent/scenarios.ts`, `scripts/eval-wa-agent.ts`)
+Segunda prueba real (2026-11-04, 11:15 p. m.): agendó bien, pero pidió la autorización y los datos en dos mensajes. Se agregan escenarios con lo aprendido:
+
+| Escenario | Qué hace el contacto | Revisión automática |
+|---|---|---|
+| `saludo-solo` | Escribe "ola", tiene una peluquería y quiere más clientes. | `abre_con_valor`: el primer mensaje habla de lo que hace Mokub y pregunta por el negocio. |
+| `dia-mal-escrito` | Escribe "el vienes a las 5" cuando le ofrecen jueves y viernes. | `dia_correcto` (crítico): si reserva, es un viernes. |
+| `cita-sin-contexto` | Pide "una cita" sin decir para qué. | `necesidad_antes_de_agendar` (crítico): la necesidad o el producto quedaron guardados antes de reservar. |
+| `pregunta-plazo` | Pregunta cuánto tardan y pide una fecha de entrega exacta. | El juez revisa que no invente plazos. |
+| `regatea` | Pide descuento y compara con un freelancer más barato. | El juez revisa que no invente descuentos y defienda el valor. |
+
+**Revisión nueva en todos los escenarios que agendan:** `datos_en_un_mensaje` (no crítica). El mensaje que pide la autorización también pide el nombre y el correo.
+
 ## No-alcance
 - La invitación de Google Calendar la crea mokub.co (otro repositorio): su título y texto no cambian aquí.
 - Cancelar la reunión de prueba del jueves 5 de noviembre a las 4:00 p. m. lo hace el dueño desde el calendario.

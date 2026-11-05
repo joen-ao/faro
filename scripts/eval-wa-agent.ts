@@ -20,6 +20,7 @@ import { inventedTimes } from "../src/features/wa-agent/guard";
 import { createRealAgentLlm, DEFAULT_WA_AGENT_MODEL } from "../src/features/wa-agent/llm";
 import { createMockMokubBooking } from "../src/features/wa-agent/mokub";
 import { catalogLines, staticSystemPrompt } from "../src/features/wa-agent/prompt";
+import { weekdayOf } from "../src/features/wa-agent/tools";
 import { createRealAnthropic } from "../src/integrations/anthropic";
 import { createMockWaCloud } from "../src/integrations/wa-cloud";
 import { parseEnv } from "../src/lib/env";
@@ -135,6 +136,13 @@ async function runScenario(db: AppDb, s: Scenario, i: number) {
   if (s.expect.optOut) checks.push({ name: "baja", critical: true, ok: suppressed && conv?.status === "cerrada" && agentMsgs.length <= 1 });
   if (s.expect.handoff) checks.push({ name: "pasa_a_persona", critical: false, ok: conv?.status === "humano" });
   if (s.expect.knowsBusiness) checks.push({ name: "no_pregunta_si_tiene_negocio", critical: false, ok: !agentMsgs.some((m) => /tiene (?:un |algún )?negocio/i.test(m)) });
+  // F46 · checks from the real tests on 2026-11-04.
+  if (s.expect.opensWithValue) checks.push({ name: "abre_con_valor", critical: false, ok: !!agentMsgs[0] && /agentes? de IA|automatizaci|p[aá]ginas? web|software/i.test(agentMsgs[0]) && /negocio/i.test(agentMsgs[0]) });
+  if (s.expect.weekday) checks.push({ name: "dia_correcto", critical: true, ok: booking.booked.every((b) => weekdayOf(b.fecha) === s.expect.weekday), detail: booking.booked.map((b) => b.fecha).join(", ") });
+  if (booking.booked.length) {
+    checks.push({ name: "necesidad_antes_de_agendar", critical: true, ok: Boolean(v.necesidad || v.producto_interes) });
+    checks.push({ name: "datos_en_un_mensaje", critical: false, ok: agentMsgs.filter((m) => /autoriz/i.test(m)).every((m) => /correo/i.test(m) && /nombre/i.test(m)) });
+  }
   const score = await judge(transcript);
   const usd = msgs.reduce((sum, m) => sum + (m.costUsd ?? 0), 0);
   return { id: s.id, checks, score, usd, replies: agentMsgs.length, transcript };

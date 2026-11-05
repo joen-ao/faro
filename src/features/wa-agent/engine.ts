@@ -6,7 +6,7 @@ import { isSuppressed, suppress } from "@/features/compliance/suppression";
 import { aiCostUsd, loadAiRates } from "@/features/scoring/cost";
 import { getServiceCatalog } from "@/features/settings/services";
 import type { InboundMessage, WaCloudAdapter } from "@/integrations/wa-cloud";
-import { hasEmoji, inventedTimes, isOptOut, sanitizeOutgoing } from "./guard";
+import { claimsSlotFree, hasEmoji, inventedTimes, isOptOut, sanitizeOutgoing } from "./guard";
 import type { AgentLlm, LlmUsage } from "./llm";
 import type { MokubBooking } from "./mokub";
 import type { NoticeField, Notifier } from "./notify";
@@ -249,6 +249,7 @@ async function runTurn(db: AppDb, deps: AgentDeps, conv: Conversation, inboundId
   // Text the model wrote next to a tool call ("Listo, quedó agendado…" + terminar) is the reply if nothing follows.
   let spoken = "";
   let retriedTimes = false;
+  let retriedFree = false;
 
   try {
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
@@ -264,6 +265,12 @@ async function runTurn(db: AppDb, deps: AgentDeps, conv: Conversation, inboundId
           retriedTimes = true;
           messages.push({ role: "assistant", content: said || "…" });
           messages.push({ role: "user", content: `[Sistema] Tu respuesta nombra horas (${invented.join(", ")}) que no salieron de consultar_horarios en esta conversación. Usa consultar_horarios primero y ofrece solo horas que devuelva. No menciones este aviso.` });
+          continue;
+        }
+        if (claimsSlotFree(said) && variables.reunion_agendada !== true && !retriedFree && round < MAX_TOOL_ROUNDS) {
+          retriedFree = true;
+          messages.push({ role: "assistant", content: said });
+          messages.push({ role: "user", content: "[Sistema] Tu respuesta dice que una hora está o sigue libre o disponible, pero aún no está reservada. Reescríbela sin afirmarlo: di que se la reserva en cuanto le comparta los datos. No menciones este aviso." });
           continue;
         }
         text = invented.length ? FIXED.fallbackTimes : said;

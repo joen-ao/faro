@@ -14,7 +14,7 @@ const offered = { _slots: ["17:00"] };
 describe("F46 · sales prompt", () => {
   const p = staticSystemPrompt([]);
   it("acts as a sales advisor that opens with value and asks about the business", () => {
-    expect(PROMPT_VERSION).toBe("mokub-ventas-f46-v1");
+    expect(PROMPT_VERSION).toBe("mokub-ventas-f46-v3");
     expect(p).toContain("asesor comercial");
     expect(p).toContain("Nunca respondas solo \"¿en qué le puedo ayudar?\"");
     expect(p).not.toContain("agenda de una vez sin más preguntas");
@@ -90,5 +90,15 @@ describe("F46 · owner notice", () => {
     expect(origin({}, "999")).toBe("Anuncio de Meta (meta-999)");
     expect(origin({ ref_diagnostico: "abc123" }, null)).toBe("Diagnóstico de Faro (abc123)");
     expect(origin({}, null)).toBe("Escribió directo");
+  });
+});
+
+describe("F46 · no 'está libre' before booking", () => {
+  it("detects the claim but not unrelated uses", async () => {
+    const { claimsSlotFree } = await import("@/features/wa-agent/guard");
+    expect(claimsSlotFree("El viernes a las 4:00 p. m. sigue disponible.")).toBe(true);
+    expect(claimsSlotFree("Esa hora está libre, ¿la tomo?")).toBe(true);
+    expect(claimsSlotFree("Se la reservo en cuanto me comparta los datos.")).toBe(false);
+    expect(claimsSlotFree("Quedó agendado el viernes.")).toBe(false);
   });
 });
