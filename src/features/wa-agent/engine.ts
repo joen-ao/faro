@@ -9,7 +9,7 @@ import type { InboundMessage, WaCloudAdapter } from "@/integrations/wa-cloud";
 import { hasEmoji, inventedTimes, isOptOut, sanitizeOutgoing } from "./guard";
 import type { AgentLlm, LlmUsage } from "./llm";
 import type { MokubBooking } from "./mokub";
-import type { Notifier } from "./notify";
+import type { NoticeField, Notifier } from "./notify";
 import { dynamicSystemPrompt, PROMPT_VERSION, staticSystemPrompt } from "./prompt";
 import { runTool, TOOLS } from "./tools";
 
@@ -276,9 +276,18 @@ async function runTurn(db: AppDb, deps: AgentDeps, conv: Conversation, inboundId
         variables = { ...variables, ...effects.variables };
         if (effects.end) end = true;
         if (effects.handoff) handoff = effects.handoff;
-        if (effects.booked) await deps.notify({ kind: "reunion", conversationId: conv.id, phone: conv.phone, detail: `Diagnóstico agendado: ${effects.booked.when}.` });
-        if (effects.wantsToBuy) await deps.notify({ kind: "compra", conversationId: conv.id, phone: conv.phone, detail: `Producto: ${String(variables.producto_interes ?? "sin dato")}.` });
-        if (effects.failed && Number(variables._fallos ?? 0) === 2) await deps.notify({ kind: "falla", conversationId: conv.id, phone: conv.phone, detail: `La herramienta ${u.name} falló dos veces.` });
+        if (effects.booked) {
+          const b = effects.booked;
+          await deps.notify({
+            kind: "reunion",
+            conversationId: conv.id,
+            phone: conv.phone,
+            detail: `Diagnóstico gratis agendado para el ${b.when}.`,
+            fields: [["Fecha", b.when], ["Meet", b.meetLink], ["Nombre", b.nombre], ["Correo", b.email], ["Negocio", b.empresa], ["Interés", b.interes], ...noticeFields(variables, conv.adId).filter(([k]) => k !== "Negocio")],
+          });
+        }
+        if (effects.wantsToBuy) await deps.notify({ kind: "compra", conversationId: conv.id, phone: conv.phone, detail: `Quiere comprar: ${String(variables.producto_interes ?? "sin dato")}.`, fields: noticeFields(variables, conv.adId) });
+        if (effects.failed && Number(variables._fallos ?? 0) === 2) await deps.notify({ kind: "falla", conversationId: conv.id, phone: conv.phone, detail: `La herramienta ${u.name} falló dos veces.`, fields: noticeFields(variables, conv.adId) });
         results.push({ type: "tool_result", tool_use_id: u.id, content: toolResultText(result), ...(result.ok === false ? { is_error: true } : {}) });
       }
       messages.push({ role: "user", content: results });
@@ -306,7 +315,7 @@ async function runTurn(db: AppDb, deps: AgentDeps, conv: Conversation, inboundId
   await send(db, deps, conv, clean, usage);
   if (handoff) {
     await setStatus(db, conv.id, "humano");
-    await deps.notify({ kind: "persona", conversationId: conv.id, phone: conv.phone, detail: `Motivo: ${handoff}` });
+    await deps.notify({ kind: "persona", conversationId: conv.id, phone: conv.phone, detail: `Motivo: ${handoff}`, fields: noticeFields(variables, conv.adId) });
   } else if (end) {
     await deps.close(db, conv.id);
   }
@@ -392,3 +401,16 @@ export function inServiceWindow(lastInboundAt: Date | null, now: Date = new Date
 }
 
 export const conversationMessages = (db: AppDb, id: string) => db.select().from(waMessages).where(eq(waMessages.conversationId, id)).orderBy(asc(waMessages.createdAt), asc(waMessages.id));
+
+/** F46 · What the owner notices add about the contact: business, product, need and where the chat came from. */
+export function noticeFields(v: Record<string, unknown>, adId: string | null): NoticeField[] {
+  const str = (x: unknown) => (typeof x === "string" && x.trim() ? x.trim() : null);
+  const ref = str(v.ref_diagnostico);
+  const origin = adId ? `Anuncio de Meta (meta-${adId})` : ref ? (/^(meta|fb|ig)-/.test(ref) ? `Anuncio o mokub.co (${ref})` : `Diagnóstico de Faro (${ref})`) : "Escribió directo";
+  return [
+    ["Negocio", str(v.nombre_negocio)],
+    ["Producto de interés", str(v.producto_interes)],
+    ["Necesidad", str(v.necesidad)],
+    ["Origen", origin],
+  ];
+}

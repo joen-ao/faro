@@ -151,9 +151,9 @@ describe("F44 · conversation engine", () => {
     const d = deps([
       () => [toolBlock("guardar_datos", { ref_diagnostico: "meta-120245000000001" })],
       () => "Gracias por escribir a Mokub. ¿En qué le puedo ayudar?",
-      () => [toolBlock("consultar_horarios", {})],
+      () => [toolBlock("guardar_datos", { necesidad: "agente de WhatsApp para atender clientes" }), toolBlock("consultar_horarios", {})],
       () => "Tengo mañana a las 5:00 p. m. o 6:00 p. m. ¿Cuál le sirve?",
-      () => [toolBlock("agendar_diagnostico", { nombre: "Ana Pérez", email: "ana@ferreteria.co", empresa: "Ferretería El Tornillo", interes: "agentes", fecha: "2026-11-04", hora: "17:00", autorizo: true })],
+      () => [toolBlock("agendar_diagnostico", { nombre: "Ana Pérez", email: "ana@ferreteria.co", empresa: "Ferretería El Tornillo", interes: "agentes", fecha: "2026-11-04", dia_confirmado: "miércoles", hora: "17:00", autorizo: true })],
       (req) => {
         const last = req.messages[req.messages.length - 1]!;
         expect(JSON.stringify(last.content)).toContain('\\"ok\\":true');
@@ -239,7 +239,9 @@ describe("F44 · conversation engine", () => {
     const later = await say(d, inbound(phone, "hola otra vez"));
     expect(later.reply).toBe(false);
     expect(wa.sent).toHaveLength(1);
-    const [conv] = await conn.db.select().from(waConversations).where(eq(waConversations.phone, phone));
+    // "hola otra vez" may open a new (silent) conversation; the one with the BAJA is the one that must be closed.
+    const [optedOut] = await conn.db.select({ id: waMessages.conversationId }).from(waMessages).where(eq(waMessages.text, "BAJA"));
+    const [conv] = await conn.db.select().from(waConversations).where(eq(waConversations.id, optedOut!.id));
     expect(conv!.status).toBe("cerrada");
   });
 

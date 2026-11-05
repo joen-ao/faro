@@ -20,7 +20,7 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: "agendar_diagnostico",
     description:
-      "Reserva el Diagnóstico gratis de 20 minutos. Úsala una sola vez, solo cuando la persona confirmó una hora que devolvió consultar_horarios y ya tienes su nombre completo, su correo, el nombre del negocio y su autorización para usar esos datos. Si responde ok:true, confirma con el texto de when. Si responde slot_taken, ofrece las horas de slots. Si responde duplicado, di que ya tiene una reunión agendada hoy con ese correo. Si responde datos_invalidos, pide solo ese dato.",
+      "Reserva el Diagnóstico gratis de 20 minutos. Úsala una sola vez, solo cuando la persona confirmó sin ambigüedad un día y una hora que devolvió consultar_horarios, ya guardaste su necesidad con guardar_datos y tienes su nombre completo, su correo, el nombre del negocio y su autorización para usar esos datos. Si responde ok:true, confirma con el texto de when. Si responde slot_taken, ofrece las horas de slots. Si responde duplicado, di que ya tiene una reunión agendada hoy con ese correo. Si responde datos_invalidos, pide solo ese dato. Si responde dia_no_coincide, confirma de nuevo el día con la persona. Si responde falta_necesidad, pregunta para qué servicio o necesidad es la cita y guárdala.",
     input_schema: {
       type: "object",
       properties: {
@@ -29,11 +29,12 @@ export const TOOLS: Anthropic.Tool[] = [
         empresa: { type: "string", description: "Nombre del negocio." },
         interes: { type: "string", enum: ["agentes", "automatizacion", "rag", "software", "web", "no_se"] },
         fecha: { type: "string", description: "YYYY-MM-DD, tal como vino en consultar_horarios." },
+        dia_confirmado: { type: "string", description: 'Día de la semana que la persona confirmó, en español ("viernes"). Debe corresponder a fecha.' },
         hora: { type: "string", description: "HH:MM (24 h), tal como vino en consultar_horarios." },
         tz: { type: "string", description: "La misma zona que usaste en consultar_horarios." },
         autorizo: { type: "boolean", description: "true solo si la persona autorizó usar su nombre y correo para la invitación." },
       },
-      required: ["nombre", "email", "empresa", "interes", "fecha", "hora", "autorizo"],
+      required: ["nombre", "email", "empresa", "interes", "fecha", "dia_confirmado", "hora", "autorizo"],
     },
   },
   {
@@ -44,6 +45,7 @@ export const TOOLS: Anthropic.Tool[] = [
       properties: {
         nombre_negocio: { type: "string", description: "Nombre del negocio; nunca el de una persona." },
         producto_interes: { type: "string", enum: [...PRODUCTS] },
+        necesidad: { type: "string", description: "Qué quiere resolver la persona o qué servicio le interesa, en sus palabras y corto." },
         ref_diagnostico: { type: "string", description: 'Lo que va después de "ref." en el primer mensaje, sin paréntesis.' },
         quiere_comprar: { type: "boolean", description: "true si confirmó que quiere comprar un producto de precio cerrado y aceptó que el equipo le escriba con la factura." },
       },
@@ -68,6 +70,7 @@ export const TOOLS: Anthropic.Tool[] = [
 const SaveInput = z.object({
   nombre_negocio: z.string().trim().min(2).max(160).optional(),
   producto_interes: z.enum(PRODUCTS).optional(),
+  necesidad: z.string().trim().min(3).max(200).optional(),
   ref_diagnostico: z.string().trim().regex(/^[\w-]{3,80}$/).optional(),
   quiere_comprar: z.boolean().optional(),
 });
@@ -81,7 +84,7 @@ export interface ToolEffects {
   variables: Record<string, unknown>;
   handoff?: string;
   end?: boolean;
-  booked?: { when: string; email: string };
+  booked?: { when: string; email: string; nombre: string; empresa: string; interes: string; meetLink: string | null };
   wantsToBuy?: boolean;
   failed?: boolean;
 }
@@ -90,6 +93,21 @@ export interface ToolEnv {
   phone: string;
   variables: Record<string, unknown>;
   booking: MokubBooking;
+}
+
+const WEEKDAYS = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+/** Spanish weekday of a YYYY-MM-DD date (calendar date, no time zone involved). */
+export function weekdayOf(fecha: string): string {
+  return WEEKDAYS[new Date(`${fecha}T12:00:00Z`).getUTCDay()]!;
+}
+
+/** True when the weekday the person confirmed is the weekday of fecha ("Viernes", "el viernes 6" both count). */
+export function weekdayMatches(diaConfirmado: unknown, fecha: string): boolean {
+  if (typeof diaConfirmado !== "string") return false;
+  const said = fold(diaConfirmado).split(/[^a-z]+/).filter((w) => WEEKDAYS.includes(w));
+  return said.length > 0 && said.every((w) => w === weekdayOf(fecha));
 }
 
 /** "2026-11-10" + "16:20" in Bogotá -> ISO with offset; other zones keep the wall time and name the zone. */
@@ -131,7 +149,11 @@ export async function runTool(name: string, rawInput: unknown, env: ToolEnv): Pr
         const campo = String(parsed.error.issues[0]?.path[0] ?? "");
         return { result: { ok: false, error: "datos_invalidos", campo }, effects: { variables: {} } };
       }
+      if (!weekdayMatches(input.dia_confirmado, parsed.data.fecha)) {
+        return { result: { ok: false, error: "dia_no_coincide", mensaje: `La fecha ${parsed.data.fecha} es ${weekdayOf(parsed.data.fecha)}, no "${String(input.dia_confirmado ?? "")}". Confirma con la persona qué día quiere antes de agendar.` }, effects: { variables: {} } };
+      }
       if (!offered.has(parsed.data.hora)) return { result: { ok: false, error: "hora_no_consultada", mensaje: "Esa hora no salió de consultar_horarios: consulta primero." }, effects: { variables: {} } };
+      if (!v.necesidad && !v.producto_interes) return { result: { ok: false, error: "falta_necesidad", mensaje: "Aún no sabes para qué es la cita: pregunta qué necesita o qué servicio le interesa y guárdalo con guardar_datos antes de agendar." }, effects: { variables: {} } };
       try {
         const res = await env.booking.book(parsed.data);
         if (res.ok === true) {
@@ -140,7 +162,7 @@ export async function runTool(name: string, rawInput: unknown, env: ToolEnv): Pr
             result: res,
             effects: {
               variables: { reunion_agendada: true, fecha_reunion: meetingIso(parsed.data.fecha, parsed.data.hora, parsed.data.tz), _email: parsed.data.email.toLowerCase(), nombre_negocio: v.nombre_negocio ?? parsed.data.empresa },
-              booked: { when, email: parsed.data.email },
+              booked: { when, email: parsed.data.email, nombre: parsed.data.nombre, empresa: parsed.data.empresa, interes: parsed.data.interes, meetLink: typeof res.meetLink === "string" ? res.meetLink : null },
             },
           };
         }
