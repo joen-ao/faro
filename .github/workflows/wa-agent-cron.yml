@@ -1,10 +1,9 @@
-# F45 · Calls Faro's WhatsApp agent jobs every 10 minutes (Vercel's plan only allows daily crons).
+# F45 · Calls Faro's WhatsApp agent jobs. Since F47 the 10-minute schedule runs in Supabase (pg_cron, see
+# scripts/setup-supabase-cron.ts); this workflow is a manual fallback only.
 # Needs the repository secret CRON_SECRET (the same value as in Vercel) and, optionally, the variable FARO_URL.
 name: wa-agent cron
 
 on:
-  schedule:
-    - cron: "*/10 * * * *"
   workflow_dispatch: {}
 
 permissions: {}

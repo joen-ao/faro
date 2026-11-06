@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 /**
- * F45 · Every 10 minutes (GitHub Actions, .github/workflows/wa-agent-cron.yml; Vercel's daily meta-ads-sync is the
+ * F45 · Every 10 minutes (Supabase pg_cron since F47, scripts/setup-supabase-cron.ts; Vercel's daily meta-ads-sync is the
  * fallback for closing): closes quiet conversations, sends due follow-ups and refreshes the template statuses.
  * Each step reports on its own; one failing never hides the others.
  */
