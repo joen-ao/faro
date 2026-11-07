@@ -22,7 +22,7 @@ export const DEFAULT_SERVICES: ServiceInput[] = [
     description:
       "Agentes que trabajan dentro de la operación real: responden, clasifican, extraen datos y ejecutan tareas con supervisión humana. Construidos para producción, no para la demo.",
     outcome: "Menos trabajo manual y repetitivo; procesos que pasan de horas a minutos.",
-    proof: "Proceso crítico automatizado en Banco de la República: de 30 h a 15 min. Más de 15 proyectos en producción.",
+    proof: "Más de 15 proyectos en producción.",
     entryOffer: "Llamada de descubrimiento gratuita de 15–20 min.",
     keywords: ["whatsapp", "agenda", "citas", "respuesta", "formulario", "fuera de horario"],
   },

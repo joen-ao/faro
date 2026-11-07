@@ -18,6 +18,7 @@ import { isSuppressed } from "@/features/compliance/suppression";
 import { checkSendWindow, type Country, type SendWindowSetting } from "@/features/compliance/windows";
 import { getSendWindow } from "@/features/settings/send-window";
 import { suggestionLine, type Recommendation } from "@/features/offer/match";
+import { outreachEligibility, type Eligibility } from "@/features/offer/fit";
 import { improvementsForLead, loadEffectiveOffer, recommendForLead, type EffectiveOffer, type Improvement } from "@/features/offer/resolve";
 import { dbCallRecorder, loadAiRates, recordAiCost } from "@/features/scoring/cost";
 import { REGISTRY_CHANNELS } from "@/features/scoring/fit";
@@ -115,6 +116,17 @@ export function leadPitch(ctx: LeadContext, offer: EffectiveOffer): Recommendati
     ctx.contacts.map((c) => ({ type: c.type, sourceChannel: c.sourceChannel })),
     offer,
   );
+}
+
+/** F48 · Whether this lead may get a cold email (sector with an offer, generic mailbox, a real finding). */
+export function coldEligibility(ctx: LeadContext, now: Date = new Date()): Eligibility {
+  return outreachEligibility({
+    sector: typeof ctx.icp?.criteria.sector === "string" ? ctx.icp.criteria.sector : null,
+    company: { name: ctx.company.name, address: ctx.company.address, city: ctx.company.city, website: ctx.company.website, isLegalEntity: ctx.company.isLegalEntity },
+    sources: ctx.sources.map((x) => ({ sourceChannel: x.sourceChannel, sourceUrl: x.sourceUrl, license: x.license, isMock: x.isMock, raw: x.raw as Record<string, unknown> })),
+    contacts: ctx.contacts.map((c) => ({ type: c.type, sourceChannel: c.sourceChannel, isGeneric: c.isGeneric, value: c.value })),
+    now,
+  });
 }
 
 /** Concrete findings of the lead and the service that helps with each (F25 email lists). */
@@ -288,12 +300,17 @@ export async function previewOutreach(
   let isMockAi = false;
   if (input.generate !== false && channel && recipient) {
     if (!ctx.icp || !ctx.workspace) throw new OutreachError("El lead no pertenece a una búsqueda con ICP y workspace", 422);
-    const offer = await loadEffectiveOffer(db, ctx.icp.offer);
+    const fullOffer = await loadEffectiveOffer(db, ctx.icp.offer);
+    // F48: an eligible lead is pitched only the services that fit its sector, opening with its finding.
+    const elig = channel === "email" ? coldEligibility(ctx, now) : null;
+    const fitServices = elig?.ok ? elig.segment.services.map((id) => fullOffer.services.find((s) => s.id === id)).filter((s): s is NonNullable<typeof s> => !!s) : [];
+    const offer = fitServices.length ? { ...fullOffer, services: fitServices } : fullOffer;
     const pitch = leadPitch(ctx, offer);
+    const cold = elig?.ok && fitServices.length ? { finding: elig.finding, pain: elig.segment.pain, website: ctx.company.website } : null;
     const sellerName = offer.company ?? null;
     const improvements = channel === "email" ? leadImprovements(ctx, offer) : [];
     // Draft cache per lead/channel/recipient/pitch: repeated previews do not spend AI again.
-    const cacheKey = `${ctx.lead.id}|${channel}|${recipient}|${ctx.company.name}|${ctx.workspace.offerDescription ?? ""}|${pitch ? `${pitch.service.id}:${pitch.service.name}:${pitch.service.entryOffer ?? ""}:${pitch.service.price ?? ""}:${pitch.finding ?? ""}` : ""}|${sellerName ?? ""}|${improvements.map((i) => `${i.fact}>${i.help ?? ""}`).join(";")}`;
+    const cacheKey = `${ctx.lead.id}|${channel}|${recipient}|${ctx.company.name}|${ctx.workspace.offerDescription ?? ""}|${pitch ? `${pitch.service.id}:${pitch.service.name}:${pitch.service.entryOffer ?? ""}:${pitch.service.price ?? ""}:${pitch.finding ?? ""}` : ""}|${sellerName ?? ""}|${improvements.map((i) => `${i.fact}>${i.help ?? ""}`).join(";")}|${cold ? `cold:${cold.finding}` : ""}`;
     const hit = previewCache.get(cacheKey);
     if (hit && !input.refresh && Date.now() - hit.at < PREVIEW_TTL_MS) {
       message = hit.message;
@@ -304,7 +321,7 @@ export async function previewOutreach(
         { name: ctx.company.name, city: ctx.company.city, independent: !ctx.company.isLegalEntity },
         { criteria: ctx.icp.criteria },
         { name: ctx.workspace.name, offerDescription: ctx.workspace.offerDescription, senderEmail: ctx.workspace.senderEmail, country: ctx.workspace.country },
-        { ai: deps.ai, channel, recipient, env, recorder: dbCallRecorder(db, ctx.hunt?.id), pitch, sellerName, improvements },
+        { ai: deps.ai, channel, recipient, env, recorder: dbCallRecorder(db, ctx.hunt?.id), pitch, sellerName, improvements, cold },
       );
       await recordAiCost(db, {
         leadId: ctx.lead.id,

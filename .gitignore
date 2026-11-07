@@ -21,3 +21,8 @@ next-env.d.ts
 .vercel
 .env*
 tests/eval/wa-agent/reports/
+
+# Review batches: real company mailboxes and signed opt-out links (repo is public)
+docs/review/
+research_notes/
+reports/

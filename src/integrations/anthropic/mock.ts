@@ -60,6 +60,21 @@ export function mockResponse(prompt: string): string {
   if (task === "ad_chat") return mockAdChat(after(prompt, "PAYLOAD:").split("\n")[0] ?? "");
   if (task === "ad_variants") return mockAdVariants(after(prompt, "PAYLOAD:").split("\n")[0] ?? "");
   if (task === "offer_angles") return mockOfferAngles(after(prompt, "PAYLOAD:").split("\n")[0] ?? "");
+  if (task === "outreach_message" && prompt.includes('"sector_pain"')) {
+    // F48 cold email: observation of the finding + its cost, in usted.
+    let c: { company?: string; website?: string | null; finding?: string; sector_pain?: string } = {};
+    try {
+      c = JSON.parse(after(prompt, "PAYLOAD:").split("\n")[0]);
+    } catch {
+      /* generic copy below */
+    }
+    const where = c.website ? `Revisé ${c.website}` : `Busqué ${c.company ?? "su empresa"} en Google Maps`;
+    return JSON.stringify({
+      subject: c.website ? `su sitio ${c.website}` : "su página web",
+      observation: `${where} y vi que ${c.finding ?? "hay algo por mejorar en su sitio"}.`,
+      consequence: `Eso suele significar ${c.sector_pain ?? "clientes que se van con otra empresa"}.`,
+    });
+  }
   if (task === "outreach_message") {
     let p: {
       company?: string;

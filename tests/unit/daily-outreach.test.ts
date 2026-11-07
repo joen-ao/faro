@@ -48,10 +48,12 @@ describe("F25 · daily run", () => {
   let db: AppDb;
   let huntId: string;
   let n = 0;
-  const mk = async (o: { email?: string | null; legal?: boolean; score?: number } = {}) => {
+  const mk = async (o: { email?: string | null; legal?: boolean; score?: number; reviewed?: boolean } = {}) => {
     n++;
     const [c] = await db.insert(companies).values({ name: `Empresa ${n} SAS`, normalizedName: `empresa ${n}`, city: "Bogota", isLegalEntity: o.legal ?? true, website: `https://e${n}.example` }).returning();
     await db.insert(companySources).values({ companyId: c!.id, sourceChannel: "rues", externalId: `d-${n}`, isMock: false });
+    // F48: a reviewed website with a real finding (no online booking) makes the lead eligible.
+    if (o.reviewed !== false) await db.insert(companySources).values({ companyId: c!.id, sourceChannel: "website", externalId: `w-${n}`, sourceUrl: `https://e${n}.example`, isMock: false, raw: { fetchedPages: 2, signals: { onlineBooking: false } } });
     if (o.email !== null) await db.insert(contactPoints).values({ companyId: c!.id, type: "email", value: o.email ?? `info@e${n}.example`, isGeneric: true });
     const [l] = await db.insert(leads).values({ companyId: c!.id, huntId, status: "fit", primarySource: "rues", fitScore: o.score ?? 70, slug: `d-${n}` }).returning();
     return l!.id;
@@ -77,22 +79,28 @@ describe("F25 · daily run", () => {
     expect(s.skipped).toBe("disabled");
   });
 
-  it("picks best-scored leads with an email (independents too, F41), never contacted ones", async () => {
+  it("F48: picks best-scored legal entities with a generic mailbox, never contacted ones", async () => {
     const top = await mk({ score: 95 });
     const mid = await mk({ score: 80 });
     await mk({ email: null, score: 99 });
-    const independent = await mk({ legal: false, score: 98 });
+    await mk({ legal: false, score: 98 }); // independents wait until the RNE is checked
     const done = await mk({ score: 97 });
     await db.insert(messages).values({ leadId: done, contactChannel: "email", body: "x", status: "sent", createdAt: new Date("2026-10-01T15:00:00Z") });
-    expect(await dailyCandidates(db, { enabled: true, emailsPerDay: 5, huntIds: null }, 5)).toEqual([independent, top, mid]);
+    expect(await dailyCandidates(db, { enabled: true, emailsPerDay: 5, huntIds: null }, 5)).toEqual([top, mid]);
   });
 
   it("sends at most emailsPerDay per Bogotá day and respects the window", async () => {
     await saveDailyOutreach(db, { enabled: true, emailsPerDay: 1, huntIds: null });
     const deps = { ai: createMockAnthropic(), email: createMockEmail(), env };
     expect((await runDailyOutreach(db, deps, { now: SUN_10 })).skipped).toBe("outside_window");
+    await mk({ score: 99, reviewed: false }); // website never reviewed: skipped, with its reason
     const first = await runDailyOutreach(db, deps, { now: SAT_10 });
     expect(first).toMatchObject({ enqueued: 1, simulated: 1 });
+    expect(first.skippedByReason).toEqual({ sin_hallazgo: 1 });
+    const [sent] = await db.select().from(messages).where(eq(messages.status, "simulated"));
+    expect(sent!.body).toMatch(/^Hola, equipo de Empresa \d+:\n\nRevisé e\d+\.example/);
+    expect(sent!.body).toContain("responda BAJA");
+    expect(sent!.body).not.toMatch(/\$|precio/i);
     // Messages get the DB clock; pin them to the simulated day so the quota sees them.
     await db.update(messages).set({ createdAt: SAT_10 }).where(eq(messages.status, "simulated"));
     const second = await runDailyOutreach(db, deps, { now: new Date(SAT_10.getTime() + 3600_000) });

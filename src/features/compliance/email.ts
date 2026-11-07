@@ -16,11 +16,32 @@ const GENERIC_TOKENS = new Set([...GENERIC_LOCAL, "contacto", "contactenos", "od
  * Glued prefixes (clinicajuanperez@, odontomaria@) and suffixes that are first names are NOT generic.
  */
 export function isGenericEmail(email: string | undefined | null): boolean {
-  if (!email) return false;
+  if (!email || isPlaceholderEmail(email)) return false;
   const parts = strip(email.split("@")[0] ?? "").replace(/\+.*$/, "").split(/[._-]+/).filter(Boolean);
   const first = (parts[0] ?? "").replace(/\d+$/, "");
   if (!first || !GENERIC_TOKENS.has(first)) return false;
   return parts.slice(1).every((p) => !COMMON_FIRST_NAMES.has(p.replace(/\d+$/, "")) && !/^[a-z]{1,2}$/.test(p));
+}
+
+/** Free mailbox providers: an address there says nothing about the company's own domain. */
+export const FREE_MAIL_DOMAINS: readonly string[] = ["gmail.com", "googlemail.com", "hotmail.com", "hotmail.es", "outlook.com", "outlook.es", "live.com", "msn.com", "yahoo.com", "yahoo.es", "icloud.com", "me.com", "proton.me", "protonmail.com"];
+
+// Bare example.com/.org is a template; subdomains of example.* (RFC 2606) are the mocks' own test hosts.
+const PLACEHOLDER_DOMAIN = /^example\.(com|org|net)$|(^|\.)(exampledomain\.[a-z.]+|domain\.com|yourdomain\.[a-z.]+|tudominio\.[a-z.]+|email\.com|sentry\.[a-z.]+|sentry-next\.wixpress\.com|wixpress\.com)$/;
+const PLACEHOLDER_LOCAL = /^(user|usuario|nombre|correo|test|email|your-?email|tu-?correo)$/;
+
+/** F50 · Template addresses scraped from websites (support@exampledomain.com, user@domain.com): never a real mailbox. */
+export function isPlaceholderEmail(email: string | undefined | null): boolean {
+  if (!email || !email.includes("@")) return false;
+  const [local, host] = strip(email).split("@") as [string, string];
+  return PLACEHOLDER_DOMAIN.test(host) || PLACEHOLDER_LOCAL.test(local);
+}
+
+/** The company's own email domain (`info@clinica.co` -> `clinica.co`); null for free providers and placeholders. */
+export function ownEmailDomain(email: string | undefined | null): string | null {
+  if (!email || isPlaceholderEmail(email)) return null;
+  const host = strip(email.split("@")[1] ?? "").replace(/^www\./, "");
+  return host && host.includes(".") && !FREE_MAIL_DOMAINS.includes(host) ? host : null;
 }
 
 const COMMON_FIRST_NAMES = new Set([

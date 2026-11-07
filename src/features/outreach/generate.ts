@@ -1,8 +1,10 @@
 import { z } from "zod";
-import { renderEmailHtml } from "./email-html";
+import { assembleColdEmail, coldPrompt, ColdDraft, displayName, domainOf, fallbackDraft, pickVariant, proofLine, verifyColdDraft, type ColdInput, type Variant } from "./cold-email";
+import { plainEmailHtml, renderEmailHtml } from "./email-html";
 import { createOptOutToken } from "@/features/compliance/optout";
 import { looksLikePersonName } from "@/features/compliance/person-name";
 import { FACT, LEAD_IN, type Recommendation } from "@/features/offer/match";
+import type { FindingKind } from "@/features/offer/schema";
 import { complete, type AnthropicAdapter, type CallRecorder, type Usage } from "@/integrations/anthropic";
 import { getEnv, type Env } from "@/lib/env";
 import type { ContactChannel, SourceChannel } from "@/db/types";
@@ -68,6 +70,8 @@ export interface GenerateOptions {
   sellerName?: string | null;
   /** Concrete findings + matching services (F25), shown as fixed lists under the pitch. */
   improvements?: { fact: string; help: string | null }[];
+  /** F48 · Cold email of an eligible lead: the opening finding, the sector's pain and the lead's website. */
+  cold?: { finding: FindingKind; pain: string; website: string | null } | null;
 }
 
 export interface GeneratedMessage {
@@ -83,6 +87,8 @@ export interface GeneratedMessage {
   sourceLabel: string;
   /** false when no reply address is configured (required for real sends). */
   senderIdentified: boolean;
+  /** F48 · A/B variant of the cold email (A: no link, B: diagnostic link as P.S.); null for the legacy copy. */
+  variant: Variant | null;
   usage: Usage;
   model: string;
   isMock: boolean;
@@ -174,6 +180,7 @@ export async function generateMessage(
   opts: GenerateOptions,
 ): Promise<GeneratedMessage> {
   const env = opts.env ?? getEnv();
+  if (opts.cold && opts.pitch && opts.channel === "email") return generateColdEmail(lead, company, workspace, opts as GenerateOptions & { cold: NonNullable<GenerateOptions["cold"]>; pitch: Recommendation }, env);
   const product = env.NEXT_PUBLIC_PRODUCT_NAME;
   const sector = typeof icp.criteria.sector === "string" ? icp.criteria.sector : "";
   const sourceLabel = SOURCE_LABELS[lead.primarySource];
@@ -267,7 +274,82 @@ export async function generateMessage(
     optOutUrl,
     sourceLabel,
     senderIdentified: !!replyTo,
+    variant: null,
     usage: res.usage,
+    model: res.model,
+    isMock: res.is_mock,
+  };
+}
+
+/** F48 · The cold email: model drafts subject/observation/consequence, the verifier gates it, templates do the rest. */
+async function generateColdEmail(
+  lead: GenLead,
+  company: GenCompany,
+  workspace: GenWorkspace,
+  opts: GenerateOptions & { cold: NonNullable<GenerateOptions["cold"]>; pitch: Recommendation },
+  env: Env,
+): Promise<GeneratedMessage> {
+  const seller = sanitizeCopy(opts.sellerName ?? "", 80) || "Mokub";
+  const input: ColdInput = {
+    company: displayName(sanitizeCopy(company.name, 120)),
+    city: sanitizeCopy(company.city ?? "", 60),
+    domain: opts.cold.finding === "no-website" ? null : domainOf(opts.cold.website),
+    finding: opts.cold.finding,
+    pain: sanitizeCopy(opts.cold.pain, 240),
+    service: { name: sanitizeCopy(opts.pitch.service.name, 80), outcome: sanitizeCopy(opts.pitch.service.outcome, 200) },
+  };
+  const rec = opts.recorder ? { recorder: opts.recorder } : {};
+  const clean = (d: ColdDraft): ColdDraft => ({ subject: sanitizeCopy(d.subject, 60), observation: sanitizeCopy(d.observation, 240), consequence: sanitizeCopy(d.consequence, 240) });
+  const replyTo = replyAddress(env, lead.slug, workspace.senderEmail);
+  const { diagnosticUrl, optOutUrl, oneClickUrl } = buildLinks(lead, opts.channel, opts.recipient, env);
+  const variant = pickVariant(lead.id);
+  const sourceLabel = SOURCE_LABELS[lead.primarySource];
+  const greeting = company.independent && isPersonName(company.name) ? `Hola, ${sanitizeCopy(firstName(company.name), 60)}:` : `Hola, equipo de ${input.company}:`;
+  // F50: the length cap is checked on the assembled email, not only on the model's sentences.
+  const assemble = (draft: ColdDraft) =>
+    assembleColdEmail({
+      greeting,
+      draft,
+      proof: proofLine({ id: opts.pitch.service.id, proof: opts.pitch.service.proof ? sanitizeCopy(opts.pitch.service.proof, 200) : undefined }, env.NEXT_PUBLIC_WHATSAPP_NUMBER),
+      domain: input.domain,
+      variant,
+      diagnosticUrl,
+      sourceLabel,
+      optOutUrl,
+      legal: [env.SENDER_LEGAL_NAME?.trim() || seller, env.SENDER_ADDRESS?.trim()].filter(Boolean).join(", "),
+      seller,
+      whatsapp: env.NEXT_PUBLIC_WHATSAPP_NUMBER,
+    });
+  let res = await complete(opts.ai, coldPrompt(input), ColdDraft, { task: "outreach_message", ...rec });
+  const usage = { ...res.usage };
+  let draft = clean(res.data);
+  let problems = verifyColdDraft(draft, input, assemble(draft));
+  if (problems.length) {
+    res = await complete(opts.ai, coldPrompt(input, problems), ColdDraft, { task: "outreach_message", ...rec });
+    usage.input_tokens += res.usage.input_tokens;
+    usage.output_tokens += res.usage.output_tokens;
+    draft = clean(res.data);
+    problems = verifyColdDraft(draft, input, assemble(draft));
+    if (problems.length) draft = fallbackDraft(input);
+  }
+  const text = assemble(draft);
+  const headers: Record<string, string> = {
+    "List-Unsubscribe": [`<${oneClickUrl}>`, ...(replyTo ? [`<mailto:${replyTo}?subject=baja>`] : [])].join(", "),
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+  return {
+    subject: draft.subject,
+    text,
+    html: plainEmailHtml(text),
+    from: env.EMAIL_FROM ?? null,
+    replyTo,
+    headers,
+    diagnosticUrl,
+    optOutUrl,
+    sourceLabel,
+    senderIdentified: !!replyTo,
+    variant,
+    usage,
     model: res.model,
     isMock: res.is_mock,
   };

@@ -8,12 +8,13 @@ import { scoreLeadsDeterministic } from "@/features/hunts/service";
 import { ApifyError, assertScrapableUrl, BlockedUrlError, type ApifyAdapter } from "@/integrations/apify";
 import type { WebSearchAdapter } from "@/integrations/web-search";
 import type { WebsiteFetchAdapter } from "@/integrations/website-fetch";
+import { FREE_MAIL_DOMAINS } from "@/features/compliance/email";
 import { guessWebsite, searchCompany } from "./free-discover";
 import { pickCompanyWebsite, websiteQuery } from "./discover";
 import { apifyContacts, enrichCompany, EnrichInputError, recordApifyCost, US_HINT } from "./enrich";
 
 /** Free mailbox providers and platforms: a generic address there says nothing about the company's own site. */
-const FREE_MAIL = ["gmail.com", "googlemail.com", "hotmail.com", "hotmail.es", "outlook.com", "outlook.es", "live.com", "msn.com", "yahoo.com", "yahoo.es", "icloud.com", "me.com", "proton.me", "protonmail.com"];
+const FREE_MAIL = FREE_MAIL_DOMAINS;
 export const NON_COMPANY_DOMAINS: readonly string[] = [...new Set([...DEDUPE_SHARED, ...COMPLIANCE_SHARED, ...FREE_MAIL])];
 
 export const ENRICH_FRESH_MS = 24 * 3600 * 1000;

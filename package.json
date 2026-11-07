@@ -17,7 +17,8 @@
     "db:seed": "tsx scripts/db-seed.ts",
     "auth:set-password": "tsx scripts/set-password.ts",
     "eval:wa-agent": "tsx scripts/eval-wa-agent.ts",
-    "cron:supabase": "tsx scripts/setup-supabase-cron.ts"
+    "cron:supabase": "tsx scripts/setup-supabase-cron.ts",
+    "enrich:places": "tsx scripts/enrich-places.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

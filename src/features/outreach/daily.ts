@@ -1,12 +1,12 @@
-import { and, desc, eq, gte, inArray, lt, notInArray } from "drizzle-orm";
+import { and, desc, eq, exists, gte, inArray, isNotNull, lt, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { appSettings, companies, contactPoints, leads, messages } from "@/db/schema";
+import { appSettings, companies, companySources, contactPoints, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { checkSendWindow } from "@/features/compliance/windows";
 import { getSendWindow } from "@/features/settings/send-window";
 import { bogotaDayStart } from "@/features/whatsapp/send";
 import { getEnv } from "@/lib/env";
-import { enqueue, processQueue, type OutreachDeps } from "./service";
+import { coldEligibility, enqueue, loadLeadContext, processQueue, type OutreachDeps } from "./service";
 
 /**
  * F25 · Daily email run (Vercel Cron, L–S 9:00 Bogotá): up to `emailsPerDay` first emails to the best-scored leads
@@ -33,6 +33,8 @@ export interface DailyRunSummary {
   failed: number;
   sentToday: number;
   note?: string;
+  /** F48 · Candidates skipped before writing, by reason (sector_sin_oferta, sin_hallazgo, …). */
+  skippedByReason?: Record<string, number>;
 }
 
 export interface StoredDailyOutreach {
@@ -76,7 +78,9 @@ export async function emailsToday(db: AppDb, now: Date): Promise<number> {
  * count too; on equal score, legal entities with a generic mailbox go first.
  */
 export async function dailyCandidates(db: AppDb, setting: DailyOutreachSetting, limit: number): Promise<string[]> {
-  const conds = [eq(leads.status, "fit"), eq(leads.isDemo, false), eq(companies.isDemo, false)];
+  // F48: cold email only to a legal entity's generic mailbox, with a website to review or a Google Maps listing.
+  const placesChecked = exists(db.select({ id: companySources.id }).from(companySources).where(and(eq(companySources.companyId, companies.id), eq(companySources.sourceChannel, "google_places"), sql`${companySources.raw} ? 'place_id'`)));
+  const conds = [eq(leads.status, "fit"), eq(leads.isDemo, false), eq(companies.isDemo, false), eq(companies.isLegalEntity, true), eq(contactPoints.isGeneric, true), or(isNotNull(companies.website), placesChecked)!];
   if (setting.huntIds?.length) conds.push(inArray(leads.huntId, setting.huntIds));
   const touched = db
     .select({ companyId: leads.companyId })
@@ -121,7 +125,17 @@ export async function runDailyOutreach(
   if (!win.allowed) return finish({ ...summary, skipped: "outside_window", note: win.reason });
   const remaining = setting.emailsPerDay - summary.sentToday;
   if (remaining <= 0) return finish({ ...summary, skipped: "quota_reached" });
-  const candidates = await dailyCandidates(db, setting, remaining);
+  // F48: look further than the quota and keep only leads with a sector offer and a real finding.
+  const pool = await dailyCandidates(db, setting, Math.min(remaining * 10, 1000));
+  const candidates: string[] = [];
+  const skippedByReason: Record<string, number> = {};
+  for (const leadId of pool) {
+    if (candidates.length >= remaining) break;
+    const elig = coldEligibility(await loadLeadContext(db, leadId), now);
+    if (elig.ok) candidates.push(leadId);
+    else skippedByReason[elig.reason] = (skippedByReason[elig.reason] ?? 0) + 1;
+  }
+  if (Object.keys(skippedByReason).length) summary.skippedByReason = skippedByReason;
   if (!candidates.length) return finish({ ...summary, skipped: "no_candidates" });
 
   // Generate + enqueue a few at a time (each one is an AI call); stop once the quota is queued.

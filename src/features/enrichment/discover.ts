@@ -74,6 +74,13 @@ export function pickCompanyWebsite(name: string, urls: readonly string[]): strin
   return null;
 }
 
+/** The site root when the URL is a company's own site (not social, directory or foreign TLD); null otherwise. */
+export function ownSiteRoot(url: string | null | undefined): string | null {
+  if (!url || isGoogleMapsUrl(url)) return null;
+  const host = hostOf(url);
+  return host && !blocked(host) && !foreignTld(host) ? `https://${host}` : null;
+}
+
 /** Search query for one company: its registered name plus the city, in quotes-free plain text. */
 export function websiteQuery(name: string, city: string | null): string {
   return `${name.replace(/["']/g, " ").replace(/\s+/g, " ").trim()} ${city ?? ""} sitio web`.trim();

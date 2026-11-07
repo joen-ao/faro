@@ -148,3 +148,9 @@ export function renderEmailHtml(text: string, opts: EmailHtmlOptions = {}): stri
     `</div>`,
   ].join("");
 }
+
+/** F48 · Cold email HTML that looks typed by a person: plain paragraphs, default font, links only where the text has them. */
+export function plainEmailHtml(text: string): string {
+  const paras = text.split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px">${linkify(escapeHtml(p), "#1a0dab").replace(/\n/g, "<br>")}</p>`);
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#222">${paras.join("")}</div>`;
+}

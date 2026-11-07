@@ -1,4 +1,4 @@
-import { isGenericEmail } from "@/features/compliance/email";
+import { isGenericEmail, isPlaceholderEmail } from "@/features/compliance/email";
 import type { Country } from "@/features/compliance/windows";
 import type { ContactChannel } from "@/db/types";
 
@@ -28,7 +28,7 @@ export interface ChannelOptions {
  */
 export function channelOptions(contacts: ContactRow[], opts: ChannelOptions): ChannelOption[] {
   const out: ChannelOption[] = [];
-  const emails = contacts.filter((c) => c.type === "email");
+  const emails = contacts.filter((c) => c.type === "email" && !isPlaceholderEmail(c.value));
   const generic = emails.find((c) => c.isGeneric && isGenericEmail(c.value));
   if (generic) out.push({ channel: "email", value: generic.value, usable: true });
   else if (emails[0]) out.push({ channel: "email", value: emails[0].value, usable: true, note: "Correo personal" });

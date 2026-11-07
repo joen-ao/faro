@@ -10,7 +10,7 @@ import type { ReceivedEmail } from "@/integrations/email/inbound";
 const ADVANCE_FROM = ["found", "fit", "contacted"] as const;
 
 /** Explicit unsubscribe intent (accent-insensitive). */
-const UNSUB = /\b(darme de baja|darnos de baja|dame de baja|dar de baja|desuscrib\w*|unsubscribe|no deseo recibir|no quiero recibir|quitar\w* de (la|su) lista|remove me|opt[- ]?out)\b/;
+const UNSUB = /^\s*(baja|stop)\b|\b(darme de baja|darnos de baja|dame de baja|dar de baja|desuscrib\w*|unsubscribe|no deseo recibir|no quiero recibir|quitar\w* de (la|su) lista|remove me|opt[- ]?out)\b/;
 /** "Not interested" only counts as unsubscribe when the message is short (a long reply may be commercial). */
 const NOT_INTERESTED = /\bno (me|nos) interesa\b/;
 export const NOT_INTERESTED_MAX_CHARS = 120;
