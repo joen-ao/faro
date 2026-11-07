@@ -35,10 +35,10 @@ describe("F50 · verifier", () => {
   it("caps the assembled email at 90 words above the signature, P.S. excluded", () => {
     const a = { greeting: "Hola, equipo de Clínica Sonrisa:", proof: "Más de 15 proyectos en producción. Pruebe nuestro agente en WhatsApp: +57 301 473 4934.", domain: "sonrisa.co", variant: "B" as const, diagnosticUrl: "https://x/d/1", sourceLabel: "el RUES", optOutUrl: "https://x/baja/1", legal: "Mokub, NIT 1", seller: "Mokub", whatsapp: "573014734934" };
     const short = assembleColdEmail({ ...a, draft: ok });
-    expect(bodyWords(short)).toBeLessThanOrEqual(90);
+    expect(bodyWords(short)).toBeLessThanOrEqual(100);
     expect(verifyColdDraft(ok, input, short)).toEqual([]);
-    const long = assembleColdEmail({ ...a, draft: { ...ok, consequence: "palabra ".repeat(60).trim() } });
-    expect(verifyColdDraft(ok, input, long).some((p) => p.includes("90 palabras"))).toBe(true);
+    const long = assembleColdEmail({ ...a, draft: { ...ok, consequence: "palabra ".repeat(80).trim() } });
+    expect(verifyColdDraft(ok, input, long).some((p) => p.includes("100 palabras"))).toBe(true);
   });
 });
 

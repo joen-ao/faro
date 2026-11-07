@@ -63,9 +63,11 @@ describe("F48 · the cold email", () => {
   it("has no price, ≤ 90 words above the signature, the proof, a question and the short legal footer", async () => {
     const g = await generateMessage(lead("00000000-0000-4000-8000-000000000001"), { name: "Clínica Sonrisa SAS", city: "Bogotá" }, { criteria: {} }, { name: "Mokub", country: "CO" }, { ai: createMockAnthropic(), channel: "email", recipient: "info@clinica.co", env, pitch: pitch as never, sellerName: "Mokub", cold });
     expect(g.text).not.toMatch(/\$|precio/i);
-    expect(bodyWords(g.text)).toBeLessThanOrEqual(90);
-    expect(g.text).toContain("Más de 15 proyectos en producción.");
-    expect(g.text).toContain("¿Se lo enviamos por aquí o por WhatsApp?");
+    expect(bodyWords(g.text)).toBeLessThanOrEqual(100);
+    expect(g.text).toContain("(más de 15 proyectos en producción).");
+    expect(g.text).toContain("Justo eso resolvemos en Mokub");
+    expect(g.text).toContain("Pruébelo: +57");
+    expect(g.text).toContain("por aquí o por WhatsApp?");
     expect(g.text).toContain("Mokub, NIT 1001975274-1, Bogotá. Le escribimos porque su empresa aparece en el REPS");
     expect(g.text).toContain("responda BAJA");
     expect(g.text).not.toContain("Quién escribe");
@@ -78,7 +80,7 @@ describe("F48 · the cold email", () => {
     const b = ids.find((id) => pickVariant(id) === "B")!;
     const gen = (id: string) => generateMessage(lead(id), { name: "Clínica Sonrisa SAS", city: "Bogotá" }, { criteria: {} }, { name: "Mokub", country: "CO" }, { ai: createMockAnthropic(), channel: "email", recipient: "info@clinica.co", env, pitch: pitch as never, cold });
     expect((await gen(a)).text).not.toContain("/d/sonrisa");
-    expect((await gen(b)).text).toContain("PD: si prefiere verlo ya, está aquí: https://faro.test/d/sonrisa");
+    expect((await gen(b)).text).toContain("Si prefiere verlo ya, está aquí: https://faro.test/d/sonrisa");
   });
 
   it("regenerates once with the reasons and falls back to the safe draft", async () => {
@@ -94,7 +96,7 @@ describe("F48 · the cold email", () => {
     const g = await generateMessage(lead("00000000-0000-4000-8000-0000000000b1"), { name: "Clínica Sonrisa SAS", city: "Bogotá" }, { criteria: {} }, { name: "Mokub", country: "CO" }, { ai: salesy, channel: "email", recipient: "info@clinica.co", env, pitch: pitch as never, cold });
     expect(prompts).toHaveLength(2);
     expect(prompts[1]).toContain("Tu borrador anterior fue rechazado por: menciona precio");
-    expect(g.text).toContain("Revisé clinica.co y vi que el sitio no permite agendar en línea.");
+    expect(g.text).toContain("Estuve viendo clinica.co y se ve bien, pero noté que el sitio no permite agendar en línea.");
     expect(g.text).not.toMatch(/increíble|\$/);
   });
 });

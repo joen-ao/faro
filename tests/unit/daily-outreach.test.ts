@@ -98,7 +98,7 @@ describe("F25 · daily run", () => {
     expect(first).toMatchObject({ enqueued: 1, simulated: 1 });
     expect(first.skippedByReason).toEqual({ sin_hallazgo: 1 });
     const [sent] = await db.select().from(messages).where(eq(messages.status, "simulated"));
-    expect(sent!.body).toMatch(/^Hola, equipo de Empresa \d+:\n\nRevisé e\d+\.example/);
+    expect(sent!.body).toMatch(/^Hola, equipo de Empresa \d+:\n\n(Revisé|Estuve viendo) e\d+\.example/);
     expect(sent!.body).toContain("responda BAJA");
     expect(sent!.body).not.toMatch(/\$|precio/i);
     // Messages get the DB clock; pin them to the simulated day so the quota sees them.

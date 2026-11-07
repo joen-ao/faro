@@ -34,6 +34,20 @@ export interface OptOutPayload {
   contact?: string;
 }
 
+/** F51 · Short opt-out code for the visible link: `<slug>-<10 chars of hmac>` (the long token stays in headers). */
+export function createShortOptOutCode(slug: string, secretOverride?: string): string {
+  return `${slug}-${b64(sign(`short:${slug}`, secret(secretOverride))).slice(0, 10)}`;
+}
+
+/** The lead slug of a valid short code; null when the signature does not match. */
+export function verifyShortOptOutCode(code: string, secretOverride?: string): string | null {
+  const m = /^([a-z0-9_-]{1,64})-([A-Za-z0-9_-]{10})$/i.exec(code);
+  if (!m) return null;
+  const expected = Buffer.from(createShortOptOutCode(m[1]!, secretOverride).slice(-10));
+  const given = Buffer.from(m[2]!);
+  return given.length === expected.length && timingSafeEqual(given, expected) ? m[1]! : null;
+}
+
 /** Signed, non-expiring opt-out token: base64url(json).base64url(hmac). */
 export function createOptOutToken(leadId: string, contact?: string, secretOverride?: string): string {
   const payload = b64(JSON.stringify({ l: leadId, ...(contact ? { c: contact } : {}) }));

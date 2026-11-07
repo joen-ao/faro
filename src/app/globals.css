@@ -54,3 +54,27 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; }
   .faro-beam, .faro-pulse { animation: none; }
   .faro-pulse { opacity: 1; }
 }
+
+/* F51 · Diagnostic page (/d) in Mokub's brand (mokub.co): night hero, light body, Cal Sans + Inter. */
+.mokub-page {
+  --mk-noche: #0A1220; --mk-capa: #13213A; --mk-tinta: #0E1726; --mk-texto: #3B4658; --mk-suave: #5B6878;
+  --mk-fondo: #FAFAF7; --mk-gris: #EEF1F5; --mk-borde: #E2E5EB; --mk-borde-fuerte: #C9D0DA;
+  --mk-acento: #134E8A; --mk-acento-hover: #0D3A68; --mk-acento-suave: #E6EEF8; --mk-azul-claro: #B9D3F3;
+  --mk-wa: #1F7A45; --mk-wa-hover: #18633A; --mk-exito: #135C4C; --mk-exito-suave: #E3F4EF;
+  --mk-alerta: #9A3412; --mk-alerta-suave: #FBEEE6; --mk-aqua: #26A69A; --mk-aqua-claro: #8FE0D6; --mk-aqua-tinta: #062B27;
+  --mk-sobre-noche: #C3CEDF; --mk-hook: #D5DEEC;
+  color-scheme: light;
+  background: var(--mk-fondo);
+  color: var(--mk-tinta);
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+.mokub-page h1, .mokub-page h2, .mokub-page h3 { font-family: var(--font-calsans), var(--font-inter), sans-serif; font-weight: 400; letter-spacing: -0.01em; word-spacing: 0.08em; }
+.mokub-page :focus-visible { outline: 2px solid #6FA8E8; outline-offset: 2px; }
+.mokub-page [data-testid="attribution"] { color: var(--mk-suave); }
+.mokub-page [data-testid="attribution"] a:hover { color: var(--mk-tinta); }
+/* The shared contact form, re-toned for a white card. */
+.mokub-form {
+  --faro-accent: #134E8A; --faro-accent-ink: #FFFFFF; --faro-surface-1: #FFFFFF; --faro-surface-2: #FFFFFF;
+  --faro-text-2: #3B4658; --faro-text-3: #5B6878; --border: #C9D0DA; --field-text: #0E1726; --faro-danger: #B42318;
+}
+.mokub-form [data-testid="contact-ok"] { color: #0E1726; }

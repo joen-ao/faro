@@ -306,7 +306,7 @@ export async function previewOutreach(
     const fitServices = elig?.ok ? elig.segment.services.map((id) => fullOffer.services.find((s) => s.id === id)).filter((s): s is NonNullable<typeof s> => !!s) : [];
     const offer = fitServices.length ? { ...fullOffer, services: fitServices } : fullOffer;
     const pitch = leadPitch(ctx, offer);
-    const cold = elig?.ok && fitServices.length ? { finding: elig.finding, pain: elig.segment.pain, website: ctx.company.website } : null;
+    const cold = elig?.ok && fitServices.length ? { finding: elig.finding, pain: elig.segment.pain, website: ctx.company.website, health: elig.segment.id === "salud" } : null;
     const sellerName = offer.company ?? null;
     const improvements = channel === "email" ? leadImprovements(ctx, offer) : [];
     // Draft cache per lead/channel/recipient/pitch: repeated previews do not spend AI again.
@@ -607,7 +607,7 @@ export async function processQueue(
         ...(replyTo ? { replyTo } : {}),
         subject: (m.subject ?? "").replace(/[\r\n]+/g, " "),
         text: m.body,
-        html: textToHtml(m.body),
+        html: textToHtml(m.body, env.NEXT_PUBLIC_APP_URL),
         idempotencyKey: `faro-msg-${m.id}`,
         headers: {
           "List-Unsubscribe": [`<${links.oneClickUrl}>`, ...(replyTo ? [`<mailto:${replyTo}?subject=baja>`] : [])].join(", "),

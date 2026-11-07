@@ -1,4 +1,4 @@
-import { ChevronDown, CircleCheck, CircleHelp, MessageCircle, TriangleAlert } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Check, ChevronDown, CircleHelp, Clock3, MessageCircle, TriangleAlert } from "lucide-react";
 import { Attribution } from "@/components/attribution";
 import { getEnv } from "@/lib/env";
 import { cn } from "@/lib/utils";
@@ -11,7 +11,13 @@ import { ContactForm } from "./contact-form";
 import { TrackOpen } from "./track-open";
 import { localize } from "@/features/diagnostic/vocab";
 import type { Opportunity } from "@/features/diagnostic/opportunities";
+import { displayName } from "@/features/outreach/cold-email";
+import { evidenceFor, evidenceForAll, type Evidence } from "@/features/offer/evidence";
 
+/**
+ * F51 · The diagnostic page speaks as Mokub: mokub.co colours and type (night hero, light body), one WhatsApp CTA in
+ * the hero and one in the closing block, never two side by side. Tokens live in `.mokub-page` (globals.css).
+ */
 export interface ViewProps {
   /** Page identity for tracking and the form: lead slug, or `icp:<icpSlug>`. */
   slug: string;
@@ -36,32 +42,22 @@ export interface ViewProps {
   offer?: { help: Record<string, string>; service: { name: string; outcome: string; entryOffer: string | null } };
 }
 
-const STATUS: Record<FindingStatus, { label: string; Icon: typeof CircleCheck; pill: string }> = {
-  ok: { label: "A favor", Icon: CircleCheck, pill: "bg-faro-accent/12 text-faro-accent" },
-  opportunity: { label: "Oportunidad", Icon: TriangleAlert, pill: "bg-faro-warn/14 text-faro-warn" },
-  unknown: { label: "Sin revisar", Icon: CircleHelp, pill: "bg-white/8 text-white" },
-};
+/** Catalog names may say "tus"; the page always speaks with "usted". */
+const usted = (s: string) => s.replace(/\btus\b/g, "sus").replace(/\bTus\b/g, "Sus").replace(/\btu\b/g, "su");
 
-function StatusPill({ f }: { f: Finding }) {
-  const s = STATUS[f.status];
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold", s.pill)}>
-        <s.Icon aria-hidden className="size-3.5" strokeWidth={2.5} />
-        {s.label}
-      </span>
-      {f.isExample && <span className="rounded-full bg-faro-surface-3 px-2 py-0.5 text-xs text-white">Ejemplo</span>}
-    </div>
-  );
-}
+const STATUS: Record<FindingStatus, { label: string; Icon: typeof Check; pill: string; icon: string }> = {
+  ok: { label: "A favor", Icon: Check, pill: "bg-[var(--mk-exito-suave)] text-[var(--mk-exito)]", icon: "bg-[var(--mk-exito-suave)] text-[var(--mk-exito)]" },
+  opportunity: { label: "Por mejorar", Icon: TriangleAlert, pill: "bg-[var(--mk-alerta-suave)] text-[var(--mk-alerta)]", icon: "bg-[var(--mk-alerta-suave)] text-[var(--mk-alerta)]" },
+  unknown: { label: "Sin revisar", Icon: CircleHelp, pill: "bg-[var(--mk-gris)] text-[var(--mk-suave)]", icon: "bg-[var(--mk-gris)] text-[var(--mk-suave)]" },
+};
 
 function SourceLine({ f }: { f: Finding }) {
   return (
-    <p className="text-xs text-faro-text-3">
+    <p className="text-xs text-[var(--mk-suave)]">
       {f.sourceUrl ? (
         <>
           Visto en:{" "}
-          <a href={f.sourceUrl} target="_blank" rel="noopener noreferrer nofollow" className="underline decoration-white/30 underline-offset-2 hover:text-white">
+          <a href={f.sourceUrl} target="_blank" rel="noopener noreferrer nofollow" className="underline decoration-[var(--mk-borde-fuerte)] underline-offset-2 hover:text-[var(--mk-tinta)]">
             {f.sourceLabel}
           </a>
         </>
@@ -72,69 +68,132 @@ function SourceLine({ f }: { f: Finding }) {
   );
 }
 
-/** Opportunity: highlighted card with the recommendation beside it (stacked on mobile). */
-function OpportunityCard({ f, help }: { f: Finding; help?: string }) {
+function WhatsAppButton({ href, testId, className, label = "Hablar por WhatsApp" }: { href: string; testId: string; className?: string; label?: string }) {
   return (
-    <li data-testid="finding" data-status={f.status} className="grid gap-5 rounded-card border border-faro-warn/45 bg-faro-surface-1 p-5 sm:p-7 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-8">
-      <div className="flex min-w-0 flex-col gap-3">
-        <StatusPill f={f} />
-        <h3 className="text-pretty text-xl font-semibold leading-snug sm:text-[1.375rem]">{f.title}</h3>
-        <p className="text-pretty leading-relaxed text-faro-text-2">
-          <span className="font-semibold text-white">Por qué importa: </span>
-          {f.why}
-        </p>
-        <SourceLine f={f} />
-      </div>
-      <div className="self-start rounded-button bg-faro-surface-2 p-4 sm:p-5">
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-faro-accent">Recomendación</p>
-        <p className="mt-2 text-pretty leading-relaxed text-white">{f.recommendation}</p>
-        {help && (
-          <div data-testid="how-we-help" className="mt-4 border-t border-white/10 pt-4">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-faro-text-2">Cómo le ayudamos</p>
-            <p className="mt-2 text-pretty text-sm leading-relaxed text-white/85">{help}</p>
-          </div>
-        )}
-      </div>
-    </li>
-  );
-}
-
-/** Point in favour (or not reviewed): compact card in the grid. */
-function GridCard({ f, help }: { f: Finding; help?: string }) {
-  return (
-    <li data-testid="finding" data-status={f.status} className="flex flex-col gap-3 rounded-card border border-white/10 bg-faro-surface-1 p-5 sm:p-6">
-      <StatusPill f={f} />
-      <h3 className="text-pretty text-lg font-semibold leading-snug">{f.title}</h3>
-      <p className="text-pretty text-sm leading-relaxed text-faro-text-2">
-        <span className="font-semibold text-white">Por qué importa: </span>
-        {f.why}
-      </p>
-      <p className="text-pretty text-sm leading-relaxed text-white">
-        <span className="font-semibold text-faro-accent">Recomendación: </span>
-        {f.recommendation}
-      </p>
-      {help && (
-        <p data-testid="how-we-help" className="text-pretty text-sm leading-relaxed text-white/85">
-          <span className="font-semibold text-white">Cómo le ayudamos: </span>
-          {help}
-        </p>
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      data-testid={testId}
+      className={cn(
+        "inline-flex min-h-14 items-center justify-center gap-2.5 rounded-full bg-[var(--mk-wa)] px-7 text-base font-bold text-white shadow-[0_8px_24px_-8px_rgba(31,122,69,0.65)] transition-[background-color,transform] hover:bg-[var(--mk-wa-hover)] active:translate-y-px",
+        className,
       )}
-      <div className="mt-auto pt-1">
+    >
+      <MessageCircle aria-hidden className="size-5" strokeWidth={2.25} />
+      {label}
+    </a>
+  );
+}
+
+function MokubMark({ brand, onDark }: { brand: string; onDark?: boolean }) {
+  return (
+    <span className={cn("flex items-center gap-2.5", onDark ? "text-white" : "text-[var(--mk-tinta)]")}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- tiny static logo, no layout shift */}
+      <img src="/brand/mokub-logo.png" alt="" width={30} height={25} className={cn("h-[25px] w-auto", onDark && "brightness-0 invert")} />
+      <span className="font-[family-name:var(--font-calsans)] text-xl leading-none tracking-[-0.01em]">{brand}</span>
+    </span>
+  );
+}
+
+/** F52 · What the gap costs, with its source (never an invented figure). */
+function EvidenceStrip({ e }: { e: Evidence }) {
+  return (
+    <p className="flex gap-3 rounded-xl bg-[var(--mk-alerta-suave)] px-4 py-3 text-sm leading-relaxed text-[var(--mk-tinta)]">
+      <span className="shrink-0 font-[family-name:var(--font-calsans)] text-xl leading-tight text-[var(--mk-alerta)]">{e.figure}</span>
+      <span>
+        {e.text}{" "}
+        <a href={e.url} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap text-[var(--mk-suave)] underline underline-offset-2 hover:text-[var(--mk-tinta)]">
+          {e.source.replace(/ \(.*\)$/, "")}
+        </a>
+      </span>
+    </p>
+  );
+}
+
+function StakesBlock({ items }: { items: Evidence[] }) {
+  return (
+    <section aria-labelledby="en-juego" data-testid="stakes" className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--mk-alerta)]">Lo que está en juego</p>
+        <h2 id="en-juego" className="max-w-3xl text-balance text-[1.75rem] leading-tight sm:text-[2.25rem]">Cada día sin resolver esto, alguien más se queda con esos clientes</h2>
+      </div>
+      <ul className={cn("grid gap-4", items.length > 1 && "md:grid-cols-2", items.length > 2 && "lg:grid-cols-3")}>
+        {items.map((e) => (
+          <li key={e.id} className="flex flex-col gap-3 rounded-[20px] border border-[var(--mk-borde)] bg-white p-6">
+            <span className="font-[family-name:var(--font-calsans)] text-[3rem] leading-none text-[var(--mk-acento)]">{e.figure}</span>
+            <p className="text-pretty leading-relaxed text-[var(--mk-tinta)]">{e.text}</p>
+            <a href={e.url} target="_blank" rel="noopener noreferrer" className="mt-auto inline-flex items-center gap-1 text-xs text-[var(--mk-suave)] underline underline-offset-2 hover:text-[var(--mk-tinta)]">
+              Fuente: {e.source}
+              <ArrowUpRight aria-hidden className="size-3" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Opportunity finding when the site gave no AI opportunities: full card with why, recommendation and how we help. */
+function FindingCard({ f, help, index, evidence }: { f: Finding; help?: string; index: number; evidence?: Evidence | null }) {
+  return (
+    <li data-testid="finding" data-status={f.status} className="grid gap-5 rounded-[20px] border border-[var(--mk-borde)] bg-white p-6 sm:p-7 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-8">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:gap-4">
+        <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--mk-acento)] text-sm font-bold text-white">{index}</span>
+        <div className="flex min-w-0 flex-col gap-2.5">
+          <h3 className="text-pretty text-xl leading-snug sm:text-[1.375rem]">{f.title}</h3>
+          <p className="text-pretty leading-relaxed text-[var(--mk-texto)]">{f.why}</p>
+          {evidence && <EvidenceStrip e={evidence} />}
+          <p className="text-pretty leading-relaxed text-[var(--mk-tinta)]">
+            <span className="font-semibold">Recomendación: </span>
+            {f.recommendation}
+          </p>
+          <SourceLine f={f} />
+        </div>
+      </div>
+      {help && (
+        <div data-testid="how-we-help" className="self-start rounded-2xl bg-[var(--mk-acento-suave)] p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--mk-acento)]">Cómo le ayudamos</p>
+          <p className="mt-2 text-pretty text-[0.9375rem] leading-relaxed text-[var(--mk-tinta)]">{usted(help)}</p>
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** Compact checklist row: what we checked and how it came out. */
+function CheckRow({ f, help }: { f: Finding; help?: string }) {
+  const s = STATUS[f.status];
+  return (
+    <li data-testid="finding" data-status={f.status} className="flex gap-3.5 py-4">
+      <span aria-hidden className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full", s.icon)}>
+        <s.Icon className="size-4" strokeWidth={2.5} />
+      </span>
+      <div className="flex min-w-0 flex-col gap-1">
+        <p className="flex flex-wrap items-center gap-2 font-semibold text-[var(--mk-tinta)]">
+          {f.title}
+          {f.isExample && <span className="rounded-full bg-[var(--mk-gris)] px-2 py-0.5 text-xs font-medium text-[var(--mk-suave)]">Ejemplo</span>}
+        </p>
+        <p className="text-pretty text-sm leading-relaxed text-[var(--mk-texto)]">{f.status === "opportunity" ? f.recommendation : f.why}</p>
+        {help && (
+          <p data-testid="how-we-help" className="text-pretty text-sm leading-relaxed text-[var(--mk-acento)]">
+            <span className="font-semibold">Cómo le ayudamos: </span>
+            {usted(help)}
+          </p>
+        )}
         <SourceLine f={f} />
       </div>
     </li>
   );
 }
 
-/** Opportunities first: what may be costing patients leads the page. */
 const ORDER: Record<FindingStatus, number> = { opportunity: 0, unknown: 1, ok: 2 };
-
 const pct = (v: number) => `${Math.round(v * 100).toLocaleString("es-CO")} %`;
 
 const YOU: Record<"yes" | "no" | "na", { text: string; cls: string }> = {
-  yes: { text: "Usted: sí", cls: "bg-faro-accent/14 text-faro-accent" },
-  no: { text: "Usted: no", cls: "bg-faro-warn/14 text-faro-warn" },
-  na: { text: "Sin dato", cls: "bg-faro-surface-2 text-faro-text-3" },
+  yes: { text: "Usted: sí", cls: "bg-[var(--mk-exito-suave)] text-[var(--mk-exito)]" },
+  no: { text: "Usted: no", cls: "bg-[var(--mk-alerta-suave)] text-[var(--mk-alerta)]" },
+  na: { text: "Sin dato", cls: "bg-[var(--mk-gris)] text-[var(--mk-suave)]" },
 };
 
 function BenchRow({ r }: { r: BenchmarkRow }) {
@@ -144,19 +203,19 @@ function BenchRow({ r }: { r: BenchmarkRow }) {
       data-testid={`bench-${r.key}`}
       className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 py-5 md:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_4.5rem_6.5rem] md:gap-x-6"
     >
-      <p className="font-medium">{r.label}</p>
+      <p className="font-medium text-[var(--mk-tinta)]">{r.label}</p>
       <span className={cn("justify-self-end rounded-full px-3 py-1 text-center text-[0.8125rem] font-bold md:order-last md:w-full", you.cls)}>{you.text}</span>
       {r.pct === null ? (
-        <p className="col-span-2 text-sm text-faro-text-2 md:col-span-2">
+        <p className="col-span-2 text-sm text-[var(--mk-suave)] md:col-span-2">
           Aún no hay suficientes datos para comparar{r.n > 0 ? ` (n = ${r.n}, mínimo ${BENCHMARK_MIN_N})` : ""}
         </p>
       ) : (
         <>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-faro-surface-2" role="img" aria-label={`${pct(r.pct)} de ${r.n} clínicas`}>
-            <div className="h-full rounded-full bg-white/45" style={{ width: `${Math.max(2, r.pct * 100)}%` }} />
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-[var(--mk-gris)]" role="img" aria-label={`${pct(r.pct)} de ${r.n}`}>
+            <div className="h-full rounded-full bg-[var(--mk-acento)]" style={{ width: `${Math.max(2, r.pct * 100)}%` }} />
           </div>
-          <p className="text-right tabular-nums">
-            {pct(r.pct)} <span className="block text-xs text-faro-text-3">n = {r.n}</span>
+          <p className="text-right tabular-nums text-[var(--mk-tinta)]">
+            {pct(r.pct)} <span className="block text-xs text-[var(--mk-suave)]">n = {r.n}</span>
           </p>
         </>
       )}
@@ -164,24 +223,23 @@ function BenchRow({ r }: { r: BenchmarkRow }) {
   );
 }
 
-function BenchmarkBlock({ b, L = (t: string) => t }: { b: Benchmark; L?: (t: string) => string }) {
+function BenchmarkBlock({ b, L }: { b: Benchmark; L: (t: string) => string }) {
   const peers = Math.max(0, ...b.rows.map((r) => r.n));
   const city = b.city ? cityLabel(b.city) : null;
-  // "hunt": fewer than 5 reviewed clinics in their city, so the comparison uses the whole search (and says so).
   const wide = b.scope === "hunt";
-  const title =
-    L(peers < BENCHMARK_MIN_N ? "Usted frente a su competencia" : wide ? `Usted frente a ${peers} clínicas revisadas en su búsqueda` : `Usted frente a ${peers} clínicas${city ? ` de ${city}` : ""}`);
+  const title = L(peers < BENCHMARK_MIN_N ? "Usted frente a su competencia" : wide ? `Usted frente a ${peers} clínicas revisadas en su búsqueda` : `Usted frente a ${peers} clínicas${city ? ` de ${city}` : ""}`);
   return (
     <section aria-labelledby="comparacion" className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <h2 id="comparacion" className="text-2xl font-semibold sm:text-[1.75rem]">{title}</h2>
-        <p className="max-w-2xl text-pretty text-faro-text-3">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--mk-acento)]">Comparación</p>
+        <h2 id="comparacion" className="text-[1.75rem] leading-tight sm:text-[2rem]">{title}</h2>
+        <p className="max-w-2xl text-pretty text-[var(--mk-suave)]">
           {wide
             ? L(`Clínicas revisadas en su búsqueda${city ? `: en ${city} aún hay menos de ${BENCHMARK_MIN_N} con sitio revisado, así que comparamos con todas las de la búsqueda` : ""}. Solo mostramos totales, nunca nombres.`)
             : L(`Comparamos su sitio con los de otras clínicas${city ? ` de ${city}` : ""} de la misma búsqueda pública. Solo mostramos totales, nunca nombres.`)}
         </p>
       </div>
-      <ul data-testid="benchmark" className="divide-y divide-white/8 rounded-card border border-white/10 bg-faro-surface-1 px-5 sm:px-6">
+      <ul data-testid="benchmark" className="divide-y divide-[var(--mk-borde)] rounded-[20px] border border-[var(--mk-borde)] bg-white px-5 sm:px-7">
         {b.rows.map((r) => (
           <BenchRow key={r.key} r={r} />
         ))}
@@ -190,135 +248,146 @@ function BenchmarkBlock({ b, L = (t: string) => t }: { b: Benchmark; L?: (t: str
   );
 }
 
-function WhatsAppButton({ href, testId, className }: { href: string; testId: string; className?: string }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      data-testid={testId}
-      className={cn(
-        "inline-flex min-h-14 items-center justify-center gap-2.5 rounded-button bg-faro-accent px-6 text-base font-bold text-[var(--faro-accent-ink)] transition-[filter,transform] hover:brightness-110 active:translate-y-px",
-        className,
-      )}
-    >
-      <MessageCircle aria-hidden className="size-5" strokeWidth={2.25} />
-      Hablar por WhatsApp
-    </a>
-  );
-}
+const NEXT_STEPS = [
+  { title: "Nos escribe por WhatsApp", text: "Le responde el asistente de Mokub, de día y de noche, con este diagnóstico a mano." },
+  { title: "Agenda 20 minutos", text: "Le muestra las horas libres y deja la videollamada en su calendario." },
+  { title: "Sale con un plan", text: "Qué arreglar primero, cuánto cuesta y en cuánto tiempo. Sin compromiso." },
+];
 
 export function DiagnosticView({ slug, tracking, company, findings, benchmark, registry, icp, optOutHref, offer, health = true, seller, opportunities: opps }: ViewProps) {
   const L = (text: string) => localize(text, health);
   const env = getEnv();
   const product = env.NEXT_PUBLIC_PRODUCT_NAME;
-  // F37: the page speaks for the seller (Mokub); Faro is only the tool behind it.
   const brand = seller ?? product;
   const isIcp = !!icp;
   const trackingProp = { c: tracking.c, s: tracking.s, utm: tracking.utm };
   const wa = whatsappHref(env.NEXT_PUBLIC_WHATSAPP_NUMBER, company?.name, slug, health);
   const sorted = [...findings].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
-  const opportunityCards = sorted.filter((f) => f.status === "opportunity");
-  const gridCards = sorted.filter((f) => f.status !== "opportunity");
-  const opportunities = opportunityCards.length;
+  const opportunityFindings = sorted.filter((f) => f.status === "opportunity");
+  const restFindings = sorted.filter((f) => f.status !== "opportunity");
+  const hasOpps = !isIcp && !!opps?.length;
+  // AI opportunities lead; the site checks then become a compact checklist. Without them, gaps get full cards.
+  const gapCards = hasOpps ? [] : opportunityFindings;
+  const checklist = hasOpps ? sorted : restFindings;
+  const opportunities = hasOpps ? opps!.length : opportunityFindings.length;
   const good = findings.filter((f) => f.status === "ok").length;
+  // A comparison of someone without a website is a column of "no": it says nothing (F51).
+  const noWebsite = findings.some((f) => f.id === "no-website" && f.status === "opportunity");
+  const showBenchmark = !isIcp && !!benchmark && !noWebsite;
+  const shownName = company ? displayName(company.name) : undefined;
+  // F52: the figures go beside each gap card; when AI opportunities lead (gaps in the checklist), they get their own block.
+  const stakes = isIcp || !hasOpps ? [] : evidenceForAll(opportunityFindings.map((f) => f.id), health);
+  const legal = env.SENDER_LEGAL_NAME && !env.SENDER_LEGAL_NAME.toLowerCase().includes(product.toLowerCase()) ? env.SENDER_LEGAL_NAME : null;
+  const headline = isIcp
+    ? icp.headline
+    : opportunities > 0
+      ? L(`${opportunities} ${opportunities === 1 ? "oportunidad" : "oportunidades"} para conseguir más pacientes`)
+      : L("Su presencia digital, revisada como la vería un paciente nuevo");
 
   return (
-    <div className="relative isolate min-h-dvh overflow-x-clip">
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[620px]" style={{ background: "var(--faro-glow-violet)" }} />
+    <div className="mokub-page relative isolate min-h-dvh overflow-x-clip">
       {!isIcp && <TrackOpen slug={slug} tracking={trackingProp} />}
 
-      <header className="mx-auto flex w-full max-w-[1080px] items-center justify-between gap-3 px-5 py-4">
-        <p className="flex items-center gap-2.5 text-sm text-faro-text-2">
-          <span aria-hidden className="size-2.5 rounded-full bg-faro-accent" />
-          <strong className="font-display text-white">{brand}</strong>
-        </p>
-        {optOutHref && (
-          <a
-            href={optOutHref}
-            data-testid="optout-link"
-            className="inline-flex h-10 items-center rounded-button border border-border px-3.5 text-sm text-white/75 transition-colors hover:border-white/40 hover:text-white"
-          >
-            No me interesa
-          </a>
-        )}
-      </header>
+      {/* Hero on night, like mokub.co */}
+      <div className="relative bg-[var(--mk-noche)] text-white">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-0 opacity-90"
+          style={{ background: "radial-gradient(900px 420px at 85% -10%, rgba(19,78,138,0.55), transparent 70%), radial-gradient(600px 300px at 0% 100%, rgba(38,166,154,0.12), transparent 70%)" }}
+        />
+        <header className="relative mx-auto flex w-full max-w-[1120px] items-center justify-between gap-3 px-5 py-5">
+          <MokubMark brand={brand} onDark />
+          {optOutHref && (
+            <a href={optOutHref} data-testid="optout-link" className="rounded-full px-3 py-2 text-sm text-[var(--mk-sobre-noche)] underline-offset-4 transition-colors hover:text-white hover:underline">
+              No me interesa
+            </a>
+          )}
+        </header>
 
-      <main className="mx-auto flex w-full max-w-[1080px] flex-col gap-14 px-5 pb-12 sm:gap-16">
-        <section className="flex flex-wrap items-end gap-8 pt-8 sm:pt-12 lg:gap-10">
-          <div className="flex min-w-0 flex-[1_1_520px] flex-col gap-5">
-            {(isIcp || company?.isDemo) && (
-              <p className="flex flex-wrap items-center gap-2 text-sm text-faro-text-2">
-                {isIcp && <span className="rounded-full border border-border px-3 py-1">{icp.audience}</span>}
-                {company?.isDemo && (
-                  <span data-testid="demo-badge" className="rounded-full bg-faro-accent px-3 py-1 font-semibold text-[var(--faro-accent-ink)]">Ejemplo</span>
-                )}
-              </p>
-            )}
-            <h1 data-testid="diag-title" className="text-balance font-bold">
-              {isIcp ? (
-                <span className="block text-[2.25rem] leading-[1.05] tracking-[-0.035em] sm:text-[3.5rem]">{icp.headline}</span>
-              ) : (
-                <>
-                  <span className="block font-sans text-[0.8125rem] font-medium uppercase tracking-[0.2em] text-faro-accent">
-                    {L("Diagnóstico de captación de pacientes")}<span className="sr-only"> ·</span>
-                  </span>
-                  <span className="mt-4 block text-[2.25rem] leading-[1.04] tracking-[-0.035em] sm:text-[3.75rem]">{company?.name}</span>
-                </>
+        <section className="relative mx-auto grid w-full max-w-[1120px] gap-10 px-5 pb-16 pt-8 sm:pb-20 sm:pt-12 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end lg:gap-14">
+          <div className="flex min-w-0 flex-col gap-6">
+            <p className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/[0.08] px-3.5 py-1.5 text-sm text-[var(--mk-hook)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]">
+                {isIcp ? icp.audience : L("Diagnóstico de captación de pacientes")}
+              </span>
+              {company?.isDemo && (
+                <span data-testid="demo-badge" className="rounded-full bg-[var(--mk-aqua)] px-3 py-1.5 text-sm font-semibold text-[var(--mk-aqua-tinta)]">
+                  Ejemplo
+                </span>
               )}
+            </p>
+            <h1 data-testid="diag-title" className="flex flex-col gap-3">
+              {!isIcp && (
+                <span className="font-sans text-lg font-medium tracking-normal text-[var(--mk-sobre-noche)]">
+                  {shownName}
+                  <span className="sr-only"> · {L("Diagnóstico de captación de pacientes")}</span>
+                </span>
+              )}
+              <span className="text-balance text-[2.5rem] leading-[1.04] tracking-[-0.015em] text-white sm:text-[3.6rem]">{headline}</span>
             </h1>
-            <p className="max-w-[35rem] text-pretty text-lg leading-relaxed text-white/70">
+            <p className="max-w-[36rem] text-pretty text-lg leading-relaxed text-[var(--mk-sobre-noche)]">
               {isIcp
                 ? `${brand} ayuda a clínicas a ver qué les cuesta pacientes nuevos y cómo arreglarlo. Aquí tiene cómo funciona.`
-                : L("Revisamos su presencia digital como lo haría un paciente nuevo: esto es lo que puede estar costándole citas y cómo arreglarlo, paso a paso.")}
+                : L("Revisamos su presencia digital como lo haría un paciente nuevo. Esto es lo que encontramos y cómo lo resolvemos.")}
             </p>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
               <WhatsAppButton href={wa} testId="whatsapp-cta-hero" className="w-full sm:w-auto" />
-              <a href="#hallazgos" className="text-center text-[0.9375rem] text-white/75 underline decoration-white/30 underline-offset-4 hover:text-white">
-                {isIcp ? "Ver cómo funciona ↓" : "Ver el diagnóstico ↓"}
+              <a href="#diagnostico" className="inline-flex items-center justify-center gap-1.5 text-[0.9375rem] font-medium text-white/85 underline-offset-4 hover:text-white hover:underline">
+                {isIcp ? "Ver cómo funciona" : "Ver el diagnóstico"} <ArrowDown aria-hidden className="size-4" />
               </a>
             </div>
+            <p className="flex items-center gap-2 text-sm text-[var(--mk-sobre-noche)]/80">
+              <Clock3 aria-hidden className="size-4" />
+              Responde el asistente de {brand}, de día y de noche. Sin compromiso.
+            </p>
           </div>
+
           {!isIcp && findings.length > 0 && (
-            <div data-testid="diag-summary" className="flex w-full flex-col gap-3.5 rounded-card border border-white/12 bg-faro-surface-1 p-5 sm:w-auto sm:flex-[0_1_300px]">
-              <p className="text-[0.8125rem] text-faro-text-3">Resumen</p>
-              <div className="flex gap-3">
-                <p className="flex-1 rounded-xl bg-faro-warn/10 p-3.5">
-                  <span className="block font-display text-[2.125rem] font-bold leading-tight text-faro-warn">{opportunities}</span>
-                  <span className="text-[0.8125rem] text-white/70">{opportunities === 1 ? "oportunidad" : "oportunidades"}</span>
+            <div data-testid="diag-summary" className="flex flex-col gap-4 rounded-[20px] bg-[var(--mk-capa)] p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
+              <p className="text-sm text-[var(--mk-sobre-noche)]">Resumen del diagnóstico</p>
+              <div className="grid grid-cols-2 gap-3">
+                <p className="rounded-2xl bg-white/[0.05] p-4">
+                  <span className="block font-[family-name:var(--font-calsans)] text-[2.5rem] leading-none text-[#F4B183]">{opportunities}</span>
+                  <span className="mt-1.5 block text-sm text-[var(--mk-sobre-noche)]">{opportunities === 1 ? "oportunidad" : "oportunidades"}</span>
                 </p>
-                <p className="flex-1 rounded-xl bg-faro-accent/10 p-3.5">
-                  <span className="block font-display text-[2.125rem] font-bold leading-tight text-faro-accent">{good}</span>
-                  <span className="text-[0.8125rem] text-white/70">{good === 1 ? "punto a favor" : "puntos a favor"}</span>
+                <p className="rounded-2xl bg-white/[0.05] p-4">
+                  <span className="block font-[family-name:var(--font-calsans)] text-[2.5rem] leading-none text-[var(--mk-aqua-claro)]">{good}</span>
+                  <span className="mt-1.5 block text-sm text-[var(--mk-sobre-noche)]">{good === 1 ? "punto a favor" : "puntos a favor"}</span>
                 </p>
               </div>
-              <p className="text-[0.8125rem] leading-normal text-faro-text-3">Solo datos públicos de su empresa y de su sitio web.</p>
+              <p className="text-[0.8125rem] leading-normal text-[var(--mk-sobre-noche)]/75">Solo datos públicos de su empresa y de su sitio web.</p>
             </div>
           )}
         </section>
+      </div>
 
-        {!isIcp && opps && opps.length > 0 && (
-          <section aria-labelledby="oportunidades" data-testid="opportunities" className="flex scroll-mt-6 flex-col gap-5">
-            <div>
-              <h2 id="oportunidades" className="text-2xl font-semibold sm:text-[1.75rem]">Oportunidades para {company?.name ?? "su empresa"}</h2>
-              <p className="mt-1.5 text-sm text-faro-text-2">Leímos lo que dice su sitio web y lo cruzamos con lo que hacemos{seller ? ` en ${seller}` : ""}.</p>
+      <main id="diagnostico" className="mx-auto flex w-full max-w-[1120px] scroll-mt-4 flex-col gap-16 px-5 py-14 sm:gap-20 sm:py-20">
+        {stakes.length > 0 && <StakesBlock items={stakes} />}
+        {hasOpps && (
+          <section aria-labelledby="oportunidades" data-testid="opportunities" className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--mk-acento)]">Oportunidades</p>
+              <h2 id="oportunidades" className="text-[1.75rem] leading-tight sm:text-[2.25rem]">Lo que haríamos en {shownName ?? "su empresa"}</h2>
+              <p className="max-w-2xl text-pretty text-[var(--mk-suave)]">Leímos lo que dice su sitio web y lo cruzamos con lo que hacemos en {brand}.</p>
             </div>
-            <ol className="flex flex-col gap-3.5">
-              {opps.map((o, i) => (
-                <li key={`${o.serviceId}-${i}`} className="flex flex-col gap-5 rounded-card border border-faro-accent/30 bg-faro-surface-1 p-6 md:flex-row md:gap-8">
-                  <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-                    <span className="w-fit rounded-full bg-faro-accent/[0.12] px-2.5 py-0.5 text-xs font-bold text-faro-accent">Oportunidad {i + 1}</span>
-                    <h3 className="font-display text-xl font-semibold leading-snug">{o.title}</h3>
-                    <p className="leading-relaxed text-white/70">{o.why}</p>
-                    {o.evidence && (
-                      <blockquote className="border-l-2 border-white/20 pl-3 text-sm italic text-faro-text-2">
-                        En su sitio: «{o.evidence}»
-                      </blockquote>
-                    )}
+            <ol className="flex flex-col gap-4">
+              {opps!.map((o, i) => (
+                <li key={`${o.serviceId}-${i}`} className="grid gap-5 rounded-[20px] border border-[var(--mk-borde)] bg-white p-6 sm:p-7 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-8">
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:gap-4">
+                    <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--mk-acento)] text-sm font-bold text-white">{i + 1}</span>
+                    <div className="flex min-w-0 flex-col gap-2.5">
+                      <h3 className="text-pretty text-xl leading-snug sm:text-[1.375rem]">{o.title}</h3>
+                      <p className="text-pretty leading-relaxed text-[var(--mk-texto)]">{o.why}</p>
+                      {o.evidence && (
+                        <blockquote className="rounded-xl border-l-[3px] border-[var(--mk-borde-fuerte)] bg-[var(--mk-fondo)] px-4 py-2.5 text-sm text-[var(--mk-texto)]">
+                          <span className="text-[var(--mk-suave)]">En su sitio: </span>«{o.evidence}»
+                        </blockquote>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex min-w-0 flex-col gap-1.5 rounded-xl bg-faro-surface-2 p-4 md:w-[42%]">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-faro-accent">Cómo le ayudamos · {o.serviceName}</p>
-                    <p className="text-sm leading-relaxed text-white/85">{o.howWeHelp}</p>
+                  <div className="self-start rounded-2xl bg-[var(--mk-acento-suave)] p-5">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--mk-acento)]">Cómo le ayudamos · {usted(o.serviceName)}</p>
+                    <p className="mt-2 text-pretty text-[0.9375rem] leading-relaxed text-[var(--mk-tinta)]">{usted(o.howWeHelp)}</p>
                   </div>
                 </li>
               ))}
@@ -326,29 +395,33 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
           </section>
         )}
 
-        <section aria-labelledby="hallazgos" className="flex scroll-mt-6 flex-col gap-5">
-          <h2 id="hallazgos" className="text-2xl font-semibold sm:text-[1.75rem]">{isIcp ? "Qué revisamos" : opps?.length ? "Lo que vimos en su sitio" : "Lo que encontramos"}</h2>
+        <section aria-labelledby="hallazgos" className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--mk-acento)]">{isIcp ? "Cómo funciona" : "Diagnóstico"}</p>
+            <h2 id="hallazgos" className="text-[1.75rem] leading-tight sm:text-[2.25rem]">{isIcp ? "Qué revisamos" : hasOpps ? "Lo que revisamos en su sitio" : gapCards.length ? L("Lo que le puede estar costando pacientes") : "Lo que encontramos"}</h2>
+          </div>
           {isIcp ? (
-            <ol className="grid gap-3.5 sm:grid-cols-3">
-              {icp.points.map((p) => (
-                <li key={p} className="rounded-card border border-white/10 bg-faro-surface-1 p-5 text-faro-text-2">
+            <ol className="grid gap-4 sm:grid-cols-3">
+              {icp.points.map((p, i) => (
+                <li key={p} className="flex flex-col gap-3 rounded-[20px] border border-[var(--mk-borde)] bg-white p-6 text-[var(--mk-texto)]">
+                  <span aria-hidden className="flex size-8 items-center justify-center rounded-full bg-[var(--mk-acento-suave)] text-sm font-bold text-[var(--mk-acento)]">{i + 1}</span>
                   {p}
                 </li>
               ))}
             </ol>
           ) : (
-            <div data-testid="findings" className="flex flex-col gap-3.5">
-              {opportunityCards.length > 0 && (
-                <ul aria-label="Oportunidades" className="flex flex-col gap-3.5">
-                  {opportunityCards.map((f) => (
-                    <OpportunityCard key={f.id} f={f} help={offer?.help[f.id]} />
+            <div data-testid="findings" className="flex flex-col gap-4">
+              {gapCards.length > 0 && (
+                <ul aria-label="Por mejorar" className="flex flex-col gap-4">
+                  {gapCards.map((f, i) => (
+                    <FindingCard key={f.id} f={f} help={offer?.help[f.id]} index={i + 1} evidence={evidenceFor(f.id, health)} />
                   ))}
                 </ul>
               )}
-              {gridCards.length > 0 && (
-                <ul aria-label="Puntos a favor y pendientes" className="grid gap-3.5 md:grid-cols-[repeat(auto-fit,minmax(300px,1fr))]">
-                  {gridCards.map((f) => (
-                    <GridCard key={f.id} f={f} help={offer?.help[f.id]} />
+              {checklist.length > 0 && (
+                <ul aria-label="Lo que revisamos" className="grid gap-x-10 divide-y divide-[var(--mk-borde)] rounded-[20px] border border-[var(--mk-borde)] bg-white px-6 sm:px-7 md:grid-cols-2 md:divide-y-0 [&>li]:md:border-b [&>li]:md:border-[var(--mk-borde)] [&>li:nth-last-child(-n+2)]:md:border-b-0">
+                  {checklist.map((f) => (
+                    <CheckRow key={f.id} f={f} help={hasOpps ? undefined : offer?.help[f.id]} />
                   ))}
                 </ul>
               )}
@@ -356,106 +429,108 @@ export function DiagnosticView({ slug, tracking, company, findings, benchmark, r
           )}
         </section>
 
-        {!isIcp && benchmark && <BenchmarkBlock b={benchmark} L={L} />}
+        {showBenchmark && <BenchmarkBlock b={benchmark!} L={L} />}
 
-        <section
-          id="hablar"
-          aria-labelledby="hablemos"
-          className="grid gap-8 rounded-[24px] border border-faro-accent/30 p-5 sm:p-9 lg:grid-cols-2 lg:gap-9"
-          style={{ background: "linear-gradient(90deg, rgba(203,232,80,0.12) 0%, rgba(0,0,0,0) 80%), var(--faro-surface-1)" }}
-        >
-          <div className="flex min-w-0 flex-col gap-4">
-            <h2 id="hablemos" className="text-balance text-[1.75rem] font-bold leading-[1.1] tracking-[-0.03em] sm:text-4xl">
+        {/* Closing: one CTA, the next steps beside it (no second button). */}
+        <section id="hablar" aria-labelledby="hablemos" className="grid overflow-hidden rounded-[28px] bg-[var(--mk-noche)] text-white lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-col gap-5 p-7 sm:p-10">
+            <h2 id="hablemos" className="text-balance text-[2rem] leading-[1.08] text-white sm:text-[2.6rem]">
               {L("¿Le ayudamos a conseguir más pacientes?")}
             </h2>
             {offer && !isIcp ? (
-              <div data-testid="offer-cta" className="flex max-w-xl flex-col gap-2">
-                <p className="text-pretty leading-relaxed text-white">
-                  <span className="font-semibold">{offer.service.name}.</span> <span className="text-white/75">{offer.service.outcome}</span>
+              <div data-testid="offer-cta" className="flex max-w-xl flex-col gap-3">
+                <p className="text-pretty leading-relaxed text-[var(--mk-sobre-noche)]">
+                  <span className="font-semibold text-white">{usted(offer.service.name)}.</span> {offer.service.outcome}
                 </p>
-                <p className="text-pretty leading-relaxed text-white/70">
-                  {offer.service.entryOffer ? `Para empezar: ${offer.service.entryOffer} ` : ""}Escríbanos por WhatsApp y le decimos por dónde empezar. Sin compromiso.
-                </p>
+                {offer.service.entryOffer && (
+                  <p className="w-fit rounded-2xl bg-white/[0.08] px-4 py-2 text-sm text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]">
+                    Para empezar: {offer.service.entryOffer.replace(/\.$/, "")}
+                  </p>
+                )}
               </div>
             ) : (
-              <p className="max-w-xl text-pretty leading-relaxed text-white/70">
-                {L("Escríbanos por WhatsApp y le decimos por dónde empezar con su clínica. Sin costo y sin compromiso.")}
-              </p>
+              <p className="max-w-xl text-pretty leading-relaxed text-[var(--mk-sobre-noche)]">{L("Escríbanos por WhatsApp y le decimos por dónde empezar con su clínica. Sin costo y sin compromiso.")}</p>
             )}
-            <WhatsAppButton href={wa} testId="whatsapp-cta" className="w-full sm:w-auto sm:self-start" />
-            <p className="text-[0.8125rem] text-faro-text-3">
-              {whatsappDisplay(env.NEXT_PUBLIC_WHATSAPP_NUMBER)} · responde el asistente de {brand}
-            </p>
+            <div className="flex flex-col gap-2.5 pt-1">
+              <WhatsAppButton href={wa} testId="whatsapp-cta" className="w-full sm:w-auto sm:self-start" label="Escribir por WhatsApp" />
+              <p className="text-[0.8125rem] text-[var(--mk-sobre-noche)]/80">
+                {whatsappDisplay(env.NEXT_PUBLIC_WHATSAPP_NUMBER)} · responde el asistente de {brand}
+              </p>
+            </div>
             <details data-testid="contact-details" open={isIcp} className="group mt-2 border-t border-white/10 pt-4">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-button text-white/85 hover:text-white [&::-webkit-details-marker]:hidden">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-[var(--mk-sobre-noche)] hover:text-white [&::-webkit-details-marker]:hidden">
                 Prefiero dejar un mensaje como empresa
                 <ChevronDown aria-hidden className="size-5 shrink-0 transition-transform group-open:rotate-180" />
               </summary>
-              <div className="mt-4 rounded-card border border-border bg-faro-surface-2 p-5 sm:p-6">
+              <div className="mokub-form mt-4 rounded-[20px] bg-white p-5 text-[var(--mk-tinta)] sm:p-6">
                 <ContactForm slug={slug} defaultCompany={company?.name} tracking={trackingProp} />
               </div>
             </details>
           </div>
-          {/* F45: the assistant lives in WhatsApp (Faro's own agent), not in a Dapta widget on the page. */}
-          <div data-testid="assistant-block" className="flex min-w-0 flex-col justify-center gap-4 rounded-card border border-border bg-faro-surface-2 p-6">
-            <p className="flex items-center gap-2 font-display text-lg font-semibold">
-              <MessageCircle aria-hidden className="size-5 text-faro-accent" />
-              Pregúntele al asistente por WhatsApp
+          <div data-testid="assistant-block" className="flex min-w-0 flex-col justify-center gap-6 bg-[var(--mk-capa)] p-7 sm:p-10">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--mk-azul-claro)]">Qué pasa después</p>
+            <ol className="flex flex-col gap-5">
+              {NEXT_STEPS.map((s, i) => (
+                <li key={s.title} className="flex gap-4">
+                  <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-sm font-bold text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]">{i + 1}</span>
+                  <div className="flex flex-col gap-1">
+                    <p className="font-semibold text-white">{s.title}</p>
+                    <p className="text-pretty text-sm leading-relaxed text-[var(--mk-sobre-noche)]">{L(s.text)}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <p className="text-sm text-[var(--mk-sobre-noche)]/80">
+              Por WhatsApp también le puede escribir una persona del equipo, en el mismo chat.
             </p>
-            <ul className="flex flex-col gap-2 text-pretty text-faro-text-2">
-              <li>Responde sus dudas sobre este diagnóstico, de día y de noche.</li>
-              <li>Le muestra las horas libres y agenda la videollamada de 20 minutos.</li>
-              <li>Si lo prefiere, le escribe una persona del equipo por el mismo chat.</li>
-            </ul>
-            <WhatsAppButton href={wa} testId="whatsapp-cta-assistant" className="w-full sm:w-auto sm:self-start" />
           </div>
         </section>
 
         {!isIcp && registry && (
-          <p data-testid="why-we-wrote" className="-mt-6 rounded-xl border border-white/10 px-5 py-4 text-pretty text-sm leading-relaxed text-faro-text-3">
-            <strong className="text-white/80">Por qué le escribimos:</strong> su empresa aparece en{" "}
-            <a href={registry.url} target="_blank" rel="noopener noreferrer" className="text-white/80 underline decoration-white/30 underline-offset-2 hover:text-white">
+          <p data-testid="why-we-wrote" className="-mt-8 text-pretty text-sm leading-relaxed text-[var(--mk-suave)] sm:-mt-12">
+            <strong className="font-semibold text-[var(--mk-tinta)]">Por qué le escribimos:</strong> su empresa aparece en{" "}
+            <a href={registry.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[var(--mk-acento)] underline decoration-[var(--mk-acento)]/30 underline-offset-2 hover:decoration-[var(--mk-acento)]">
               {registry.label}
+              <ArrowUpRight aria-hidden className="size-3.5" />
             </a>
             , una fuente pública de empresas.{registry.isExample ? " (Ejemplo)" : ""}
           </p>
         )}
       </main>
 
-      <footer id="baja" className="border-t border-white/8">
-        <div className="mx-auto grid w-full max-w-[1080px] gap-7 px-5 py-9 text-sm leading-relaxed text-faro-text-3 md:grid-cols-3 md:gap-12">
-          <div data-testid="sender" className="flex flex-col gap-1.5">
-            <h2 className="font-sans text-sm font-bold tracking-normal text-white">Quién le escribe</h2>
-            <p>{brand}</p>
-            {env.SENDER_LEGAL_NAME && !env.SENDER_LEGAL_NAME.toLowerCase().includes(product.toLowerCase()) && <p>{env.SENDER_LEGAL_NAME}</p>}
+      <footer id="baja" className="border-t border-[var(--mk-borde)] bg-white">
+        <div className="mx-auto grid w-full max-w-[1120px] gap-8 px-5 py-10 text-sm leading-relaxed text-[var(--mk-suave)] md:grid-cols-3 md:gap-12">
+          <div data-testid="sender" className="flex flex-col gap-2">
+            <MokubMark brand={brand} />
+            {legal && <p className="text-[var(--mk-tinta)]">{legal}</p>}
             {env.SENDER_ADDRESS && <p>{env.SENDER_ADDRESS}</p>}
             {env.EMAIL_REPLY_TO && (
               <p>
                 Responda a:{" "}
-                <a href={`mailto:${env.EMAIL_REPLY_TO}`} data-testid="reply-to" className="text-white underline underline-offset-2">{env.EMAIL_REPLY_TO}</a>
+                <a href={`mailto:${env.EMAIL_REPLY_TO}`} data-testid="reply-to" className="text-[var(--mk-acento)] underline underline-offset-2">{env.EMAIL_REPLY_TO}</a>
               </p>
             )}
           </div>
           <div id="privacidad" className="flex scroll-mt-6 flex-col gap-1.5">
-            <h2 className="font-sans text-sm font-bold tracking-normal text-white">Aviso de privacidad</h2>
+            <h2 className="font-sans text-sm font-bold tracking-normal text-[var(--mk-tinta)]">Aviso de privacidad</h2>
             <p>
               Solo tratamos datos de empresas (nombre, correo genérico, mensaje) para responder su solicitud. Los datos de esta página vienen de fuentes públicas y del sitio web público de la empresa. Responsable: {env.SENDER_LEGAL_NAME ?? product}. Conforme a la Ley 1581 de 2012 puede conocer, corregir o pedir la supresión de sus datos en cualquier momento.
             </p>
           </div>
           {isIcp ? (
             <div className="flex flex-col gap-1.5">
-              <h2 className="font-sans text-sm font-bold tracking-normal text-white">Sus datos</h2>
+              <h2 className="font-sans text-sm font-bold tracking-normal text-[var(--mk-tinta)]">Sus datos</h2>
               <p>Esta página no guarda datos suyos hasta que envía el formulario. No le escribiremos si no lo envía.</p>
             </div>
           ) : (
             <div className="flex flex-col items-start gap-2.5">
-              <h2 className="font-sans text-sm font-bold tracking-normal text-white">¿No le interesa?</h2>
+              <h2 className="font-sans text-sm font-bold tracking-normal text-[var(--mk-tinta)]">¿No le interesa?</h2>
               <p>No volveremos a escribirle. Es un clic.</p>
               {optOutHref ? (
                 <a
                   href={optOutHref}
                   data-testid="optout-link-footer"
-                  className="inline-flex h-11 items-center rounded-button border border-white/20 px-4 text-white transition-colors hover:bg-white hover:text-black"
+                  className="inline-flex h-11 items-center rounded-full border border-[var(--mk-borde-fuerte)] px-5 font-medium text-[var(--mk-tinta)] transition-colors hover:bg-[var(--mk-tinta)] hover:text-white"
                 >
                   No me interesa / darme de baja
                 </a>

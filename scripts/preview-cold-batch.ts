@@ -1,5 +1,6 @@
 import "./load-env";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { coldEmailHtml } from "../src/features/outreach/email-html";
 import { getReadyDb } from "../src/db/client";
 import type { AppDb } from "../src/db/types";
 import { coldEligibility, loadLeadContext, previewOutreach } from "../src/features/outreach/service";
@@ -15,6 +16,7 @@ import { getEnv } from "../src/lib/env";
 const argv = process.argv;
 const val = (k: string) => (argv.indexOf(k) > 0 ? argv[argv.indexOf(k) + 1] : undefined);
 const n = Number(val("--n") ?? 15);
+const outName = val("--out") ?? null;
 const appUrl = val("--app-url") ?? "https://faro-eight-sage.vercel.app";
 
 async function main() {
@@ -32,6 +34,8 @@ async function main() {
   const queues = [...byFinding.values()];
   while (picked.length < n && queues.some((q) => q.length)) for (const q of queues) if (q.length && picked.length < n) picked.push(q.shift()!);
 
+  const gallery: string[] = [];
+  const logo = `data:image/png;base64,${readFileSync("public/brand/mokub-logo-white.png").toString("base64")}`;
   const out: string[] = [`# Lote de prueba F48 · ${now.toISOString().slice(0, 10)}`, "", `Generado sin enviar ni encolar. ${picked.length} correos. Pie legal con Mokub, NIT 1001975274-1.`, ""];
   let i = 0;
   for (const leadId of picked) {
@@ -55,6 +59,7 @@ async function main() {
         "```",
         "",
       );
+      gallery.push(`<div style="font:13px system-ui;color:#444;margin:28px auto 6px;max-width:600px"><b>${i}. Asunto:</b> ${m.subject.replace(/</g, "&lt;")} · ${bodyWords(m.text)} palabras</div>${coldEmailHtml(m.text, { logoUrl: logo, whatsapp: env.NEXT_PUBLIC_WHATSAPP_NUMBER, photoUrl: env.SENDER_PERSON_PHOTO_URL ?? null })}`);
       console.log(`${i}/${picked.length} ok ${ctx.company.name}`);
     } catch (err) {
       out.push(`## ${i}. ${ctx.company.name}`, "", `Error: ${err instanceof Error ? err.message : String(err)}`, "");
@@ -62,8 +67,10 @@ async function main() {
     }
   }
   mkdirSync("docs/review", { recursive: true });
-  const file = `docs/review/lote-prueba-f48-${now.toISOString().slice(0, 10)}.md`;
+  const file = outName ?? `docs/review/lote-prueba-f48-${now.toISOString().slice(0, 10)}.md`;
   writeFileSync(file, out.join("\n"));
+  mkdirSync("docs/review/preview", { recursive: true });
+  writeFileSync("docs/review/preview/lote.html", `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lote de correos</title><body style="margin:0;padding:8px;background:#dde1e7">${gallery.join("")}</body>`);
   console.log(`Escrito ${file} · por hallazgo: ${JSON.stringify(Object.fromEntries([...byFinding].map(([k, v]) => [k, v.length])))}`);
 }
 

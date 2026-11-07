@@ -26,3 +26,4 @@ tests/eval/wa-agent/reports/
 docs/review/
 research_notes/
 reports/
+.pglite.*

@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { assembleColdEmail, coldPrompt, ColdDraft, displayName, domainOf, fallbackDraft, pickVariant, proofLine, verifyColdDraft, type ColdInput, type Variant } from "./cold-email";
-import { plainEmailHtml, renderEmailHtml } from "./email-html";
-import { createOptOutToken } from "@/features/compliance/optout";
+import { assembleColdEmail, coldPrompt, ColdDraft, displayName, domainOf, fallbackDraft, pickHumor, pickVariant, proofLine, verifyColdDraft, type ColdInput, type Variant } from "./cold-email";
+import { evidenceFor, evidenceLine } from "@/features/offer/evidence";
+import { coldEmailHtml, isColdEmailText, renderEmailHtml } from "./email-html";
+import { createOptOutToken, createShortOptOutCode } from "@/features/compliance/optout";
 import { looksLikePersonName } from "@/features/compliance/person-name";
 import { FACT, LEAD_IN, type Recommendation } from "@/features/offer/match";
 import type { FindingKind } from "@/features/offer/schema";
@@ -71,7 +72,7 @@ export interface GenerateOptions {
   /** Concrete findings + matching services (F25), shown as fixed lists under the pitch. */
   improvements?: { fact: string; help: string | null }[];
   /** F48 · Cold email of an eligible lead: the opening finding, the sector's pain and the lead's website. */
-  cold?: { finding: FindingKind; pain: string; website: string | null } | null;
+  cold?: { finding: FindingKind; pain: string; website: string | null; health?: boolean } | null;
 }
 
 export interface GeneratedMessage {
@@ -113,8 +114,16 @@ export function sanitizeCopy(input: string, max: number): string {
 
 export { escapeHtml } from "./email-html";
 
-/** The email body as sent: the premium HTML template built from the plain text (see email-html.ts). */
-export function textToHtml(text: string): string {
+/** The email body as sent, built from the plain text: F51 Mokub template for cold emails, else the F25 template. */
+export function textToHtml(text: string, appUrl?: string): string {
+  if (isColdEmailText(text)) {
+    const env = getEnv();
+    return coldEmailHtml(text, {
+      ...(appUrl ? { logoUrl: `${appUrl.replace(/\/+$/, "")}/brand/mokub-logo-white.png` } : {}),
+      photoUrl: env.SENDER_PERSON_PHOTO_URL?.trim() || null,
+      whatsapp: env.NEXT_PUBLIC_WHATSAPP_NUMBER,
+    });
+  }
   return renderEmailHtml(text);
 }
 
@@ -134,7 +143,8 @@ export function buildLinks(lead: GenLead, channel: ContactChannel, recipient: st
   const base = trimSlash(env.NEXT_PUBLIC_APP_URL);
   const token = createOptOutToken(lead.id, recipient ?? undefined);
   const diagnosticUrl = `${base}/d/${encodeURIComponent(lead.slug)}?c=${encodeURIComponent(channel)}&s=${encodeURIComponent(lead.primarySource)}`;
-  return { diagnosticUrl, optOutUrl: `${base}/baja/${token}`, oneClickUrl: `${base}/api/optout/${token}` };
+  // F51: the visible link is short (/b/<slug>-<sig>); the one-click header keeps the long signed token.
+  return { diagnosticUrl, optOutUrl: `${base}/b/${createShortOptOutCode(lead.slug)}`, oneClickUrl: `${base}/api/optout/${token}` };
 }
 
 /**
@@ -305,12 +315,13 @@ async function generateColdEmail(
   const variant = pickVariant(lead.id);
   const sourceLabel = SOURCE_LABELS[lead.primarySource];
   const greeting = company.independent && isPersonName(company.name) ? `Hola, ${sanitizeCopy(firstName(company.name), 60)}:` : `Hola, equipo de ${input.company}:`;
+  const ev = evidenceFor(opts.cold.finding, opts.cold.health ?? true);
   // F50: the length cap is checked on the assembled email, not only on the model's sentences.
   const assemble = (draft: ColdDraft) =>
     assembleColdEmail({
       greeting,
       draft,
-      proof: proofLine({ id: opts.pitch.service.id, proof: opts.pitch.service.proof ? sanitizeCopy(opts.pitch.service.proof, 200) : undefined }, env.NEXT_PUBLIC_WHATSAPP_NUMBER),
+      proof: proofLine({ id: opts.pitch.service.id, proof: opts.pitch.service.proof ? sanitizeCopy(opts.pitch.service.proof, 200) : undefined }, env.NEXT_PUBLIC_WHATSAPP_NUMBER, input.finding),
       domain: input.domain,
       variant,
       diagnosticUrl,
@@ -319,6 +330,9 @@ async function generateColdEmail(
       legal: [env.SENDER_LEGAL_NAME?.trim() || seller, env.SENDER_ADDRESS?.trim()].filter(Boolean).join(", "),
       seller,
       whatsapp: env.NEXT_PUBLIC_WHATSAPP_NUMBER,
+      evidence: ev ? evidenceLine(ev) : null,
+      person: env.SENDER_PERSON_NAME?.trim() ? { name: sanitizeCopy(env.SENDER_PERSON_NAME, 60), role: env.SENDER_PERSON_ROLE?.trim() ? sanitizeCopy(env.SENDER_PERSON_ROLE, 60) : null } : null,
+      ps: pickHumor(lead.id),
     });
   let res = await complete(opts.ai, coldPrompt(input), ColdDraft, { task: "outreach_message", ...rec });
   const usage = { ...res.usage };
@@ -340,7 +354,7 @@ async function generateColdEmail(
   return {
     subject: draft.subject,
     text,
-    html: plainEmailHtml(text),
+    html: textToHtml(text, env.NEXT_PUBLIC_APP_URL),
     from: env.EMAIL_FROM ?? null,
     replyTo,
     headers,

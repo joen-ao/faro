@@ -122,6 +122,10 @@ export const envSchema = z.object({
   NEXT_PUBLIC_MAP_STYLE_URL: optStr,
   SENDER_LEGAL_NAME: optStr,
   SENDER_ADDRESS: optStr,
+  /** F52 · Person who signs cold emails (else "Equipo de <seller>"), their role and a public photo URL. */
+  SENDER_PERSON_NAME: optStr,
+  SENDER_PERSON_ROLE: optStr,
+  SENDER_PERSON_PHOTO_URL: optStr,
   HUMAN_MINUTE_RATE_USD: num(0.42),
 });
 

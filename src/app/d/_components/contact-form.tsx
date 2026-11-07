@@ -13,7 +13,7 @@ declare global {
 const cookie = (name: string) => document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))?.[1];
 
 const field =
-  "h-12 w-full rounded-button border border-border bg-faro-surface-2 px-4 text-base text-white placeholder:text-faro-text-3 focus-visible:border-faro-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-faro-accent aria-[invalid=true]:border-[var(--faro-danger)]";
+  "h-12 w-full rounded-button border border-border bg-faro-surface-2 px-4 text-base text-[var(--field-text,#fff)] placeholder:text-faro-text-3 focus-visible:border-faro-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-faro-accent aria-[invalid=true]:border-[var(--faro-danger)]";
 
 export function ContactForm({
   slug,
@@ -72,8 +72,8 @@ export function ContactForm({
   if (status === "ok") {
     return (
       <div role="status" data-testid="contact-ok" className="flex flex-col gap-2 rounded-card border border-faro-accent bg-faro-surface-1 p-6">
-        <p className="font-display text-xl font-semibold">Recibimos tu mensaje.</p>
-        <p className="text-faro-text-2">Responderemos al correo de la empresa que indicaste. Solo usaremos estos datos para atender tu solicitud.</p>
+        <p className="font-display text-xl font-semibold">Recibimos su mensaje.</p>
+        <p className="text-faro-text-2">Responderemos al correo de la empresa que indicó. Solo usaremos estos datos para atender su solicitud.</p>
       </div>
     );
   }
@@ -88,7 +88,7 @@ export function ContactForm({
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="c-email" className="text-sm font-medium">Correo de la empresa</label>
-        <input id="c-email" name="email" type="email" required maxLength={160} inputMode="email" placeholder="info@tuempresa.com" className={field} aria-invalid={!!err("email")} aria-describedby={err("email") ? "e-email" : "h-email"} />
+        <input id="c-email" name="email" type="email" required maxLength={160} inputMode="email" placeholder="info@suempresa.com" className={field} aria-invalid={!!err("email")} aria-describedby={err("email") ? "e-email" : "h-email"} />
         {err("email") ? (
           <p id="e-email" className="text-sm text-[var(--faro-danger)]">{err("email")}</p>
         ) : (
@@ -105,7 +105,7 @@ export function ContactForm({
         {err("message") ? (
           <p id="e-message" className="text-sm text-[var(--faro-danger)]">{err("message")}</p>
         ) : (
-          <p id="h-message" className="text-xs text-faro-text-3">Máximo 500 caracteres. No incluyas nombres de personas.</p>
+          <p id="h-message" className="text-xs text-faro-text-3">Máximo 500 caracteres. No incluya nombres de personas.</p>
         )}
       </div>
       {/* Honeypot: off-screen, not focusable, ignored by assistive tech. */}
@@ -115,12 +115,12 @@ export function ContactForm({
       <div className="flex items-start gap-3">
         <input id="c-consent" name="consent" type="checkbox" required className="mt-1 size-5 shrink-0 accent-[var(--faro-accent)]" aria-invalid={!!err("consent")} aria-describedby={err("consent") ? "e-consent" : undefined} />
         <label htmlFor="c-consent" className="text-sm leading-relaxed text-faro-text-2">
-          Acepto el <a href={privacyHref} className="text-white underline underline-offset-2">aviso de privacidad</a> y que usen estos datos de la empresa para responderme.
+          Acepto el <a href={privacyHref} className="text-current underline underline-offset-2">aviso de privacidad</a> y que usen estos datos de la empresa para responderme.
         </label>
       </div>
       {err("consent") && <p id="e-consent" className="text-sm text-[var(--faro-danger)]">{err("consent")}</p>}
       {status === "error" && !Object.keys(errors).length && (
-        <p role="alert" className="text-sm text-[var(--faro-danger)]">No pudimos enviar el mensaje. Inténtalo de nuevo en unos minutos.</p>
+        <p role="alert" className="text-sm text-[var(--faro-danger)]">No pudimos enviar el mensaje. Inténtelo de nuevo en unos minutos.</p>
       )}
       <button
         type="submit"

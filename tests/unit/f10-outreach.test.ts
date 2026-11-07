@@ -4,7 +4,7 @@ import { companies, companySources, contactPoints, costEntries, events, hunts, i
 import { seedCostRates } from "@/db/seed";
 import type { AppDb } from "@/db/types";
 import { suppress } from "@/features/compliance/suppression";
-import { verifyOptOutToken } from "@/features/compliance/optout";
+import { verifyOptOutToken, verifyShortOptOutCode } from "@/features/compliance/optout";
 import { handleAssisted, handlePreview, handleSend } from "@/features/outreach/api";
 import { channelOptions, selectChannel } from "@/features/outreach/channel";
 import { escapeHtml, generateMessage, sanitizeCopy, textToHtml } from "@/features/outreach/generate";
@@ -134,12 +134,13 @@ describe("generation and HTML safety", () => {
     expect(g.text).toContain("OpenStreetMap");
     expect(g.text).toContain("Calle 1 # 2-3, Bogota");
     expect(g.text).toContain(`https://faro.test/d/${lead.slug}?c=email&s=osm`);
-    const m = /https:\/\/faro\.test\/baja\/(\S+)/.exec(g.text);
+    // F51: the visible opt-out link is the short /b/<slug>-<sig>; the header keeps the long signed token.
+    const m = /https:\/\/faro\.test\/b\/(\S+)/.exec(g.text);
     expect(m).toBeTruthy();
-    expect(verifyOptOutToken(m![1]!)?.leadId).toBe(lead.id);
+    expect(verifyShortOptOutCode(m![1]!)).toBe(lead.slug);
     expect(g.headers["List-Unsubscribe"]).toContain("https://faro.test/api/optout/");
     expect(g.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
-    expect(g.html).toContain("/baja/");
+    expect(g.html).toContain("/b/");
     expect(g.usage.input_tokens).toBeGreaterThan(0);
   });
 
@@ -241,7 +242,7 @@ describe("real sending path (mock provider, SEND_ENABLED=true)", () => {
     const out = d.email.outbox.at(-1)!;
     expect(out.headers?.["List-Unsubscribe"]).toContain("/api/optout/");
     expect(out.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
-    expect(out.html).toContain("/baja/");
+    expect(out.html).toContain("/b/");
     expect(out.subject).not.toMatch(/[\r\n]/);
     const [m] = await db.select().from(messages).where(eq(messages.id, q.messageId!));
     expect(m).toMatchObject({ status: "sent", isMock: true });
