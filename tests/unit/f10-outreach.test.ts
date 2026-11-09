@@ -219,15 +219,15 @@ describe("SEND_ENABLED=false: nothing leaves", () => {
     vi.unstubAllGlobals();
   });
 
-  it("assessment says simulated and the AI cost is recorded as mock", async () => {
+  it("assessment says simulated; a lead without a finding gets the general email (template, no AI cost)", async () => {
     const { lead } = await mkLead();
     const p = await previewOutreach(db, { leadId: lead.id }, deps(envOff), SAT_10);
     expect(p.assessment.simulated).toBe(true);
     expect(p.assessment.note).toMatch(/SEND_ENABLED=false/);
     expect(p.sendEnabled).toBe(false);
     const ai = (await db.select().from(costEntries).where(eq(costEntries.leadId, lead.id))).filter((c) => c.category === "ai");
-    expect(ai.length).toBe(1);
-    expect(ai[0]!.isMock).toBe(true);
+    expect(ai.length).toBe(0);
+    expect(p.message?.subject).toMatch(/^una idea para /);
   });
 });
 
@@ -510,7 +510,8 @@ describe("atomic claim and idempotency", () => {
 
   it("preview drafts are cached per lead (no second AI spend)", async () => {
     clearPreviewCache();
-    const { lead } = await mkLead({ registry: true });
+    // An independent with a personal mailbox still gets the AI-written email (F54's general email is a template).
+    const { lead } = await mkLead({ name: "LAURA MARCELA DIAZ ROJAS", email: "laura.diaz@gmail.com", legal: false, registry: true });
     await previewOutreach(db, { leadId: lead.id }, deps(envOff), SAT_10);
     await previewOutreach(db, { leadId: lead.id }, deps(envOff), SAT_10);
     const ai = (await db.select().from(costEntries).where(eq(costEntries.leadId, lead.id))).filter((c) => c.category === "ai");

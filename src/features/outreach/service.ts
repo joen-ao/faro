@@ -18,7 +18,8 @@ import { isSuppressed } from "@/features/compliance/suppression";
 import { checkSendWindow, type Country, type SendWindowSetting } from "@/features/compliance/windows";
 import { getSendWindow } from "@/features/settings/send-window";
 import { suggestionLine, type Recommendation } from "@/features/offer/match";
-import { outreachEligibility, type Eligibility } from "@/features/offer/fit";
+import { getServiceCatalog } from "@/features/settings/services";
+import { generalEligibility, outreachEligibility, type Eligibility } from "@/features/offer/fit";
 import { improvementsForLead, loadEffectiveOffer, recommendForLead, type EffectiveOffer, type Improvement } from "@/features/offer/resolve";
 import { dbCallRecorder, loadAiRates, recordAiCost } from "@/features/scoring/cost";
 import { REGISTRY_CHANNELS } from "@/features/scoring/fit";
@@ -126,6 +127,15 @@ export function coldEligibility(ctx: LeadContext, now: Date = new Date()): Eligi
     sources: ctx.sources.map((x) => ({ sourceChannel: x.sourceChannel, sourceUrl: x.sourceUrl, license: x.license, isMock: x.isMock, raw: x.raw as Record<string, unknown> })),
     contacts: ctx.contacts.map((c) => ({ type: c.type, sourceChannel: c.sourceChannel, isGeneric: c.isGeneric, value: c.value })),
     now,
+  });
+}
+
+/** F54 · Whether this lead may get the general services email (no finding needed). */
+export function generalLeadEligibility(ctx: LeadContext) {
+  return generalEligibility({
+    sector: typeof ctx.icp?.criteria.sector === "string" ? ctx.icp.criteria.sector : null,
+    company: { name: ctx.company.name, isLegalEntity: ctx.company.isLegalEntity },
+    contacts: ctx.contacts.map((c) => ({ type: c.type, isGeneric: c.isGeneric, value: c.value })),
   });
 }
 
@@ -307,10 +317,21 @@ export async function previewOutreach(
     const offer = fitServices.length ? { ...fullOffer, services: fitServices } : fullOffer;
     const pitch = leadPitch(ctx, offer);
     const cold = elig?.ok && fitServices.length ? { finding: elig.finding, pain: elig.segment.pain, website: ctx.company.website, health: elig.segment.id === "salud" } : null;
+    // F54: no finding -> the general services email (template, no AI) for fit legal entities with a generic mailbox.
+    const gen = channel === "email" && !cold ? generalLeadEligibility(ctx) : null;
+    // The whole catalog: the hunt's own offer may not include the segment's services.
+    const catalog = gen?.ok ? (await getServiceCatalog(db)).services : [];
+    const general =
+      gen?.ok
+        ? (() => {
+            const services = gen.segment.services.map((id) => catalog.find((s) => s.id === id)).filter((s): s is NonNullable<typeof s> => !!s);
+            return services.length ? { segmentLabel: gen.segment.label, pain: gen.segment.pain, health: gen.segment.id === "salud", services: services.map((s) => ({ id: s.id, name: s.name, outcome: s.outcome, ...(s.proof ? { proof: s.proof } : {}) })) } : null;
+          })()
+        : null;
     const sellerName = offer.company ?? null;
     const improvements = channel === "email" ? leadImprovements(ctx, offer) : [];
     // Draft cache per lead/channel/recipient/pitch: repeated previews do not spend AI again.
-    const cacheKey = `${ctx.lead.id}|${channel}|${recipient}|${ctx.company.name}|${ctx.workspace.offerDescription ?? ""}|${pitch ? `${pitch.service.id}:${pitch.service.name}:${pitch.service.entryOffer ?? ""}:${pitch.service.price ?? ""}:${pitch.finding ?? ""}` : ""}|${sellerName ?? ""}|${improvements.map((i) => `${i.fact}>${i.help ?? ""}`).join(";")}|${cold ? `cold:${cold.finding}` : ""}`;
+    const cacheKey = `${ctx.lead.id}|${channel}|${recipient}|${ctx.company.name}|${ctx.workspace.offerDescription ?? ""}|${pitch ? `${pitch.service.id}:${pitch.service.name}:${pitch.service.entryOffer ?? ""}:${pitch.service.price ?? ""}:${pitch.finding ?? ""}` : ""}|${sellerName ?? ""}|${improvements.map((i) => `${i.fact}>${i.help ?? ""}`).join(";")}|${cold ? `cold:${cold.finding}` : general ? `general:${general.segmentLabel}` : ""}`;
     const hit = previewCache.get(cacheKey);
     if (hit && !input.refresh && Date.now() - hit.at < PREVIEW_TTL_MS) {
       message = hit.message;
@@ -321,16 +342,18 @@ export async function previewOutreach(
         { name: ctx.company.name, city: ctx.company.city, independent: !ctx.company.isLegalEntity },
         { criteria: ctx.icp.criteria },
         { name: ctx.workspace.name, offerDescription: ctx.workspace.offerDescription, senderEmail: ctx.workspace.senderEmail, country: ctx.workspace.country },
-        { ai: deps.ai, channel, recipient, env, recorder: dbCallRecorder(db, ctx.hunt?.id), pitch, sellerName, improvements, cold },
+        { ai: deps.ai, channel, recipient, env, recorder: dbCallRecorder(db, ctx.hunt?.id), pitch, sellerName, improvements, cold, general },
       );
-      await recordAiCost(db, {
-        leadId: ctx.lead.id,
-        huntId: ctx.hunt?.id ?? null,
-        usage: g.usage,
-        rates: await loadAiRates(db, g.model),
-        isMock: g.isMock,
-        evidence: `outreach_message ${g.model}`,
-      });
+      // F54: the general email is a template (no AI call, nothing to record).
+      if (g.model !== "template")
+        await recordAiCost(db, {
+          leadId: ctx.lead.id,
+          huntId: ctx.hunt?.id ?? null,
+          usage: g.usage,
+          rates: await loadAiRates(db, g.model),
+          isMock: g.isMock,
+          evidence: `outreach_message ${g.model}`,
+        });
       isMockAi = g.isMock;
       message = {
         subject: g.subject,

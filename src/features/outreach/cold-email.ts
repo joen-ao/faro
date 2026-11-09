@@ -173,7 +173,11 @@ export const HUMOR_PS = [
   "PD: si no es el momento, responda «ahora no» y quedamos tan amigos como antes.",
   "PD: no le vamos a escribir cada semana como el gimnasio en enero. Si le sirve, aquí estamos.",
 ] as const;
-export const pickHumor = (leadId: string) => HUMOR_PS[createHash("sha256").update(`ps:${leadId}`).digest()[0]! % HUMOR_PS.length]!;
+export const pickHumor = (leadId: string, general = false) => {
+  // The first P.S. says "we saw something concrete": only true when there is a finding.
+  const pool = general ? HUMOR_PS.slice(1) : HUMOR_PS;
+  return pool[createHash("sha256").update(`ps:${leadId}`).digest()[0]! % pool.length]!;
+};
 
 export function formatWhatsapp(n: string): string {
   const d = n.replace(/\D/g, "");
@@ -227,4 +231,63 @@ export function bodyWords(text: string): number {
   const sig = paras.findIndex((p) => /\nWhatsApp \+/.test(p));
   const body = (sig >= 0 ? paras.slice(0, sig) : paras).filter((p) => !LINK_PARA.test(p) && !/^PD: /.test(p));
   return words(body.join(" "));
+}
+
+/* ------------------------------ F54 · general services email ------------------------------ */
+
+export const MAX_GENERAL_WORDS = 130;
+export const SERVICES_HEAD = "Esto es lo que solemos hacer:";
+
+export interface GeneralAssembly {
+  greeting: string;
+  company: string;
+  segmentLabel: string;
+  pain: string;
+  evidence?: string | null;
+  services: { name: string; outcome: string }[];
+  proof: string;
+  sourceLabel: string;
+  optOutUrl: string;
+  legal: string;
+  seller: string;
+  whatsapp: string;
+  person?: { name: string; role?: string | null } | null;
+  ps?: string | null;
+}
+
+/** Subject of the general email: "una idea para <first words of the company>". */
+export const generalSubject = (company: string) => `una idea para ${company.split(/\s+/).slice(0, 3).join(" ")}`;
+
+/** First sentence of the outcome; past 16 words, cut at the last comma before that (never mid-clause). */
+const shortOutcome = (s: string) => {
+  const first = s.replace(/\.$/, "").split(/[.;]/)[0]!.trim();
+  const w = first.split(/\s+/);
+  if (w.length <= 16) return first;
+  const head = w.slice(0, 16).join(" ");
+  return head.includes(",") ? head.slice(0, head.lastIndexOf(",")) : head;
+};
+
+/**
+ * Template-only (no AI, nothing invented): who we are and why them, the sector's pain, a sourced figure, 2 services
+ * with their outcome, the live demo and an interest question. Same signature, P.S. and legal footer as the cold email.
+ */
+export function assembleGeneralEmail(a: GeneralAssembly): string {
+  const wa = `WhatsApp +${formatWhatsapp(a.whatsapp)} · mokub.co`;
+  const signature = a.person?.name ? `${a.person.name}\n${a.person.role ? `${a.person.role} · ` : ""}${a.seller}\n${wa}` : `Equipo de ${a.seller}\n${wa}`;
+  const list = a.services
+    .slice(0, 2)
+    .map((s) => `• ${s.name}: ${shortOutcome(s.outcome).charAt(0).toLowerCase()}${shortOutcome(s.outcome).slice(1)}.`)
+    .join("\n");
+  const ask = a.person?.name ? `¿Le muestro en 20 minutos cómo se vería en ${a.company}?` : `¿Le mostramos en 20 minutos cómo se vería en ${a.company}?`;
+  return [
+    a.greeting,
+    `Le escribo porque en ${a.seller} trabajamos con ${a.segmentLabel} y vemos mucho esto: ${a.pain}.`,
+    ...(a.evidence ? [a.evidence] : []),
+    `${SERVICES_HEAD}\n${list}`,
+    a.proof,
+    ask,
+    signature,
+    ...(a.ps ? [a.ps] : []),
+    `—\n${a.legal}. Le escribimos porque su empresa aparece en ${a.sourceLabel}. Tratamos sus datos según nuestra política (mokub.co/es/politica-de-datos). Para no recibir más correos responda BAJA o use este enlace: ${a.optOutUrl}`,
+  ].join("\n\n");
 }

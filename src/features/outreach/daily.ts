@@ -6,7 +6,7 @@ import { checkSendWindow } from "@/features/compliance/windows";
 import { getSendWindow } from "@/features/settings/send-window";
 import { bogotaDayStart } from "@/features/whatsapp/send";
 import { getEnv } from "@/lib/env";
-import { coldEligibility, enqueue, loadLeadContext, processQueue, type OutreachDeps } from "./service";
+import { coldEligibility, enqueue, generalLeadEligibility, loadLeadContext, processQueue, type OutreachDeps } from "./service";
 
 /**
  * F25 · Daily email run (Vercel Cron, L–S 9:00 Bogotá): up to `emailsPerDay` first emails to the best-scored leads
@@ -33,6 +33,8 @@ export interface DailyRunSummary {
   failed: number;
   sentToday: number;
   note?: string;
+  /** F54 · How many of today's emails are the general services email. */
+  general?: number;
   /** F48 · Candidates skipped before writing, by reason (sector_sin_oferta, sin_hallazgo, …). */
   skippedByReason?: Record<string, number>;
 }
@@ -77,10 +79,12 @@ export async function emailsToday(db: AppDb, now: Date): Promise<number> {
  * Best-scored leads with an email whose company never got a message. F41: natural persons and personal mailboxes
  * count too; on equal score, legal entities with a generic mailbox go first.
  */
-export async function dailyCandidates(db: AppDb, setting: DailyOutreachSetting, limit: number): Promise<string[]> {
+export async function dailyCandidates(db: AppDb, setting: DailyOutreachSetting, limit: number, opts: { requireSite?: boolean } = {}): Promise<string[]> {
   // F48: cold email only to a legal entity's generic mailbox, with a website to review or a Google Maps listing.
+  // F54: the general email (requireSite: false) does not need either.
   const placesChecked = exists(db.select({ id: companySources.id }).from(companySources).where(and(eq(companySources.companyId, companies.id), eq(companySources.sourceChannel, "google_places"), sql`${companySources.raw} ? 'place_id'`)));
-  const conds = [eq(leads.status, "fit"), eq(leads.isDemo, false), eq(companies.isDemo, false), eq(companies.isLegalEntity, true), eq(contactPoints.isGeneric, true), or(isNotNull(companies.website), placesChecked)!];
+  const conds = [eq(leads.status, "fit"), eq(leads.isDemo, false), eq(companies.isDemo, false), eq(companies.isLegalEntity, true), eq(contactPoints.isGeneric, true)];
+  if (opts.requireSite !== false) conds.push(or(isNotNull(companies.website), placesChecked)!);
   if (setting.huntIds?.length) conds.push(inArray(leads.huntId, setting.huntIds));
   const touched = db
     .select({ companyId: leads.companyId })
@@ -134,6 +138,20 @@ export async function runDailyOutreach(
     const elig = coldEligibility(await loadLeadContext(db, leadId), now);
     if (elig.ok) candidates.push(leadId);
     else skippedByReason[elig.reason] = (skippedByReason[elig.reason] ?? 0) + 1;
+  }
+  // F54: fill the rest of the quota with the general services email (no finding), after the finding emails.
+  if (candidates.length < remaining) {
+    const general = await dailyCandidates(db, setting, Math.min((remaining - candidates.length) * 10, 1000), { requireSite: false });
+    for (const leadId of general) {
+      if (candidates.length >= remaining) break;
+      if (candidates.includes(leadId)) continue;
+      const ctx = await loadLeadContext(db, leadId);
+      if (coldEligibility(ctx, now).ok) continue; // already considered above
+      if (generalLeadEligibility(ctx).ok) {
+        candidates.push(leadId);
+        summary.general = (summary.general ?? 0) + 1;
+      }
+    }
   }
   if (Object.keys(skippedByReason).length) summary.skippedByReason = skippedByReason;
   if (!candidates.length) return finish({ ...summary, skipped: "no_candidates" });

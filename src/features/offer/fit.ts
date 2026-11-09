@@ -8,7 +8,9 @@ import type { FindingKind } from "./schema";
  * solves and the lead has a real, verifiable finding. Everything else is skipped with a reason.
  */
 export interface Segment {
-  id: "salud" | "contabilidad" | "operaciones" | "diseno" | "educacion";
+  id: "salud" | "contabilidad" | "operaciones" | "diseno" | "educacion" | "general";
+  /** F54 · How the general email names the sector ("clínicas y consultorios"). */
+  label: string;
   /** Folded fragments matched against the hunt's sector text. */
   match: readonly string[];
   /** Service ids (Tu oferta) that fit this sector, best first. */
@@ -22,12 +24,14 @@ export interface Segment {
 export const SEGMENTS: readonly Segment[] = [
   {
     id: "salud",
+    label: "clínicas y consultorios",
     match: ["odont", "dental", "clinic", "consultorio", "salud", "medic", "prestador"],
     services: ["agentes-ia", "landing-agente", "landing-webs"],
     pain: "pacientes que escriben o buscan cita fuera de horario y terminan agendando con otra clínica que responde primero",
   },
   {
     id: "contabilidad",
+    label: "firmas contables",
     match: ["contab", "tribut", "contador", "revisor fiscal", "asesoria tributaria"],
     services: ["flujo-automatizacion", "rag", "agentes-ia", "mapa-automatizacion"],
     pain: "horas del equipo respondiendo las mismas preguntas de clientes y pasando datos a mano entre sistemas en temporada de declaraciones",
@@ -35,6 +39,7 @@ export const SEGMENTS: readonly Segment[] = [
   // F53 · New segments (supply chain / field service / manufacturing, interior design, schools).
   {
     id: "operaciones",
+    label: "empresas de operación y logística",
     match: ["supply chain", "field service", "manufactur", "logistic", "industri", "cadena de suministro"],
     services: ["flujo-automatizacion", "mapa-automatizacion", "software-crm", "agentes-ia"],
     pain: "horas del equipo pasando datos a mano entre sistemas, cotizaciones que tardan días y clientes que esperan respuesta",
@@ -42,6 +47,7 @@ export const SEGMENTS: readonly Segment[] = [
   },
   {
     id: "diseno",
+    label: "estudios de diseño y arquitectura",
     match: ["diseno interior", "interiorismo", "arquitect", "remodelac"],
     services: ["landing-agente", "landing-webs", "agentes-ia"],
     pain: "clientes que piden cotización por Instagram o WhatsApp y se enfrían si nadie les responde rápido",
@@ -49,12 +55,23 @@ export const SEGMENTS: readonly Segment[] = [
   },
   {
     id: "educacion",
+    label: "colegios",
     match: ["colegio", "institucion educativa", "instituciones educativas", "jardin infantil", "escuela"],
     services: ["agentes-ia", "rag"],
     pain: "padres que preguntan lo mismo (matrículas, costos, horarios) por teléfono y WhatsApp, y una secretaría que colapsa en temporada de matrículas",
     findings: ["whatsapp", "form", "freshness"],
   },
 ];
+
+/** F54 · Segment for sectors without an offer of their own (general services email only). */
+export const GENERAL_SEGMENT: Segment = {
+  id: "general",
+  label: "empresas como la suya",
+  match: [],
+  services: ["agentes-ia", "landing-webs", "flujo-automatizacion"],
+  pain: "tiempo del equipo respondiendo lo mismo por WhatsApp y correo, y clientes que se enfrían si nadie responde rápido",
+  findings: [],
+};
 
 export function segmentFor(sector: string | null | undefined): Segment | null {
   const s = fold(sector ?? "");
@@ -127,4 +144,20 @@ export function outreachEligibility(input: {
     return input.sources.some(isMatchedPlace) ? { ok: true, segment, finding: "no-website" } : { ok: false, reason: "sin_web_no_verificada" };
   }
   return { ok: false, reason: "sin_hallazgo" };
+}
+
+/**
+ * F54 · Who may get the general services email (no finding needed): a fit legal entity with a valid generic mailbox
+ * that is a buyer. Sectors without an offer use GENERAL_SEGMENT. The daily run uses it only after finding emails.
+ */
+export function generalEligibility(input: {
+  sector: string | null | undefined;
+  company: { name: string; isLegalEntity: boolean };
+  contacts: { type: string; isGeneric?: boolean; value?: string }[];
+}): { ok: true; segment: Segment } | { ok: false; reason: "tipo_no_objetivo" | "correo_no_generico" } {
+  const segment = segmentFor(input.sector) ?? GENERAL_SEGMENT;
+  if (isNotABuyer(input.company.name) || (segment.id === "salud" && isNotAClinic(input.company.name))) return { ok: false, reason: "tipo_no_objetivo" };
+  const generic = input.contacts.some((c) => c.type === "email" && c.isGeneric && (c.value === undefined || isGenericEmail(c.value)));
+  if (!input.company.isLegalEntity || !generic) return { ok: false, reason: "correo_no_generico" };
+  return { ok: true, segment };
 }

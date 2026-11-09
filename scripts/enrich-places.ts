@@ -62,9 +62,10 @@ async function emailDomainCandidates(db: AppDb) {
 
 /** The live root of a domain when it answers with a page on that same site; null otherwise. */
 async function liveSite(domain: string): Promise<string | null> {
-  for (const url of [`https://${domain}`, `https://www.${domain}`]) {
+  // F54: slower hosting answers late and some only speak http; try all four forms with a longer timeout.
+  for (const url of [`https://${domain}`, `https://www.${domain}`, `http://${domain}`, `http://www.${domain}`]) {
     try {
-      const res = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(10_000), headers: { "user-agent": "Mozilla/5.0 (compatible; MokubBot/1.0)" } });
+      const res = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(20_000), headers: { "user-agent": "Mozilla/5.0 (compatible; MokubBot/1.0)" } });
       if (res.status >= 400) continue;
       const root = ownSiteRoot(res.url);
       if (root && new URL(root).hostname.replace(/^www\./, "").endsWith(domain)) return root;

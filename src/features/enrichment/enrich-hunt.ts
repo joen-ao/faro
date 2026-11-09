@@ -52,6 +52,10 @@ export interface EnrichHuntOptions {
   search?: WebSearchAdapter | null;
   /** Max search API calls per calendar month (UTC), counted from api_calls. Never exceeded, so the free credit is never passed. */
   searchMonthlyLimit?: number;
+  /** F54 · CLI only: allow budgetMs above the serverless 45 s cap. */
+  longRun?: boolean;
+  /** F54 · Skip the free discovery batch (the CLI uses it once its discovery budget is spent). */
+  skipFreeDiscovery?: boolean;
   /** DNS check for guessed domains (tests inject it). */
   resolve?: (host: string) => Promise<boolean>;
   now?: () => number;
@@ -127,7 +131,7 @@ export async function enrichHunt(db: AppDb, huntId: string, opts: EnrichHuntOpti
 
   // Free discovery first (F22, no cost): guess the own domain, then (with a free search API) the own site and the
   // company's social pages. Companies without a site or a company mailbox, best scores first, FREE_DISCOVER_BATCH per call.
-  if (cursor === 0) {
+  if (cursor === 0 && !opts.skipFreeDiscovery) {
     const progress = (row.progress ?? {}) as Record<string, unknown> & { websiteSearch?: { searched?: string[]; free?: string[] } };
     const freeDone = new Set(progress.websiteSearch?.free ?? []);
     if (freeDone.size < DISCOVER_MAX) {
@@ -362,7 +366,8 @@ async function freeDiscovery(
   now: () => number,
 ): Promise<EnrichHuntSummary> {
   const out: EnrichHuntSummary = { revisados: 0, enriquecidos: 0, conAgenda: 0, conWhatsapp: 0, contactosNuevos: 0, costoApifyUsd: 0, promovidosAFit: 0, omitidosRecientes: 0, dominiosDeducidos: 0, sitiosBuscados: 0, sitiosEncontrados: 0, redesEncontradas: 0, discovering: true, cursor: 0, nextCursor: 0, total: 0, done: false, notas: [] };
-  const budget = Math.min(opts.budgetMs ?? 45_000, 45_000);
+  // Serverless calls stay under 60 s; the CLI (F54) may pass a longer budget with longRun.
+  const budget = opts.longRun ? (opts.budgetMs ?? 45_000) : Math.min(opts.budgetMs ?? 45_000, 45_000);
   const outOfTime = () => now() - started >= budget - 6000;
   const done: string[] = [];
   const touched = new Set<string>();

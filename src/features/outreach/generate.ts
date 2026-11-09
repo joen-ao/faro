@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assembleGeneralEmail, generalSubject } from "./cold-email";
 import { assembleColdEmail, coldPrompt, ColdDraft, displayName, domainOf, fallbackDraft, pickHumor, pickVariant, proofLine, verifyColdDraft, type ColdInput, type Variant } from "./cold-email";
 import { evidenceFor, evidenceLine } from "@/features/offer/evidence";
 import { coldEmailHtml, isColdEmailText, renderEmailHtml } from "./email-html";
@@ -73,6 +74,8 @@ export interface GenerateOptions {
   improvements?: { fact: string; help: string | null }[];
   /** F48 · Cold email of an eligible lead: the opening finding, the sector's pain and the lead's website. */
   cold?: { finding: FindingKind; pain: string; website: string | null; health?: boolean } | null;
+  /** F54 · General services email (no finding): segment label, pain and the segment's services from "Tu oferta". */
+  general?: { segmentLabel: string; pain: string; health: boolean; services: { id: string; name: string; outcome: string; proof?: string }[] } | null;
 }
 
 export interface GeneratedMessage {
@@ -190,6 +193,7 @@ export async function generateMessage(
   opts: GenerateOptions,
 ): Promise<GeneratedMessage> {
   const env = opts.env ?? getEnv();
+  if (opts.general && opts.channel === "email") return generateGeneralEmail(lead, company, workspace, opts as GenerateOptions & { general: NonNullable<GenerateOptions["general"]> }, env);
   if (opts.cold && opts.pitch && opts.channel === "email") return generateColdEmail(lead, company, workspace, opts as GenerateOptions & { cold: NonNullable<GenerateOptions["cold"]>; pitch: Recommendation }, env);
   const product = env.NEXT_PUBLIC_PRODUCT_NAME;
   const sector = typeof icp.criteria.sector === "string" ? icp.criteria.sector : "";
@@ -366,5 +370,62 @@ async function generateColdEmail(
     usage,
     model: res.model,
     isMock: res.is_mock,
+  };
+}
+
+/** F54 · General services email: template only (no AI call), for fit leads without a finding. */
+function generateGeneralEmail(
+  lead: GenLead,
+  company: GenCompany,
+  workspace: GenWorkspace,
+  opts: GenerateOptions & { general: NonNullable<GenerateOptions["general"]> },
+  env: Env,
+): GeneratedMessage {
+  const seller = sanitizeCopy(opts.sellerName ?? "", 80) || "Mokub";
+  const name = displayName(sanitizeCopy(company.name, 120));
+  const replyTo = replyAddress(env, lead.slug, workspace.senderEmail);
+  const { diagnosticUrl, optOutUrl, oneClickUrl } = buildLinks(lead, opts.channel, opts.recipient, env);
+  const sourceLabel = SOURCE_LABELS[lead.primarySource];
+  const greeting = company.independent && isPersonName(company.name) ? `Hola, ${sanitizeCopy(firstName(company.name), 60)}:` : `Hola, equipo de ${name}:`;
+  // Catalog names may say "tus"; the email always speaks with "usted".
+  const usted = (s: string) => s.replace(/\btus\b/g, "sus").replace(/\btu\b/g, "su");
+  const services = opts.general.services.slice(0, 3).map((s) => ({ name: usted(sanitizeCopy(s.name, 80)), outcome: usted(sanitizeCopy(s.outcome, 200)) }));
+  const first = opts.general.services[0];
+  const ev = evidenceFor("whatsapp", opts.general.health);
+  const text = assembleGeneralEmail({
+    greeting,
+    company: name,
+    segmentLabel: opts.general.segmentLabel,
+    pain: sanitizeCopy(opts.general.pain, 240),
+    evidence: ev ? evidenceLine(ev) : null,
+    services,
+    proof: proofLine({ id: first?.id ?? "agentes-ia", proof: first?.proof ? sanitizeCopy(first.proof, 200) : undefined }, env.NEXT_PUBLIC_WHATSAPP_NUMBER),
+    sourceLabel,
+    optOutUrl,
+    legal: [env.SENDER_LEGAL_NAME?.trim() || seller, env.SENDER_ADDRESS?.trim()].filter(Boolean).join(", "),
+    seller,
+    whatsapp: env.NEXT_PUBLIC_WHATSAPP_NUMBER,
+    person: env.SENDER_PERSON_NAME?.trim() ? { name: sanitizeCopy(env.SENDER_PERSON_NAME, 60), role: env.SENDER_PERSON_ROLE?.trim() ? sanitizeCopy(env.SENDER_PERSON_ROLE, 60) : null } : null,
+    ps: pickHumor(lead.id, true),
+  });
+  const headers: Record<string, string> = {
+    "List-Unsubscribe": [`<${oneClickUrl}>`, ...(replyTo ? [`<mailto:${replyTo}?subject=baja>`] : [])].join(", "),
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+  return {
+    subject: generalSubject(name),
+    text,
+    html: textToHtml(text, env.NEXT_PUBLIC_APP_URL),
+    from: env.EMAIL_FROM ?? null,
+    replyTo,
+    headers,
+    diagnosticUrl,
+    optOutUrl,
+    sourceLabel,
+    senderIdentified: !!replyTo,
+    variant: null,
+    usage: { input_tokens: 0, output_tokens: 0 },
+    model: "template",
+    isMock: false,
   };
 }

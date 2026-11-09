@@ -233,6 +233,24 @@ export function coldEmailHtml(text: string, opts: { logoUrl?: string; brand?: st
       return;
     }
     if (/^¿/.test(raw)) return target.push(para(esc, `;color:${MK.ink};font-weight:600`));
+    // F54 · Services list of the general email: one row per service, name in ink, outcome after it.
+    const svc = /^Esto es lo que solemos hacer:\n([\s\S]+)$/.exec(raw);
+    if (svc) {
+      const items = svc[1]!.split("\n").map((l) => l.replace(/^•\s*/, "").trim()).filter(Boolean);
+      const rows = items
+        .map((it) => {
+          const [name, ...rest] = it.split(": ");
+          return (
+            `<tr><td width="28" style="vertical-align:top;padding:12px 0 12px 16px"><div style="width:10px;height:10px;margin-top:6px;border-radius:999px;background:${MK.accent};font-size:0;line-height:0">&nbsp;</div></td>` +
+            `<td style="padding:12px 16px 12px 4px;font-family:${MK_FONT};font-size:15px;line-height:1.5;color:${MK.text}"><strong style="color:${MK.ink}">${escapeHtml(name!)}</strong>${rest.length ? ` · ${escapeHtml(rest.join(": "))}` : ""}</td></tr>`
+          );
+        })
+        .join(`<tr><td colspan="2" style="padding:0 16px"><div style="height:1px;background:${MK.border};font-size:0;line-height:0">&nbsp;</div></td></tr>`);
+      return target.push(
+        `<p style="margin:0 0 10px;font-size:16px;line-height:1.5;font-weight:700;color:${MK.ink}">Esto es lo que solemos hacer</p>` +
+          `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;background:${MK.accentSoft};border-radius:14px">${rows}</table>`,
+      );
+    }
     if (/^Justo eso resolvemos|proyectos en producci[oó]n|Pruébelo|escríbale a nuestro agente/i.test(raw)) {
       const [lead, ...rest] = esc.split(/(?<=Mokub:) /);
       return target.push(para(rest.length ? `<strong style="color:${MK.ink}">${lead}</strong> ${waLink(rest.join(" "))}` : waLink(esc)));

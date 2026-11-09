@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { coldEmailHtml } from "../src/features/outreach/email-html";
 import { getReadyDb } from "../src/db/client";
 import type { AppDb } from "../src/db/types";
-import { coldEligibility, loadLeadContext, previewOutreach } from "../src/features/outreach/service";
+import { coldEligibility, generalLeadEligibility, loadLeadContext, previewOutreach } from "../src/features/outreach/service";
 import { dailyCandidates } from "../src/features/outreach/daily";
 import { bodyWords } from "../src/features/outreach/cold-email";
 import { getOutreachAnthropic } from "../src/integrations/anthropic";
@@ -18,16 +18,23 @@ const val = (k: string) => (argv.indexOf(k) > 0 ? argv[argv.indexOf(k) + 1] : un
 const n = Number(val("--n") ?? 15);
 const outName = val("--out") ?? null;
 const onlySegments = val("--segments")?.split(",") ?? null;
+const generalMode = argv.includes("--general");
 const appUrl = val("--app-url") ?? "https://faro-eight-sage.vercel.app";
 
 async function main() {
   const db = (await getReadyDb()) as unknown as AppDb;
   const env = { ...getEnv(), NEXT_PUBLIC_APP_URL: appUrl, SENDER_LEGAL_NAME: "Mokub, NIT 1001975274-1", SENDER_ADDRESS: "Bogotá", SEND_ENABLED: false } as ReturnType<typeof getEnv>;
   const now = new Date();
-  const pool = await dailyCandidates(db, { enabled: true, emailsPerDay: 100, huntIds: null }, 1000);
+  const pool = await dailyCandidates(db, { enabled: true, emailsPerDay: 100, huntIds: null }, 1000, generalMode ? { requireSite: false } : {});
   const byFinding = new Map<string, string[]>();
   for (const id of pool) {
-    const e = coldEligibility(await loadLeadContext(db, id), now);
+    const lc = await loadLeadContext(db, id);
+    if (generalMode) {
+      const g = generalLeadEligibility(lc);
+      if (!coldEligibility(lc, now).ok && g.ok) byFinding.set(g.segment.id, [...(byFinding.get(g.segment.id) ?? []), id]);
+      continue;
+    }
+    const e = coldEligibility(lc, now);
     if (e.ok && (!onlySegments || onlySegments.includes(e.segment.id))) {
       const k = onlySegments ? e.segment.id : e.finding;
       byFinding.set(k, [...(byFinding.get(k) ?? []), id]);
@@ -49,6 +56,7 @@ async function main() {
     try {
       const p = await previewOutreach(db, { leadId, channel: "email", generate: true, refresh: true }, { ai: getOutreachAnthropic(env), email: createMockEmail(), env }, now);
       const m = p.message!;
+      if (!m) throw new Error("sin mensaje");
       out.push(
         `## ${i}. ${ctx.company.name} · ${ctx.company.city ?? "sin ciudad"}`,
         "",
