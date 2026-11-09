@@ -8,13 +8,15 @@ import type { FindingKind } from "./schema";
  * solves and the lead has a real, verifiable finding. Everything else is skipped with a reason.
  */
 export interface Segment {
-  id: "salud" | "contabilidad";
+  id: "salud" | "contabilidad" | "operaciones" | "diseno" | "educacion";
   /** Folded fragments matched against the hunt's sector text. */
   match: readonly string[];
   /** Service ids (Tu oferta) that fit this sector, best first. */
   services: readonly string[];
   /** The pain in the sector's words, given to the model for the "consequence" sentence. */
   pain: string;
+  /** F53 · Findings that may open a cold email in this sector (default: all site findings + "no-website"). */
+  findings?: readonly FindingKind[];
 }
 
 export const SEGMENTS: readonly Segment[] = [
@@ -29,6 +31,28 @@ export const SEGMENTS: readonly Segment[] = [
     match: ["contab", "tribut", "contador", "revisor fiscal", "asesoria tributaria"],
     services: ["flujo-automatizacion", "rag", "agentes-ia", "mapa-automatizacion"],
     pain: "horas del equipo respondiendo las mismas preguntas de clientes y pasando datos a mano entre sistemas en temporada de declaraciones",
+  },
+  // F53 · New segments (supply chain / field service / manufacturing, interior design, schools).
+  {
+    id: "operaciones",
+    match: ["supply chain", "field service", "manufactur", "logistic", "industri", "cadena de suministro"],
+    services: ["flujo-automatizacion", "mapa-automatizacion", "software-crm", "agentes-ia"],
+    pain: "horas del equipo pasando datos a mano entre sistemas, cotizaciones que tardan días y clientes que esperan respuesta",
+    findings: ["whatsapp", "form", "freshness"],
+  },
+  {
+    id: "diseno",
+    match: ["diseno interior", "interiorismo", "arquitect", "remodelac"],
+    services: ["landing-agente", "landing-webs", "agentes-ia"],
+    pain: "clientes que piden cotización por Instagram o WhatsApp y se enfrían si nadie les responde rápido",
+    findings: ["whatsapp", "form", "freshness", "no-website"],
+  },
+  {
+    id: "educacion",
+    match: ["colegio", "institucion educativa", "instituciones educativas", "jardin infantil", "escuela"],
+    services: ["agentes-ia", "rag"],
+    pain: "padres que preguntan lo mismo (matrículas, costos, horarios) por teléfono y WhatsApp, y una secretaría que colapsa en temporada de matrículas",
+    findings: ["whatsapp", "form", "freshness"],
   },
 ];
 
@@ -94,9 +118,10 @@ export function outreachEligibility(input: {
   const open = buildFindings(input.company, siteFactsFrom(input.sources, input.contacts), input.now ?? new Date())
     .filter((f) => f.status === "opportunity" && isFindingKind(f.id))
     .map((f) => f.id as FindingKind);
-  const site = PRIORITY.find((k) => SITE_FINDINGS.includes(k) && open.includes(k));
+  const allowed = (k: FindingKind) => !segment.findings || segment.findings.includes(k);
+  const site = PRIORITY.find((k) => SITE_FINDINGS.includes(k) && open.includes(k) && allowed(k));
   if (site) return { ok: true, segment, finding: site };
-  if (open.includes("no-website")) {
+  if (open.includes("no-website") && allowed("no-website")) {
     // A registry without a website field does not prove there is no website: Google Maps must have been checked.
     // F49: a search without a matching place proves nothing; only a matched listing (place_id) does.
     return input.sources.some(isMatchedPlace) ? { ok: true, segment, finding: "no-website" } : { ok: false, reason: "sin_web_no_verificada" };

@@ -15,13 +15,13 @@ describe("F48 · who gets a cold email", () => {
   it("matches sectors and leaves the rest out", () => {
     expect(segmentFor("Clínicas odontológicas")?.id).toBe("salud");
     expect(segmentFor("Contabilidad y asesoría tributaria")?.id).toBe("contabilidad");
-    expect(segmentFor("Empresas con procesos de supply chain y field service")).toBeNull();
+    expect(segmentFor("Bioimpresión 3D")).toBeNull(); // F53 added operaciones, diseno, educacion
   });
 
   it("needs a sector offer, a generic mailbox and a real finding", () => {
     const base = { sector: "Clínicas odontológicas", company, sources: reviewed({ onlineBooking: false }), contacts: generic };
     expect(outreachEligibility(base)).toMatchObject({ ok: true, finding: "whatsapp" });
-    expect(outreachEligibility({ ...base, sector: "Logística y supply chain" })).toEqual({ ok: false, reason: "sector_sin_oferta" });
+    expect(outreachEligibility({ ...base, sector: "Bioimpresión 3D" })).toEqual({ ok: false, reason: "sector_sin_oferta" });
     expect(outreachEligibility({ ...base, contacts: [{ type: "email", sourceChannel: "rues", isGeneric: false }] })).toEqual({ ok: false, reason: "correo_no_generico" });
     expect(outreachEligibility({ ...base, company: { ...company, isLegalEntity: false } })).toEqual({ ok: false, reason: "correo_no_generico" });
     // A website that was never reviewed is not a finding.

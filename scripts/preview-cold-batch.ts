@@ -17,6 +17,7 @@ const argv = process.argv;
 const val = (k: string) => (argv.indexOf(k) > 0 ? argv[argv.indexOf(k) + 1] : undefined);
 const n = Number(val("--n") ?? 15);
 const outName = val("--out") ?? null;
+const onlySegments = val("--segments")?.split(",") ?? null;
 const appUrl = val("--app-url") ?? "https://faro-eight-sage.vercel.app";
 
 async function main() {
@@ -27,7 +28,10 @@ async function main() {
   const byFinding = new Map<string, string[]>();
   for (const id of pool) {
     const e = coldEligibility(await loadLeadContext(db, id), now);
-    if (e.ok) byFinding.set(e.finding, [...(byFinding.get(e.finding) ?? []), id]);
+    if (e.ok && (!onlySegments || onlySegments.includes(e.segment.id))) {
+      const k = onlySegments ? e.segment.id : e.finding;
+      byFinding.set(k, [...(byFinding.get(k) ?? []), id]);
+    }
   }
   // Round-robin across findings so every kind of email shows up in the batch.
   const picked: string[] = [];
