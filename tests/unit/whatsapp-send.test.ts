@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { companies, companySources, contactPoints, costEntries, hunts, icpProfiles, leads, messages, suppression, workspaces } from "@/db/schema";
+import { companies, companySources, contactPoints, costEntries, hunts, icpProfiles, leads, messages, rneChecks, suppression, workspaces } from "@/db/schema";
 import type { AppDb } from "@/db/types";
 import { colombianMobile, selectWhatsappTargets, sendWhatsapp, waName } from "@/features/whatsapp/send";
 import { pickTemplate, waTemplates } from "@/features/whatsapp/templates";
@@ -56,11 +56,15 @@ describe("F24 · selection and sending", () => {
   let db: AppDb;
   let huntId: string;
   let n = 0;
-  const mk = async (o: { name?: string; legal?: boolean; reps?: boolean; phone?: string | null; generic?: boolean }) => {
+  const mk = async (o: { name?: string; legal?: boolean; reps?: boolean; phone?: string | null; generic?: boolean; rne?: "clear" | "excluded" | "none" }) => {
     n++;
     const [c] = await db.insert(companies).values({ name: o.name ?? `Clinica ${n} SAS`, normalizedName: `clinica ${n}`, city: "Bogota", isLegalEntity: o.legal ?? true }).returning();
     await db.insert(companySources).values({ companyId: c!.id, sourceChannel: o.reps ? "reps" : "rues", externalId: `e-${n}`, isMock: false });
-    if (o.phone !== null) await db.insert(contactPoints).values({ companyId: c!.id, type: "phone", value: o.phone ?? `+57300000${String(n).padStart(4, "0")}`, isGeneric: o.generic ?? false, sourceChannel: o.reps ? "reps" : "rues" });
+    const phone = o.phone ?? `+57300000${String(n).padStart(4, "0")}`;
+    if (o.phone !== null) await db.insert(contactPoints).values({ companyId: c!.id, type: "phone", value: phone, isGeneric: o.generic ?? false, sourceChannel: o.reps ? "reps" : "rues" });
+    // F55: personal mobiles need a recent RNE check; tests default to a clear one.
+    if (o.phone !== null && (o.rne ?? "clear") !== "none" && /^\+573\d{9}$/.test(phone))
+      await db.insert(rneChecks).values({ kind: "phone", value: phone, excluded: o.rne === "excluded", source: "csv", checkedAt: new Date("2026-10-20T00:00:00Z") }).onConflictDoNothing();
     const [l] = await db.insert(leads).values({ companyId: c!.id, huntId, status: "fit", primarySource: o.reps ? "reps" : "rues", fitScore: 80 - n, slug: `wa-${n}` }).returning();
     return { leadId: l!.id, companyId: c!.id };
   };
@@ -132,5 +136,38 @@ describe("F24 · flow response nesting", () => {
     const r = await s.send({ toNumber: "+573001234567", templateId: "t", nombre: "x", slug: "y", leadId: "l" });
     expect(r).toMatchObject({ ok: false });
     expect(r.error).toContain("not on WhatsApp");
+  });
+});
+
+describe("F55 · WhatsApp needs a clear RNE check for personal mobiles", () => {
+  let conn: Awaited<ReturnType<typeof createTestDb>>;
+  let db: AppDb;
+  let huntId: string;
+  beforeAll(async () => {
+    conn = await createTestDb();
+    db = conn.db as unknown as AppDb;
+    const [ws] = await db.insert(workspaces).values({ name: "Mokub", country: "CO" }).returning();
+    const [icp] = await db.insert(icpProfiles).values({ workspaceId: ws!.id, prompt: "dental", criteria: { sector: "odontologia", city: "Bogota" } }).returning();
+    const [h] = await db.insert(hunts).values({ icpProfileId: icp!.id }).returning();
+    huntId = h!.id;
+    let i = 0;
+    for (const [phone, rne, generic] of [["+573101110001", "none", false], ["+573101110002", "excluded", false], ["+573101110003", "stale", false], ["+573101110004", "none", true]] as const) {
+      i++;
+      const [c] = await db.insert(companies).values({ name: `Clinica R${i} SAS`, normalizedName: `clinica r${i}` }).returning();
+      await db.insert(companySources).values({ companyId: c!.id, sourceChannel: "reps", externalId: `r-${i}`, isMock: false });
+      await db.insert(contactPoints).values({ companyId: c!.id, type: "phone", value: phone, isGeneric: generic, sourceChannel: "reps" });
+      await db.insert(leads).values({ companyId: c!.id, huntId, status: "fit", primarySource: "reps", fitScore: 90 - i, slug: `rne-${i}` });
+      if (rne === "excluded") await db.insert(rneChecks).values({ kind: "phone", value: phone, excluded: true, source: "csv", checkedAt: new Date("2026-10-20T00:00:00Z") });
+      if (rne === "stale") await db.insert(rneChecks).values({ kind: "phone", value: phone, excluded: false, source: "csv", checkedAt: new Date("2026-08-01T00:00:00Z") });
+    }
+  }, 60_000);
+  afterAll(async () => {
+    await conn.close();
+  });
+
+  it("skips unchecked, excluded and stale personal mobiles; a company's generic mobile needs no check", async () => {
+    const sel = await selectWhatsappTargets(db, envSim, { huntId, now: SAT_10 });
+    expect(sel.targets.map((t) => t.phone)).toEqual(["+573101110004"]);
+    expect(sel.skipped.map((s) => s.rule).sort()).toEqual(["rne_excluded", "rne_pending", "rne_pending"]);
   });
 });

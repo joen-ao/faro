@@ -20,6 +20,7 @@ import { getSendWindow } from "@/features/settings/send-window";
 import { suggestionLine, type Recommendation } from "@/features/offer/match";
 import { getServiceCatalog } from "@/features/settings/services";
 import { generalEligibility, outreachEligibility, type Eligibility } from "@/features/offer/fit";
+import { rneStatus } from "@/features/compliance/rne";
 import { improvementsForLead, loadEffectiveOffer, recommendForLead, type EffectiveOffer, type Improvement } from "@/features/offer/resolve";
 import { dbCallRecorder, loadAiRates, recordAiCost } from "@/features/scoring/cost";
 import { REGISTRY_CHANNELS } from "@/features/scoring/fit";
@@ -131,11 +132,12 @@ export function coldEligibility(ctx: LeadContext, now: Date = new Date()): Eligi
 }
 
 /** F54 · Whether this lead may get the general services email (no finding needed). */
-export function generalLeadEligibility(ctx: LeadContext) {
+export function generalLeadEligibility(ctx: LeadContext, opts: { rneClearEmail?: boolean } = {}) {
   return generalEligibility({
     sector: typeof ctx.icp?.criteria.sector === "string" ? ctx.icp.criteria.sector : null,
     company: { name: ctx.company.name, isLegalEntity: ctx.company.isLegalEntity },
     contacts: ctx.contacts.map((c) => ({ type: c.type, isGeneric: c.isGeneric, value: c.value })),
+    ...(opts.rneClearEmail ? { rneClearEmail: true } : {}),
   });
 }
 
@@ -200,10 +202,12 @@ export async function assess(
     ...(ctx.company.website ? { domain: ctx.company.website } : {}),
   });
   const alreadyContacted = await companyAlreadyContacted(db, ctx.company.id, extra.excludeMessageId);
+  // F55: natural persons are checked against the CRC RNE (Ley 2300) before any message.
+  const rne = ctx.company.isLegalEntity ? undefined : await rneStatus(db, value, now);
   const enabled = sendEnabled(env);
   const replyTo = replyAddress(env, ctx.lead.slug, ctx.workspace?.senderEmail);
   const ev = evaluateOutreach(
-    { country: ctx.country, isLegalEntity: ctx.company.isLegalEntity, legalVerified: ctx.legalVerified, suppressed, alreadyContacted },
+    { country: ctx.country, isLegalEntity: ctx.company.isLegalEntity, legalVerified: ctx.legalVerified, suppressed, alreadyContacted, ...(rne ? { rne } : {}) },
     contact,
     now,
     {
@@ -318,7 +322,9 @@ export async function previewOutreach(
     const pitch = leadPitch(ctx, offer);
     const cold = elig?.ok && fitServices.length ? { finding: elig.finding, pain: elig.segment.pain, website: ctx.company.website, health: elig.segment.id === "salud" } : null;
     // F54: no finding -> the general services email (template, no AI) for fit legal entities with a generic mailbox.
-    const gen = channel === "email" && !cold ? generalLeadEligibility(ctx) : null;
+    // F55: an independent gets it only with an email that passed the RNE check.
+    const rneClearEmail = channel === "email" && !ctx.company.isLegalEntity && !!recipient && (await rneStatus(db, recipient, now)) === "clear";
+    const gen = channel === "email" && !cold ? generalLeadEligibility(ctx, { rneClearEmail }) : null;
     // The whole catalog: the hunt's own offer may not include the segment's services.
     const catalog = gen?.ok ? (await getServiceCatalog(db)).services : [];
     const general =

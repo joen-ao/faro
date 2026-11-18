@@ -54,8 +54,8 @@ describe("independents in the registries", () => {
     expect(r.criteria.find((c) => c.criterio.startsWith("Contacto del negocio"))!.cumplido).toBe(true);
   });
 
-  it("F41: an independent can be contacted automatically", () => {
-    const e = evaluateOutreach({ isLegalEntity: false, country: "CO", suppressed: false, alreadyContacted: false } as never, { channel: "email", value: "dana.soriano@gmail.com" } as never, new Date("2026-10-21T15:00:00Z"));
+  it("F41 + F55: an independent can be contacted automatically once the RNE check is clear", () => {
+    const e = evaluateOutreach({ isLegalEntity: false, country: "CO", suppressed: false, alreadyContacted: false, rne: "clear" } as never, { channel: "email", value: "dana.soriano@gmail.com" } as never, new Date("2026-10-21T15:00:00Z"));
     expect(e.allowed).toBe(true);
   });
 });

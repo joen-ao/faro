@@ -137,7 +137,7 @@ describe("evaluateOutreach", () => {
     );
     expect(r.allowed).toBe(false);
     expect(r.blocks.map((b) => b.rule).sort()).toEqual(
-      ["already_contacted", "outside_window", "sender_missing", "suppressed"].sort(),
+      ["already_contacted", "outside_window", "rne_pending", "sender_missing", "suppressed"].sort(),
     );
     expect(r.blocks.every((b) => b.message.length > 10)).toBe(true);
   });
@@ -145,7 +145,9 @@ describe("evaluateOutreach", () => {
     for (const v of ["camila@x.co", "luisa@x.co", "drgomez@x.co", "santiagoc@gmail.com"]) {
       expect(evaluateOutreach(ok, { channel: "email", value: v }, mon).allowed).toBe(true);
     }
-    expect(evaluateOutreach({ ...ok, isLegalEntity: false }, { channel: "email", value: "dana.soriano@gmail.com" }, mon).allowed).toBe(true);
+    // F55: a natural person only after a clear RNE check.
+    expect(evaluateOutreach({ ...ok, isLegalEntity: false, rne: "clear" }, { channel: "email", value: "dana.soriano@gmail.com" }, mon).allowed).toBe(true);
+    expect(evaluateOutreach({ ...ok, isLegalEntity: false }, { channel: "email", value: "dana.soriano@gmail.com" }, mon).blocks.map((b) => b.rule)).toEqual(["rne_pending"]);
     for (const v of ["info@x.co", "citas@x.co", "contacto@x.co"]) {
       expect(evaluateOutreach(ok, { channel: "email", value: v }, mon).allowed).toBe(true);
     }

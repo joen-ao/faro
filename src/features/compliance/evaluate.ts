@@ -1,12 +1,17 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { companies, leads, messages } from "@/db/schema";
 import type { AppDb } from "@/db/types";
+import { rneStatus } from "./rne";
 import { isSuppressed } from "./suppression";
 import { checkSendWindow, type Country, type SendWindowSetting } from "./windows";
 import { getSendWindow } from "@/features/settings/send-window";
 
 export type BlockRule =
   | "natural_person"
+  /** F55: the contact is in the CRC Registro de Números Excluidos (Ley 2300): never contacted, not even by hand. */
+  | "rne_excluded"
+  /** F55: a natural person's contact has no recent RNE check. */
+  | "rne_pending"
   | "personal_email"
   | "suppressed"
   | "outside_window"
@@ -30,6 +35,8 @@ export interface OutreachLead {
   suppressed: boolean;
   /** A message to this company was already sent/queued (max 1 per company). */
   alreadyContacted: boolean;
+  /** F55: RNE status of the contact value, for natural persons (companies' generic mailboxes are not checked). */
+  rne?: "clear" | "excluded" | "pending";
 }
 
 export interface OutreachContact {
@@ -66,6 +73,12 @@ export function evaluateOutreach(
 ): OutreachEvaluation {
   const blocks: OutreachBlock[] = [];
   // F41: natural persons and personal mailboxes are allowed (owner's decision after the hackathon); the rest still applies.
+  // F55: but a natural person's email or phone must first pass the CRC RNE check (Ley 2300), even for a manual contact.
+  if (!lead.isLegalEntity && lead.rne === "excluded") {
+    blocks.push({ rule: "rne_excluded", message: "Está inscrito en el Registro de Números Excluidos (RNE, Ley 2300): no se le puede escribir con fines comerciales." });
+  } else if (!lead.isLegalEntity && lead.rne !== "clear") {
+    blocks.push({ rule: "rne_pending", message: "Independiente (persona natural): antes de escribirle hay que consultar su dato en el RNE de la CRC (Ley 2300). Hazlo en Configuración → Envío." });
+  }
   if (lead.suppressed) blocks.push({ rule: "suppressed", message: "El contacto o su dominio está en la lista de supresión (opt-out): no se contacta nunca más." });
   if (lead.alreadyContacted) blocks.push({ rule: "already_contacted", message: "Ya se contactó a esta empresa: máximo 1 mensaje por empresa, sin seguimientos." });
   if (lead.country === "US" && contact.channel !== "email") {
@@ -112,6 +125,7 @@ export async function evaluateOutreachForLead(
     .innerJoin(leads, eq(leads.id, messages.leadId))
     .where(and(eq(leads.companyId, row.companyId), inArray(messages.status, ["queued", "sent", "delivered"])))
     .limit(1);
+  const rne = row.isLegal ? undefined : await rneStatus(db, contact.value, now);
   const suppressed = await isSuppressed(db, {
     ...(contact.channel === "email" ? { email: contact.value } : {}),
     ...(contact.channel === "whatsapp" ? { phone: contact.value } : {}),
@@ -124,6 +138,7 @@ export async function evaluateOutreachForLead(
       ...(opts.legalVerified !== undefined ? { legalVerified: opts.legalVerified } : {}),
       suppressed,
       alreadyContacted: sibling.length > 0,
+      ...(rne ? { rne } : {}),
     },
     contact,
     now,

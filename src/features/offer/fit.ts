@@ -154,10 +154,14 @@ export function generalEligibility(input: {
   sector: string | null | undefined;
   company: { name: string; isLegalEntity: boolean };
   contacts: { type: string; isGeneric?: boolean; value?: string }[];
+  /** F55: an independent's email that passed the CRC RNE check recently. */
+  rneClearEmail?: boolean;
 }): { ok: true; segment: Segment } | { ok: false; reason: "tipo_no_objetivo" | "correo_no_generico" } {
   const segment = segmentFor(input.sector) ?? GENERAL_SEGMENT;
   if (isNotABuyer(input.company.name) || (segment.id === "salud" && isNotAClinic(input.company.name))) return { ok: false, reason: "tipo_no_objetivo" };
+  // F55: an independent (natural person) only with an email that passed the RNE check.
+  if (!input.company.isLegalEntity) return input.rneClearEmail ? { ok: true, segment } : { ok: false, reason: "correo_no_generico" };
   const generic = input.contacts.some((c) => c.type === "email" && c.isGeneric && (c.value === undefined || isGenericEmail(c.value)));
-  if (!input.company.isLegalEntity || !generic) return { ok: false, reason: "correo_no_generico" };
+  if (!generic) return { ok: false, reason: "correo_no_generico" };
   return { ok: true, segment };
 }
