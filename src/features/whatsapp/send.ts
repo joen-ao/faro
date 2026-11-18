@@ -3,6 +3,7 @@ import { companies, companySources, contactPoints, costEntries, costRates, event
 import type { AppDb } from "@/db/types";
 import { checkSendWindow } from "@/features/compliance/windows";
 import { firstName, isPersonName } from "@/features/outreach/generate";
+import { rneStatuses } from "@/features/compliance/rne";
 import { getSendWindow } from "@/features/settings/send-window";
 import type { WaSender } from "@/integrations/whatsapp/dapta-flow";
 import type { Env } from "@/lib/env";
@@ -33,7 +34,7 @@ export interface WaTarget {
 export interface WaSkip {
   leadId: string;
   company: string;
-  rule: "no_mobile" | "already_contacted" | "suppressed" | "no_template";
+  rule: "no_mobile" | "already_contacted" | "suppressed" | "no_template" | "rne_pending" | "rne_excluded";
   message: string;
 }
 
@@ -151,6 +152,9 @@ export async function selectWhatsappTargets(db: AppDb, env: Env, opts: SelectOpt
   const suppressed = new Set<string>();
   for (const part of chunks(phones)) for (const r of await db.select({ value: suppression.value }).from(suppression).where(inArray(suppression.value, part))) suppressed.add(r.value);
 
+  // F55: a personal mobile (an independent's, or a company's non-generic one) must pass the CRC RNE check first.
+  const needsRne = [...best.entries()].filter(([cid, b]) => b.kind === "personal" || !found.find((f) => f.companyId === cid)?.legal).map(([, b]) => b.phone);
+  const rne = await rneStatuses(db, needsRne, now);
   const win = checkSendWindow(now, "CO", (await getSendWindow(db)).setting);
   const dailyLimit = Math.max(0, Math.floor(env.WHATSAPP_DAILY_LIMIT));
   const dailyUsed = await whatsappSentToday(db, now);
@@ -175,6 +179,17 @@ export async function selectWhatsappTargets(db: AppDb, env: Env, opts: SelectOpt
     if (suppressed.has(b.phone)) {
       skip("suppressed", "El número pidió la baja: no se contacta nunca más.");
       continue;
+    }
+    if (b.kind === "personal" || independent) {
+      const st = rne.get(b.phone) ?? "pending";
+      if (st === "excluded") {
+        skip("rne_excluded", "El número está en el Registro de Números Excluidos (RNE, Ley 2300): no se le escribe.");
+        continue;
+      }
+      if (st !== "clear") {
+        skip("rne_pending", "Celular personal sin consulta reciente del RNE (Ley 2300): consúltalo en la CRC antes de escribir.");
+        continue;
+      }
     }
     const template = pickTemplate({ hasReps: reps.has(f.companyId), independent }, templates);
     if (!template) {

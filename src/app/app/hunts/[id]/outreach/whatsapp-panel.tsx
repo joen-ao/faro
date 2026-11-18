@@ -23,6 +23,8 @@ const SKIP: Record<string, string> = {
   already_contacted: "ya contactados",
   suppressed: "pidieron la baja",
   no_template: "plantilla pendiente de aprobar",
+  rne_pending: "celular personal sin consulta del RNE",
+  rne_excluded: "inscritos en el RNE",
 };
 const fmt = (n: number) => n.toLocaleString("es-CO");
 

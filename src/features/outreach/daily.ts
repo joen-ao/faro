@@ -1,6 +1,7 @@
 import { and, desc, eq, exists, gte, inArray, isNotNull, lt, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { appSettings, companies, companySources, contactPoints, leads, messages } from "@/db/schema";
+import { appSettings, companies, companySources, contactPoints, leads, messages, rneChecks } from "@/db/schema";
+import { RNE_MAX_AGE_DAYS } from "@/features/compliance/rne";
 import type { AppDb } from "@/db/types";
 import { checkSendWindow } from "@/features/compliance/windows";
 import { getSendWindow } from "@/features/settings/send-window";
@@ -37,6 +38,8 @@ export interface DailyRunSummary {
   general?: number;
   /** F48 · Candidates skipped before writing, by reason (sector_sin_oferta, sin_hallazgo, …). */
   skippedByReason?: Record<string, number>;
+  /** F55: independents included (their email passed the RNE check). */
+  independents?: number;
 }
 
 export interface StoredDailyOutreach {
@@ -110,6 +113,36 @@ export async function dailyCandidates(db: AppDb, setting: DailyOutreachSetting, 
   return out;
 }
 
+/** F55 · Fit independents with an email whose RNE check is recent and clear, never contacted. */
+export async function independentCandidates(db: AppDb, setting: DailyOutreachSetting, limit: number, now: Date): Promise<string[]> {
+  const since = new Date(now.getTime() - RNE_MAX_AGE_DAYS * 86_400_000);
+  const conds = [eq(leads.status, "fit"), eq(leads.isDemo, false), eq(companies.isDemo, false), eq(companies.isLegalEntity, false)];
+  if (setting.huntIds?.length) conds.push(inArray(leads.huntId, setting.huntIds));
+  const touched = db
+    .select({ companyId: leads.companyId })
+    .from(messages)
+    .innerJoin(leads, eq(leads.id, messages.leadId))
+    .where(notInArray(messages.status, ["simulated", "draft"]));
+  const rows = await db
+    .select({ leadId: leads.id, companyId: companies.id })
+    .from(leads)
+    .innerJoin(companies, eq(companies.id, leads.companyId))
+    .innerJoin(contactPoints, and(eq(contactPoints.companyId, companies.id), eq(contactPoints.type, "email")))
+    .innerJoin(rneChecks, and(eq(rneChecks.value, sql`lower(${contactPoints.value})`), eq(rneChecks.excluded, false), gte(rneChecks.checkedAt, since)))
+    .where(and(...conds, notInArray(companies.id, touched)))
+    .orderBy(desc(leads.fitScore), leads.createdAt)
+    .limit(limit * 4);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const r of rows) {
+    if (seen.has(r.companyId)) continue;
+    seen.add(r.companyId);
+    out.push(r.leadId);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 export async function runDailyOutreach(
   db: AppDb,
   deps: OutreachDeps,
@@ -150,6 +183,17 @@ export async function runDailyOutreach(
       if (generalLeadEligibility(ctx).ok) {
         candidates.push(leadId);
         summary.general = (summary.general ?? 0) + 1;
+      }
+    }
+  }
+  // F55: then independents (natural persons) whose email passed the CRC RNE check in the last 30 days.
+  if (candidates.length < remaining) {
+    for (const leadId of await independentCandidates(db, setting, remaining - candidates.length, now)) {
+      if (candidates.length >= remaining) break;
+      if (candidates.includes(leadId)) continue;
+      if (generalLeadEligibility(await loadLeadContext(db, leadId), { rneClearEmail: true }).ok) {
+        candidates.push(leadId);
+        summary.independents = (summary.independents ?? 0) + 1;
       }
     }
   }

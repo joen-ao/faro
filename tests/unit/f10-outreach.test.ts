@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { companies, companySources, contactPoints, costEntries, events, hunts, icpProfiles, leads, messages, workspaces } from "@/db/schema";
+import { companies, companySources, contactPoints, costEntries, events, hunts, icpProfiles, leads, messages, rneChecks, workspaces } from "@/db/schema";
 import { seedCostRates } from "@/db/seed";
 import type { AppDb } from "@/db/types";
 import { suppress } from "@/features/compliance/suppression";
@@ -324,8 +324,13 @@ describe("blocks", () => {
     expect(r.status).toBe("queued");
   });
 
-  it("F41: natural persons are queued", async () => {
+  it("F41 + F55: natural persons are queued only after a clear RNE check", async () => {
     const a = await mkLead({ legal: false });
+    const before = await enqueue(db, { leadId: a.lead.id }, deps(envOff), SAT_10);
+    expect(before.status).toBe("blocked");
+    expect(before.blocks.map((b) => b.rule)).toEqual(["rne_pending"]);
+    const [cp] = await db.select().from(contactPoints).where(eq(contactPoints.companyId, a.companyId));
+    await db.insert(rneChecks).values({ kind: "email", value: cp!.value.toLowerCase(), excluded: false, source: "csv", checkedAt: SAT_10 });
     const r = await enqueue(db, { leadId: a.lead.id }, deps(envOff), SAT_10);
     expect(r.status).toBe("queued");
   });
@@ -526,7 +531,8 @@ describe("independents: manual contact and their own tab", () => {
     const [h] = await db.insert(hunts).values({ icpProfileId: icpId }).returning();
     const ind = await mkLead({ name: "DANA LIZETH SORIANO BERMUDEZ", email: "dana.soriano@gmail.com", legal: false, registry: true, huntId: h!.id });
     const emp = await mkLead({ registry: true, huntId: h!.id });
-    // Personal mailbox and natural person do not block a manual contact; the send window still does.
+    // Personal mailbox and natural person do not block a manual contact once the RNE check is clear (F55); the window still does.
+    await db.insert(rneChecks).values({ kind: "email", value: "dana.soriano@gmail.com", excluded: false, source: "csv", checkedAt: SUN_10 });
     const sunday = await recordManualContact(db, { leadId: ind.lead.id, channel: "email", subject: "Hola", body: "Mensaje escrito a mano.", minutes: 3 }, deps(envOn), SUN_10);
     expect(sunday.status).toBe("blocked");
     expect(sunday.blocks.map((b) => b.rule)).toEqual(["outside_window"]);

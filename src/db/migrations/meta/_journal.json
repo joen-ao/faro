@@ -134,6 +134,13 @@
       "when": 1793767988760,
       "tag": "0018_wa_agent",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794980134237,
+      "tag": "0019_rne",
+      "breakpoints": true
     }
   ]
 }

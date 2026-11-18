@@ -487,6 +487,28 @@ export const suppression = pgTable(
   (t) => [uniqueIndex("suppression_value_uq").on(t.value)],
 ).enableRLS();
 
+/**
+ * F55 · Result of consulting the CRC "Registro de Números Excluidos" (Ley 2300) for one email or phone.
+ * A natural person is only contacted automatically when the value was checked recently and is not excluded.
+ */
+export const rneChecks = pgTable(
+  "rne_checks",
+  {
+    id: id(),
+    /** "email" or "phone" */
+    kind: text("kind").notNull(),
+    /** lowercase email or E.164 phone */
+    value: text("value").notNull(),
+    excluded: boolean("excluded").notNull(),
+    /** Excluded channels as reported by the CRC (sms, llamadas, correo, aplicaciones…), when known. */
+    channels: jsonb("channels").$type<string[]>().notNull().default([]),
+    /** "csv" (consulta masiva), "api" or "manual" */
+    source: text("source").notNull(),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [uniqueIndex("rne_checks_value_uq").on(t.value)],
+).enableRLS();
+
 export const apiCalls = pgTable(
   "api_calls",
   {

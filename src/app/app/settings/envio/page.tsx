@@ -7,6 +7,8 @@ import { getSendWindow } from "@/features/settings/send-window";
 import { requireAppAccess } from "@/lib/app-access";
 import { SendWindowForm } from "./send-window-form";
 import { DailyOutreachForm } from "./daily-outreach-form";
+import { RneSection } from "./rne-section";
+import { rnePending } from "@/features/compliance/rne";
 import { emailsToday, getDailyOutreach } from "@/features/outreach/daily";
 import { getEnv } from "@/lib/env";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -32,6 +34,7 @@ export default async function SendWindowSettingsPage() {
   const env = getEnv();
   const daily = await getDailyOutreach(db);
   const sentToday = await emailsToday(db, new Date());
+  const rne = await rnePending(db);
   const huntRows = await db
     .select({ id: hunts.id, criteria: icpProfiles.criteria, ready: sql<number>`count(distinct ${leads.companyId})::int` })
     .from(hunts)
@@ -69,6 +72,7 @@ export default async function SendWindowSettingsPage() {
           sendEnabled={env.SEND_ENABLED === true}
           cronConfigured={!!env.CRON_SECRET}
         />
+        <RneSection pending={rne.pending} clear={rne.clear} excluded={rne.excluded} />
       </div>
     </main>
   );

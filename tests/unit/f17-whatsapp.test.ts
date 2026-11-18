@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { companies, contactPoints, costEntries, costRates, events, hunts, icpProfiles, leads, messages, suppression, workspaces } from "@/db/schema";
+import { companies, contactPoints, costEntries, costRates, events, hunts, icpProfiles, leads, messages, rneChecks, suppression, workspaces } from "@/db/schema";
 import { seedCostRates } from "@/db/seed";
 import { getWhatsappAdapter, selectWhatsappRows, buildWhatsappCsv, type WhatsappRow } from "@/integrations/whatsapp";
 import { isStopText, processWhatsappWebhook, verifyWhatsappSecret, whatsappWebhookSchema } from "@/integrations/whatsapp/webhook";
@@ -65,6 +65,8 @@ describe("selection", () => {
     const c = await mk("Ya Correo", [{ value: "+573011110004", src: "google_places" }]);
     await conn.db.insert(messages).values({ leadId: c.lead.id, contactChannel: "email", body: "hola", status: "sent" });
     await mk("Persona Natural", [{ value: "+573011110005", src: "google_places" }], { legal: false });
+    // F55: a natural person's phone is exported only after a clear RNE check.
+    await conn.db.insert(rneChecks).values({ kind: "phone", value: "+573011110005", excluded: false, source: "csv", checkedAt: WEEKDAY });
   });
   afterAll(() => conn.close());
 
